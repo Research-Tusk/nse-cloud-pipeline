@@ -64,8 +64,8 @@ jobs:
       - name: Commit NSE data
         if: steps.check_new.outputs.new_days != '0'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Research-Tusk"
+          git config user.email "research@tuskinvest.com"
           git add data/dashboard_data.json data/enriched_data.json dashboard/data/nse_dashboard_data.json dashboard/data/nse_enriched_data.json
           git commit -m "📊 NSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
           git push
@@ -117,8 +117,8 @@ jobs:
       - name: Commit BSE data
         if: steps.check_new.outputs.new_days != '0'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Research-Tusk"
+          git config user.email "research@tuskinvest.com"
           git add data/bse_dashboard_data.json data/bse_enriched_data.json dashboard/data/bse_dashboard_data.json dashboard/data/bse_enriched_data.json
           git commit -m "📊 BSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
           git push
