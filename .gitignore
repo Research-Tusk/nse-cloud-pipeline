@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+.new_days_count
+node_modules/
+.vercel/
+.next/
