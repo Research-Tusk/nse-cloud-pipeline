@@ -39,7 +39,7 @@ jobs:
       - name: Run NSE pipeline
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python scripts/nse_pipeline.py
 
       - name: Check if new data was added
@@ -57,6 +57,10 @@ jobs:
           git add data/dashboard_data.json data/enriched_data.json dashboard/app.js
           git commit -m "📊 Daily update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new trading day(s)" || true
           git push
+
+      - name: Trigger Vercel deploy
+        if: steps.check_new.outputs.new_days != '0'
+        run: curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
 
       - name: Summary
         run: |
