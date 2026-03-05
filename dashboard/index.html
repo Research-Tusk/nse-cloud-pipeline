@@ -20,7 +20,7 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NSE Analytics — Trading Revenue & PAT Prediction</title>
+<title>Exchange Analytics — NSE & BSE Trading Revenue Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="./base.css">
@@ -30,47 +30,38 @@
 <body>
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-content">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">Loading NSE data...</div>
+  </div>
+</div>
+
 <div class="dashboard">
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="NSE Analytics">
+      <svg id="logoSvg" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Exchange Analytics">
         <rect x="2" y="2" width="32" height="32" rx="8" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.2"/>
         <path d="M10 24V16l5 8V16" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M20 20c0-2.2 4-2.2 4 0s-4 2.2-4 4 4 2.2 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         <rect x="10" y="10" width="16" height="1.5" rx="0.75" fill="var(--color-primary)" opacity="0.3"/>
       </svg>
       <div>
-        <div class="logo-text">NSE Analytics</div>
+        <div class="logo-text" id="logoText">NSE Analytics</div>
         <div class="logo-sub">Trading Intelligence</div>
       </div>
     </div>
 
-    <nav class="sidebar-nav">
-      <button class="nav-item active" data-tab="revenue" aria-label="Revenue Summary">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
-        Revenue Summary
-      </button>
-      <button class="nav-item" data-tab="segment" aria-label="Segment Deep-Dive">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M2 12h20"/></svg>
-        Segment Deep-Dive
-      </button>
-      <button class="nav-item" data-tab="temporal" aria-label="Temporal Analysis">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        Temporal Analysis
-      </button>
-      <button class="nav-item" data-tab="prediction" aria-label="PAT Prediction">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-        PAT Prediction
-      </button>
-      <button class="nav-item" data-tab="advanced" aria-label="Advanced Analytics">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        Advanced Analytics
-      </button>
-      <button class="nav-item" data-tab="executive" aria-label="Executive Summary">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        Executive Summary
-      </button>
+    <!-- Exchange Switcher Pill -->
+    <div class="exchange-pill">
+      <button class="exchange-btn active" data-exchange="nse">NSE</button>
+      <button class="exchange-btn" data-exchange="bse">BSE</button>
+    </div>
+
+    <nav class="sidebar-nav" id="sidebarNav">
+      <!-- Nav items populated dynamically per exchange -->
     </nav>
 
     <div class="sidebar-footer">
@@ -90,23 +81,19 @@
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
         <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"/>
-          <line x1="12" y1="1" x2="12" y2="3"/>
-          <line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/>
-          <line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
         </svg>
         <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
       </button>
       <div class="header-meta">
-        <span>Q4 FY 2026</span>
+        <span id="currentQuarterSpan">Q4 FY 2026</span>
         <span style="color:var(--color-text-faint)">|</span>
-        <span>Last Updated: 02 Mar 2026</span>
+        <span id="lastUpdatedSpan">Last Updated: —</span>
         <span class="live-dot"></span>
       </div>
     </div>
@@ -123,331 +110,444 @@
         <button class="sub-tab" data-subtab="rev-futures">Futures</button>
         <button class="sub-tab" data-subtab="rev-cash">Cash</button>
       </div>
-
       <div class="sub-content active" id="subtab-rev-total"></div>
       <div class="sub-content" id="subtab-rev-options"></div>
       <div class="sub-content" id="subtab-rev-futures"></div>
       <div class="sub-content" id="subtab-rev-cash"></div>
     </section>
 
-    <!-- ===================== TAB 2: SEGMENT DEEP-DIVE ===================== -->
+    <!-- ===================== TAB 2: SEGMENT DEEP-DIVE / REVENUE PREDICTOR ===================== -->
     <section class="tab-content" id="tab-segment">
-      <div class="sub-tabs">
-        <button class="sub-tab active" data-subtab="options">Options</button>
-        <button class="sub-tab" data-subtab="futures">Futures</button>
-        <button class="sub-tab" data-subtab="cash">Cash</button>
+      <!-- NSE: Segment Deep-Dive with IO/SO, IF/SF, PCR -->
+      <div id="nseSegmentContent">
+        <div class="sub-tabs">
+          <button class="sub-tab active" data-subtab="seg-options">Options</button>
+          <button class="sub-tab" data-subtab="seg-futures">Futures</button>
+          <button class="sub-tab" data-subtab="seg-cash">Cash</button>
+        </div>
+        <div class="sub-content active" id="subtab-seg-options">
+          <div class="chart-grid chart-grid-2">
+            <div class="chart-panel">
+              <div class="chart-title">IO vs SO Revenue <span class="chart-badge">Daily</span></div>
+              <div class="chart-wrapper"><canvas id="chartIOSO"></canvas></div>
+            </div>
+            <div class="chart-panel">
+              <div class="chart-title">IO Premium Turnover</div>
+              <div class="chart-wrapper"><canvas id="chartPremium"></canvas></div>
+            </div>
+          </div>
+          <div class="chart-grid" style="grid-template-columns:1fr">
+            <div class="chart-panel">
+              <div class="chart-title">IO Put-Call Ratio</div>
+              <div class="chart-wrapper"><canvas id="chartPCR"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="sub-content" id="subtab-seg-futures">
+          <div class="chart-grid chart-grid-2">
+            <div class="chart-panel">
+              <div class="chart-title">IF vs SF Revenue <span class="chart-badge">Daily</span></div>
+              <div class="chart-wrapper"><canvas id="chartIFSF"></canvas></div>
+            </div>
+            <div class="chart-panel">
+              <div class="chart-title">Futures Turnover</div>
+              <div class="chart-wrapper"><canvas id="chartFutTurnover"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="sub-content" id="subtab-seg-cash">
+          <div class="chart-grid chart-grid-2">
+            <div class="chart-panel">
+              <div class="chart-title">Cash Traded Value</div>
+              <div class="chart-wrapper"><canvas id="chartCashValue"></canvas></div>
+            </div>
+            <div class="chart-panel">
+              <div class="chart-title">Cash Revenue</div>
+              <div class="chart-wrapper"><canvas id="chartCashRev"></canvas></div>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <!-- Options -->
-      <div class="sub-content active" id="subtab-options">
+      <!-- BSE: Simple segment charts -->
+      <div id="bseSegmentContent" style="display:none">
         <div class="chart-grid chart-grid-2">
           <div class="chart-panel">
-            <div class="chart-title">IO vs SO Revenue <span class="chart-badge">Daily</span></div>
-            <div class="chart-wrapper"><canvas id="chartIOSO"></canvas></div>
+            <div class="chart-title">Options Premium Turnover <span class="chart-badge">Daily</span></div>
+            <div class="chart-wrapper"><canvas id="chartBseOptPremium"></canvas></div>
           </div>
           <div class="chart-panel">
-            <div class="chart-title">IO Premium Turnover</div>
-            <div class="chart-wrapper"><canvas id="chartPremium"></canvas></div>
+            <div class="chart-title">Cash Traded Value</div>
+            <div class="chart-wrapper"><canvas id="chartBseCashValue"></canvas></div>
           </div>
         </div>
         <div class="chart-grid" style="grid-template-columns:1fr">
           <div class="chart-panel">
-            <div class="chart-title">IO Put-Call Ratio</div>
-            <div class="chart-wrapper"><canvas id="chartPCR"></canvas></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Futures -->
-      <div class="sub-content" id="subtab-futures">
-        <div class="chart-grid chart-grid-2">
-          <div class="chart-panel">
-            <div class="chart-title">IF vs SF Revenue <span class="chart-badge">Daily</span></div>
-            <div class="chart-wrapper"><canvas id="chartIFSF"></canvas></div>
-          </div>
-          <div class="chart-panel">
-            <div class="chart-title">Futures Turnover</div>
-            <div class="chart-wrapper"><canvas id="chartFutTurnover"></canvas></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Cash -->
-      <div class="sub-content" id="subtab-cash">
-        <div class="chart-grid chart-grid-2">
-          <div class="chart-panel">
-            <div class="chart-title">Cash Traded Value</div>
-            <div class="chart-wrapper"><canvas id="chartCashValue"></canvas></div>
-          </div>
-          <div class="chart-panel">
-            <div class="chart-title">Cash Revenue</div>
-            <div class="chart-wrapper"><canvas id="chartCashRev"></canvas></div>
+            <div class="chart-title">Contract Volume <span class="chart-badge">Daily</span></div>
+            <div class="chart-wrapper"><canvas id="chartBseContracts"></canvas></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ===================== TAB 3: TEMPORAL ANALYSIS ===================== -->
+    <!-- ===================== TAB 3: TEMPORAL / QUARTERLY ANALYSIS ===================== -->
     <section class="tab-content" id="tab-temporal">
-      <div class="chart-grid chart-grid-2">
-        <div class="chart-panel">
-          <div class="chart-title">Average Revenue by Day of Week</div>
-          <div class="chart-wrapper"><canvas id="chartDOW"></canvas></div>
-        </div>
-        <div class="chart-panel">
-          <div class="chart-title">Monthly Revenue Trend</div>
-          <div class="chart-wrapper"><canvas id="chartMonthlyRev"></canvas></div>
-        </div>
-      </div>
-
-      <!-- Quarter Comparison Selector -->
-      <div class="chart-panel" style="margin-top:var(--space-4)">
-        <div class="chart-title">Daily Revenue by Quarter <span class="chart-badge">Compare Any Quarter</span></div>
-        <div class="quarter-selector-row">
-          <div class="quarter-select-group">
-            <label for="qtrSelect1">Quarter 1</label>
-            <select id="qtrSelect1" class="quarter-select"></select>
+      <!-- NSE: Full temporal analysis -->
+      <div id="nseTemporalContent">
+        <div class="chart-grid chart-grid-2">
+          <div class="chart-panel">
+            <div class="chart-title">Average Revenue by Day of Week</div>
+            <div class="chart-wrapper"><canvas id="chartDOW"></canvas></div>
           </div>
-          <div class="quarter-select-group">
-            <label for="qtrSelect2">Quarter 2 (Compare)</label>
-            <select id="qtrSelect2" class="quarter-select"><option value="">None</option></select>
+          <div class="chart-panel">
+            <div class="chart-title">Monthly Revenue Trend</div>
+            <div class="chart-wrapper"><canvas id="chartMonthlyRev"></canvas></div>
           </div>
         </div>
-        <div class="chart-wrapper" style="height:320px"><canvas id="chartQtrCompare"></canvas></div>
-      </div>
-
-      <div class="chart-grid" style="grid-template-columns:1fr;margin-top:var(--space-4)">
-        <div class="chart-panel">
-          <div class="chart-title">Daily Revenue with 10-day Moving Average</div>
-          <div class="chart-wrapper"><canvas id="chartDailyMA"></canvas></div>
+        <div class="chart-panel" style="margin-top:var(--space-4)">
+          <div class="chart-title">Daily Revenue by Quarter <span class="chart-badge">Compare Any Quarter</span></div>
+          <div class="quarter-selector-row">
+            <div class="quarter-select-group">
+              <label for="qtrSelect1">Quarter 1</label>
+              <select id="qtrSelect1" class="quarter-select"></select>
+            </div>
+            <div class="quarter-select-group">
+              <label for="qtrSelect2">Quarter 2 (Compare)</label>
+              <select id="qtrSelect2" class="quarter-select"><option value="">None</option></select>
+            </div>
+          </div>
+          <div class="chart-wrapper" style="height:320px"><canvas id="chartQtrCompare"></canvas></div>
+        </div>
+        <div class="chart-grid" style="grid-template-columns:1fr;margin-top:var(--space-4)">
+          <div class="chart-panel">
+            <div class="chart-title">Daily Revenue with 10-day Moving Average</div>
+            <div class="chart-wrapper"><canvas id="chartDailyMA"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-panel" style="margin-top:var(--space-4)">
+          <div class="chart-title">Quarterly Comparison</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tableQuarterly"></table>
+          </div>
         </div>
       </div>
-      <div class="chart-panel" style="margin-top:var(--space-4)">
-        <div class="chart-title">Quarterly Comparison</div>
-        <div style="overflow-x:auto">
-          <table class="data-table" id="tableQuarterly"></table>
+      <!-- BSE: Quarterly analysis -->
+      <div id="bseQuarterlyContent" style="display:none">
+        <div class="chart-grid chart-grid-2">
+          <div class="chart-panel">
+            <div class="chart-title">Quarterly Revenue — Stacked</div>
+            <div class="chart-wrapper"><canvas id="chartBseQuarterlyRev"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">Quarterly Revenue — Trend</div>
+            <div class="chart-wrapper"><canvas id="chartBseQuarterlyLine"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-panel" style="margin-top:var(--space-4)">
+          <div class="chart-title">Quarterly Comparison</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tableBseQuarterly"></table>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ===================== TAB 4: PAT PREDICTION ===================== -->
+    <!-- ===================== TAB 4: PAT PREDICTION / REVENUE PREDICTOR ===================== -->
     <section class="tab-content" id="tab-prediction">
-
-      <!-- Revenue Extrapolation Panel -->
-      <div class="chart-panel" style="margin-bottom:var(--space-5)">
-        <div class="chart-title">Q4 FY 2026 Revenue Extrapolation <span class="chart-badge">Data-Driven</span></div>
-        <div class="extrapolation-kpis" id="extrapKpis"></div>
-      </div>
-
-      <!-- Predicted Quarterly P&L Table -->
-      <div class="chart-panel" style="margin-bottom:var(--space-5)">
-        <div class="chart-title">Predicted Quarterly P&L</div>
-        <div style="overflow-x:auto">
-          <table class="data-table" id="tablePredictedPnL"></table>
+      <!-- NSE: Full PAT Prediction Engine -->
+      <div id="nsePredictionContent">
+        <!-- Revenue Extrapolation Panel -->
+        <div class="chart-panel" style="margin-bottom:var(--space-5)">
+          <div class="chart-title">Q4 FY 2026 Revenue Extrapolation <span class="chart-badge">Data-Driven</span></div>
+          <div class="extrapolation-kpis" id="extrapKpis"></div>
         </div>
-      </div>
-
-      <!-- PAT PREDICTOR — Daily Revenue Input -->
-      <div class="chart-panel predictor-panel" style="margin-bottom:var(--space-5)">
-        <div class="chart-title">PAT Predictor <span class="chart-badge">Custom Scenario</span></div>
-        <p class="section-desc" style="margin-bottom:var(--space-4)">Enter your estimated average daily trading revenue. The system will compute quarterly revenue, add Other Income, deduct expenses, and derive PAT, EPS, and target share prices.</p>
-
-        <div class="predictor-input-row">
-          <div class="predictor-main-input">
-            <label for="inputDailyRev">Avg Daily Trading Revenue (₹ Cr)</label>
-            <input type="number" id="inputDailyRev" step="0.1" min="0" placeholder="61.8">
-            <div class="predictor-hint" id="predictorHint"></div>
+        <!-- Predicted Quarterly P&L Table -->
+        <div class="chart-panel" style="margin-bottom:var(--space-5)">
+          <div class="chart-title">Predicted Quarterly P&L</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tablePredictedPnL"></table>
           </div>
-          <div class="predictor-params">
-            <div class="param-row">
-              <label>Trading Days / Qtr</label>
-              <input type="number" id="inputTradingDays" value="62" min="1" max="70" step="1" class="param-input">
+        </div>
+        <!-- PAT PREDICTOR — Daily Revenue Input -->
+        <div class="chart-panel predictor-panel" style="margin-bottom:var(--space-5)">
+          <div class="chart-title">PAT Predictor <span class="chart-badge">Custom Scenario</span></div>
+          <p class="section-desc" style="margin-bottom:var(--space-4)">Enter your estimated average daily trading revenue. The system will compute quarterly revenue, add Other Income, deduct expenses, and derive PAT, EPS, and target share prices.</p>
+          <div class="predictor-input-row">
+            <div class="predictor-main-input">
+              <label for="inputDailyRev">Avg Daily Trading Revenue (₹ Cr)</label>
+              <input type="number" id="inputDailyRev" step="0.1" min="0" placeholder="61.8">
+              <div class="predictor-hint" id="predictorHint"></div>
             </div>
-            <div class="param-row">
+            <div class="predictor-params">
+              <div class="param-row">
+                <label>Trading Days / Qtr</label>
+                <input type="number" id="inputTradingDays" value="62" min="1" max="70" step="1" class="param-input">
+              </div>
+              <div class="param-row">
+                <label>Other Income Ratio</label>
+                <input type="number" id="inputOtherIncomeRatio" step="0.1" min="0" max="100" class="param-input">
+                <span class="param-suffix">%</span>
+              </div>
+              <div class="param-row">
+                <label>Tax Rate</label>
+                <input type="number" id="inputTaxRate" value="25.2" step="0.1" min="0" max="50" class="param-input">
+                <span class="param-suffix">%</span>
+              </div>
+              <div class="param-row">
+                <label>Shares Outstanding (Cr)</label>
+                <input type="number" id="inputShares" value="247.5" step="0.1" min="1" class="param-input">
+              </div>
+            </div>
+          </div>
+          <div class="predictor-output" id="predictorOutput"></div>
+          <div class="predictor-pe-section">
+            <h4>Target Share Price</h4>
+            <div class="pe-inputs">
+              <div class="pe-input-group">
+                <label for="predBearPE">Bear PE</label>
+                <input type="number" id="predBearPE" value="25" min="1" max="200" step="1">
+              </div>
+              <div class="pe-input-group">
+                <label for="predBasePE">Base PE</label>
+                <input type="number" id="predBasePE" value="35" min="1" max="200" step="1">
+              </div>
+              <div class="pe-input-group">
+                <label for="predBullPE">Bull PE</label>
+                <input type="number" id="predBullPE" value="45" min="1" max="200" step="1">
+              </div>
+            </div>
+            <div class="pe-results" id="predictorPEResults"></div>
+          </div>
+        </div>
+        <!-- PE Valuation (data-driven from ENRICHED_DATA) -->
+        <div class="chart-panel" style="margin-bottom:var(--space-5)" id="peValuationPanel">
+          <div class="chart-title">Valuation — Data-Driven Estimate <span class="chart-badge">Q4 FY 2026 Extrapolation</span></div>
+          <div class="pe-inputs" id="peInputs">
+            <div class="pe-input-group">
+              <label for="peBear">Bear PE</label>
+              <input type="number" id="peBear" value="25" min="1" max="200" step="1">
+            </div>
+            <div class="pe-input-group">
+              <label for="peBase">Base PE</label>
+              <input type="number" id="peBase" value="35" min="1" max="200" step="1">
+            </div>
+            <div class="pe-input-group">
+              <label for="peBull">Bull PE</label>
+              <input type="number" id="peBull" value="45" min="1" max="200" step="1">
+            </div>
+          </div>
+          <div class="pe-results" id="peResults"></div>
+        </div>
+        <p class="section-desc">Adjust revenue and cost assumptions to forecast PAT. Based on latest quarterly run-rates.</p>
+        <div class="scenario-buttons" id="scenarioButtons">
+          <button class="scenario-btn" data-scenario="bear">Bear (−15%)</button>
+          <button class="scenario-btn active" data-scenario="base">Base Case</button>
+          <button class="scenario-btn" data-scenario="bull">Bull (+15%)</button>
+        </div>
+        <div class="pred-controls">
+          <div class="control-group">
+            <h3>Revenue Forecast (₹ Cr / Quarter)</h3>
+            <div class="slider-row">
+              <label>Options Revenue</label>
+              <input type="range" id="sliderOpt" min="500" max="6000" step="10">
+              <span class="slider-val" id="valOpt"></span>
+            </div>
+            <div class="slider-row">
+              <label>Futures Revenue</label>
+              <input type="range" id="sliderFut" min="50" max="600" step="5">
+              <span class="slider-val" id="valFut"></span>
+            </div>
+            <div class="slider-row">
+              <label>Cash Revenue</label>
+              <input type="range" id="sliderCash" min="50" max="600" step="5">
+              <span class="slider-val" id="valCash"></span>
+            </div>
+          </div>
+          <div class="control-group">
+            <h3>Cost Assumptions (% of Revenue)</h3>
+            <div class="slider-row">
+              <label>Employee Cost</label>
+              <input type="range" id="sliderEmp" min="1" max="10" step="0.1">
+              <span class="slider-val" id="valEmp"></span>
+            </div>
+            <div class="slider-row">
+              <label>Regulatory Fees</label>
+              <input type="range" id="sliderReg" min="1" max="10" step="0.1">
+              <span class="slider-val" id="valReg"></span>
+            </div>
+            <div class="slider-row">
+              <label>Technology</label>
+              <input type="range" id="sliderTech" min="1" max="15" step="0.1">
+              <span class="slider-val" id="valTech"></span>
+            </div>
+            <div class="slider-row">
+              <label>Depreciation</label>
+              <input type="range" id="sliderDep" min="1" max="10" step="0.1">
+              <span class="slider-val" id="valDep"></span>
+            </div>
+            <div class="slider-row">
               <label>Other Income Ratio</label>
-              <input type="number" id="inputOtherIncomeRatio" step="0.1" min="0" max="100" class="param-input">
-              <span class="param-suffix">%</span>
-            </div>
-            <div class="param-row">
-              <label>Tax Rate</label>
-              <input type="number" id="inputTaxRate" value="25.2" step="0.1" min="0" max="50" class="param-input">
-              <span class="param-suffix">%</span>
-            </div>
-            <div class="param-row">
-              <label>Shares Outstanding (Cr)</label>
-              <input type="number" id="inputShares" value="247.5" step="0.1" min="1" class="param-input">
+              <input type="range" id="sliderOther" min="10" max="80" step="1">
+              <span class="slider-val" id="valOther"></span>
             </div>
           </div>
         </div>
-
-        <!-- Computed Outputs -->
-        <div class="predictor-output" id="predictorOutput"></div>
-
-        <!-- PE Valuation -->
-        <div class="predictor-pe-section">
-          <h4>Target Share Price</h4>
-          <div class="pe-inputs">
-            <div class="pe-input-group">
-              <label for="predBearPE">Bear PE</label>
-              <input type="number" id="predBearPE" value="25" min="1" max="200" step="1">
-            </div>
-            <div class="pe-input-group">
-              <label for="predBasePE">Base PE</label>
-              <input type="number" id="predBasePE" value="35" min="1" max="200" step="1">
-            </div>
-            <div class="pe-input-group">
-              <label for="predBullPE">Bull PE</label>
-              <input type="number" id="predBullPE" value="45" min="1" max="200" step="1">
-            </div>
+        <div class="pred-result" id="predResult"></div>
+        <div class="chart-grid chart-grid-2">
+          <div class="chart-panel">
+            <div class="chart-title">P&L Waterfall</div>
+            <div class="chart-wrapper"><canvas id="chartWaterfall"></canvas></div>
           </div>
-          <div class="pe-results" id="predictorPEResults"></div>
-        </div>
-      </div>
-
-      <!-- OLD PE VALUATION (now using ENRICHED_DATA) -->
-      <div class="chart-panel" style="margin-bottom:var(--space-5)" id="peValuationPanel">
-        <div class="chart-title">Valuation — Data-Driven Estimate <span class="chart-badge">Q4 FY 2026 Extrapolation</span></div>
-        <div class="pe-inputs" id="peInputs">
-          <div class="pe-input-group">
-            <label for="peBear">Bear PE</label>
-            <input type="number" id="peBear" value="25" min="1" max="200" step="1">
-          </div>
-          <div class="pe-input-group">
-            <label for="peBase">Base PE</label>
-            <input type="number" id="peBase" value="35" min="1" max="200" step="1">
-          </div>
-          <div class="pe-input-group">
-            <label for="peBull">Bull PE</label>
-            <input type="number" id="peBull" value="45" min="1" max="200" step="1">
+          <div class="chart-panel">
+            <div class="chart-title">Historical vs Predicted PAT</div>
+            <div class="chart-wrapper"><canvas id="chartPATHistory"></canvas></div>
           </div>
         </div>
-        <div class="pe-results" id="peResults"></div>
-      </div>
-
-      <p class="section-desc">Adjust revenue and cost assumptions to forecast PAT. Based on latest quarterly run-rates.</p>
-
-      <div class="scenario-buttons" id="scenarioButtons">
-        <button class="scenario-btn" data-scenario="bear">Bear (−15%)</button>
-        <button class="scenario-btn active" data-scenario="base">Base Case</button>
-        <button class="scenario-btn" data-scenario="bull">Bull (+15%)</button>
-      </div>
-
-      <div class="pred-controls">
-        <div class="control-group">
-          <h3>Revenue Forecast (₹ Cr / Quarter)</h3>
-          <div class="slider-row">
-            <label>Options Revenue</label>
-            <input type="range" id="sliderOpt" min="500" max="6000" step="10">
-            <span class="slider-val" id="valOpt"></span>
-          </div>
-          <div class="slider-row">
-            <label>Futures Revenue</label>
-            <input type="range" id="sliderFut" min="50" max="600" step="5">
-            <span class="slider-val" id="valFut"></span>
-          </div>
-          <div class="slider-row">
-            <label>Cash Revenue</label>
-            <input type="range" id="sliderCash" min="50" max="600" step="5">
-            <span class="slider-val" id="valCash"></span>
-          </div>
-        </div>
-        <div class="control-group">
-          <h3>Cost Assumptions (% of Revenue)</h3>
-          <div class="slider-row">
-            <label>Employee Cost</label>
-            <input type="range" id="sliderEmp" min="1" max="10" step="0.1">
-            <span class="slider-val" id="valEmp"></span>
-          </div>
-          <div class="slider-row">
-            <label>Regulatory Fees</label>
-            <input type="range" id="sliderReg" min="1" max="10" step="0.1">
-            <span class="slider-val" id="valReg"></span>
-          </div>
-          <div class="slider-row">
-            <label>Technology</label>
-            <input type="range" id="sliderTech" min="1" max="15" step="0.1">
-            <span class="slider-val" id="valTech"></span>
-          </div>
-          <div class="slider-row">
-            <label>Depreciation</label>
-            <input type="range" id="sliderDep" min="1" max="10" step="0.1">
-            <span class="slider-val" id="valDep"></span>
-          </div>
-          <div class="slider-row">
-            <label>Other Income Ratio</label>
-            <input type="range" id="sliderOther" min="10" max="80" step="1">
-            <span class="slider-val" id="valOther"></span>
+        <div class="chart-panel" style="margin-top:var(--space-4)">
+          <div class="chart-title">P&L Comparison Table</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tablePnL"></table>
           </div>
         </div>
       </div>
-
-      <div class="pred-result" id="predResult"></div>
-
-      <div class="chart-grid chart-grid-2">
-        <div class="chart-panel">
-          <div class="chart-title">P&L Waterfall</div>
-          <div class="chart-wrapper"><canvas id="chartWaterfall"></canvas></div>
+      <!-- BSE: Simple Revenue Predictor -->
+      <div id="bsePredictionContent" style="display:none">
+        <div class="chart-panel" style="margin-bottom:var(--space-5)">
+          <div class="chart-title">Revenue Extrapolation <span class="chart-badge">Q4 FY 2026</span></div>
+          <div class="predictor-cards" id="bsePredictorKpis"></div>
+          <div class="progress-bar-container" style="margin-top:var(--space-4)">
+            <div class="progress-bar">
+              <div class="progress-bar-fill" id="bseProgressBarFill" style="width:0%"></div>
+            </div>
+            <div class="progress-label" id="bseProgressLabel"></div>
+          </div>
         </div>
-        <div class="chart-panel">
-          <div class="chart-title">Historical vs Predicted PAT</div>
-          <div class="chart-wrapper"><canvas id="chartPATHistory"></canvas></div>
-        </div>
-      </div>
-
-      <div class="chart-panel" style="margin-top:var(--space-4)">
-        <div class="chart-title">P&L Comparison Table</div>
-        <div style="overflow-x:auto">
-          <table class="data-table" id="tablePnL"></table>
+        <div class="chart-panel" style="margin-bottom:var(--space-5)">
+          <div class="chart-title">Revenue Composition — Current Quarter</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tableBseRevComposition"></table>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ===================== TAB 5: ADVANCED ANALYTICS ===================== -->
+    <!-- ===================== TAB 5: ADVANCED ANALYTICS / MONTHLY ANALYSIS ===================== -->
     <section class="tab-content" id="tab-advanced">
-      <div class="chart-grid chart-grid-2">
-        <div class="chart-panel">
-          <div class="chart-title">Premium-to-Notional Ratio vs VIX</div>
-          <div class="chart-wrapper"><canvas id="chartPNVix"></canvas></div>
+      <!-- NSE: VIX, scatter, heatmap -->
+      <div id="nseAdvancedContent">
+        <div class="chart-grid chart-grid-2">
+          <div class="chart-panel">
+            <div class="chart-title">Premium-to-Notional Ratio vs VIX</div>
+            <div class="chart-wrapper"><canvas id="chartPNVix"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">Revenue vs VIX Scatter</div>
+            <div class="chart-wrapper"><canvas id="chartScatter"></canvas></div>
+          </div>
         </div>
-        <div class="chart-panel">
-          <div class="chart-title">Revenue vs VIX Scatter</div>
-          <div class="chart-wrapper"><canvas id="chartScatter"></canvas></div>
+        <div class="chart-grid chart-grid-2">
+          <div class="chart-panel">
+            <div class="chart-title">Contract Volume vs Revenue</div>
+            <div class="chart-wrapper"><canvas id="chartContracts"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">Quarterly Revenue Heatmap</div>
+            <div id="heatmapContainer" style="overflow-x:auto"></div>
+          </div>
         </div>
       </div>
-      <div class="chart-grid chart-grid-2">
-        <div class="chart-panel">
-          <div class="chart-title">Contract Volume vs Revenue</div>
-          <div class="chart-wrapper"><canvas id="chartContracts"></canvas></div>
+      <!-- BSE: Monthly analysis -->
+      <div id="bseMonthlyContent" style="display:none">
+        <div class="chart-grid chart-grid-2">
+          <div class="chart-panel">
+            <div class="chart-title">Monthly Revenue Trend <span class="chart-badge">Last 12 Months</span></div>
+            <div class="chart-wrapper"><canvas id="chartBseMonthlyRev"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">Monthly Revenue by Segment</div>
+            <div class="chart-wrapper"><canvas id="chartBseMonthlySegment"></canvas></div>
+          </div>
         </div>
-        <div class="chart-panel">
-          <div class="chart-title">Quarterly Revenue Heatmap</div>
-          <div id="heatmapContainer" style="overflow-x:auto"></div>
+        <div class="chart-panel" style="margin-top:var(--space-4)">
+          <div class="chart-title">Monthly Revenue Table</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tableBseMonthly"></table>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- ===================== TAB 6: EXECUTIVE SUMMARY ===================== -->
     <section class="tab-content" id="tab-executive">
-      <!-- KPI Cards -->
       <div class="kpi-grid" id="kpiGrid"></div>
-
-      <!-- Charts -->
       <div class="chart-grid chart-grid-2">
         <div class="chart-panel">
-          <div class="chart-title">Revenue by Segment <span class="chart-badge">Q4 FY 2026</span></div>
+          <div class="chart-title">Revenue by Segment <span class="chart-badge" id="donutQuarterLabel">Q4 FY 2026</span></div>
           <div class="chart-wrapper" style="max-width:280px;margin:0 auto">
             <canvas id="chartDonut"></canvas>
           </div>
         </div>
         <div class="chart-panel">
-          <div class="chart-title">Quarterly Revenue Trend</div>
-          <div class="chart-wrapper"><canvas id="chartQuarterlyRev"></canvas></div>
+          <div class="chart-title" id="execChartTitle2">Quarterly Revenue Trend</div>
+          <div class="chart-wrapper"><canvas id="chartExecQuarterlyRev"></canvas></div>
         </div>
       </div>
-      <div class="chart-grid" style="grid-template-columns:1fr">
+      <!-- NSE exec extras -->
+      <div id="nseExecExtras">
+        <div class="chart-grid" style="grid-template-columns:1fr">
+          <div class="chart-panel">
+            <div class="chart-title">Weekly Revenue <span class="chart-badge">Last 15 weeks</span></div>
+            <div class="chart-wrapper"><canvas id="chartWeeklyRev"></canvas></div>
+          </div>
+        </div>
+      </div>
+      <!-- BSE exec extras -->
+      <div id="bseExecExtras" style="display:none">
+        <div class="chart-grid" style="grid-template-columns:1fr">
+          <div class="chart-panel">
+            <div class="chart-title">Daily Revenue with 10-day MA</div>
+            <div class="chart-wrapper"><canvas id="chartExecDailyMA"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-panel" style="margin-top:var(--space-4)">
+          <div class="chart-title">Summary</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tableExecSummary"></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BSE-only tabs that share tab-content sections via display toggling -->
+    <!-- TAB: Weekly Analysis (BSE) — uses tab-executive area or a separate hidden section -->
+    <section class="tab-content" id="tab-weekly">
+      <div class="chart-grid chart-grid-2">
         <div class="chart-panel">
-          <div class="chart-title">Weekly Revenue <span class="chart-badge">Last 15 weeks</span></div>
-          <div class="chart-wrapper"><canvas id="chartWeeklyRev"></canvas></div>
+          <div class="chart-title">Weekly Revenue <span class="chart-badge">Last 20 Weeks</span></div>
+          <div class="chart-wrapper"><canvas id="chartBseWeeklyRev"></canvas></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-title">Day-of-Week Revenue</div>
+          <div class="chart-wrapper"><canvas id="chartBseDOW"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid chart-grid-2" style="margin-top:var(--space-4)">
+        <div class="chart-panel">
+          <div class="chart-title">Weekly Averages</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tableBseWeeklyAvg"></table>
+          </div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-title">Day-of-Week Analysis</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tableBseDOW"></table>
+          </div>
+        </div>
+      </div>
+      <div class="chart-panel" style="margin-top:var(--space-4)">
+        <div class="chart-title">Previous Week Breakdown</div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="tableBsePrevWeek"></table>
         </div>
       </div>
     </section>
