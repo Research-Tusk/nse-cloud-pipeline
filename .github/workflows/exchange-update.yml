@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [nse-update]
-    if: always() && (github.event_name == 'schedule' || github.event.inputs.exchange == 'both' || github.event.inputs.exchange == 'bse')
+    if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.exchange == 'both' || github.event.inputs.exchange == 'bse') }}
     outputs:
       new_days: ${{ steps.check_new.outputs.new_days }}
 
@@ -83,6 +83,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Pull latest in case NSE job pushed changes
           ref: main
 
       - name: Set up Python
@@ -124,7 +125,7 @@ jobs:
 
   deploy:
     needs: [nse-update, bse-update]
-    if: always() && (needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0')
+    if: ${{ always() && (needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
