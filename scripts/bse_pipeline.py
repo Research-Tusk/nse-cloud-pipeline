@@ -17,6 +17,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from collections import OrderedDict
 
+
+# Load .env for local development
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # ── Config ──
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
@@ -33,11 +41,39 @@ TR_CASH = 7.5e-05     # Cash: on traded value
 
 
 # ═══════════════════════════════════════════════════════════════
-# SECTION 1: BSE DATA FETCHER (curl_cffi)
+# ═══════════════════════════════════════════════════════════════
+# SECTION 1: BSE DATA FETCHER (curl_cffi + ASP.NET postback)
 # ═══════════════════════════════════════════════════════════════
 
+def _get_form_data(html):
+    """Extract all hidden input fields from ASP.NET page."""
+    fields = re.findall(r'<input[^>]*name="([^"]*)"[^>]*value="([^"]*)"', html)
+    return {name: value for name, value in fields}
+
+
+def _postback(session, url, html, event_target):
+    """Perform an ASP.NET __doPostBack and return the response HTML."""
+    form = _get_form_data(html)
+    form['__EVENTTARGET'] = event_target
+    form['__EVENTARGUMENT'] = ''
+    form.pop('ctl00$ContentPlaceHolder1$btnSubmit', None)
+    resp = session.post(
+        url, data=form, impersonate="chrome",
+        headers={'Referer': url, 'Origin': 'https://www.bseindia.com'}
+    )
+    if resp.status_code != 200:
+        print(f"  ERROR: postback returned {resp.status_code} for {event_target}")
+        return None
+    return resp.text
+
+
+def _find_postback_targets(html, pattern):
+    """Find __doPostBack targets matching a pattern (HTML-encoded quotes)."""
+    return re.findall(r"__doPostBack\(&#39;(" + pattern + r")&#39;", html)
+
+
 def fetch_bse_fo_data():
-    """Fetch BSE F&O daily data via curl_cffi from BSE derivatives page."""
+    """Fetch BSE F&O daily data via 3-step ASP.NET postback drill-down."""
     try:
         from curl_cffi import requests as cffi_requests
     except ImportError:
@@ -45,110 +81,177 @@ def fetch_bse_fo_data():
         sys.exit(1)
 
     session = cffi_requests.Session()
-
-    # The BSE derivatives turnover page
     url = "https://www.bseindia.com/markets/keystatics/Keystat_turnover_deri.aspx"
     print(f"Fetching BSE F&O page: {url}")
-    resp = session.get(url, impersonate="chrome")
 
+    # Step 1: GET the yearly summary page
+    resp = session.get(url, impersonate="chrome")
     if resp.status_code != 200:
         print(f"ERROR: BSE F&O page returned {resp.status_code}")
         return []
 
-    html = resp.text
-
-    # Parse the HTML table for daily derivatives data
-    # BSE renders data in an ASP.NET GridView table
-    rows = parse_bse_derivatives_html(html)
-    print(f"BSE F&O rows extracted: {len(rows)}")
-    return rows
-
-
-def fetch_bse_cash_data():
-    """Fetch BSE Cash market daily data via curl_cffi."""
-    try:
-        from curl_cffi import requests as cffi_requests
-    except ImportError:
-        print("ERROR: curl_cffi not installed. Run: pip install curl_cffi")
-        sys.exit(1)
-
-    session = cffi_requests.Session()
-
-    url = "https://www.bseindia.com/markets/Equity/EQReports/Historical_EquitySegment.aspx"
-    print(f"Fetching BSE Cash page: {url}")
-
-    # First GET to get __VIEWSTATE etc.
-    resp = session.get(url, impersonate="chrome")
-    if resp.status_code != 200:
-        print(f"ERROR: BSE Cash page returned {resp.status_code}")
+    # Step 2: Click the current FY year link to get monthly data
+    year_targets = _find_postback_targets(resp.text, r'[^&]*gvReport_total[^&]*Linkbtn[^&]*')
+    if not year_targets:
+        print("ERROR: No year links found on BSE F&O page")
         return []
 
-    html = resp.text
-    rows = parse_bse_cash_html(html)
-    print(f"BSE Cash rows extracted: {len(rows)}")
-    return rows
+    html_months = _postback(session, url, resp.text, year_targets[0])
+    if not html_months:
+        return []
+
+    # Step 3: Click each recent month to get daily data
+    month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise_T_old[^&]*lnkMonth_T[^&]*')
+    if not month_targets:
+        print("ERROR: No month links found on BSE F&O page")
+        return []
+
+    all_rows = []
+    # Fetch current month + previous month for safety
+    months_to_fetch = month_targets[:2]
+    current_html = html_months
+
+    for i, target in enumerate(months_to_fetch):
+        # Extract year/month context from hidden fields
+        idx = str(i)  # ctl02 = index 0, ctl03 = index 1
+        year_val = re.search(rf'gvYearwise_T_old_hdnYear_{i}"[^>]*value="(\d+)"', current_html)
+        month_val = re.search(rf'gvYearwise_T_old_hdnMonth_{i}"[^>]*value="(\d+)"', current_html)
+        ctx_year = int(year_val.group(1)) if year_val else datetime.now().year
+        ctx_month = int(month_val.group(1)) if month_val else datetime.now().month
+
+        html_daily = _postback(session, url, current_html, target)
+        if not html_daily:
+            continue
+
+        rows = _parse_fo_daily_table(html_daily, ctx_year, ctx_month)
+        all_rows.extend(rows)
+        print(f"  F&O month {ctx_year}-{ctx_month:02d}: {len(rows)} daily rows")
+        current_html = html_daily  # use latest page state for next postback
+
+    print(f"BSE F&O rows extracted: {len(all_rows)}")
+    return all_rows
 
 
-def parse_bse_derivatives_html(html):
-    """Parse BSE derivatives turnover HTML table into structured data."""
+def _parse_fo_daily_table(html, ctx_year, ctx_month):
+    """Parse the daily F&O table (gvdaliy_T_new) from BSE HTML."""
     rows = []
-    # Look for table rows with date patterns
-    # BSE typically renders data in <tr> tags with <td> cells
-    table_pattern = re.compile(
-        r'<tr[^>]*>\s*<td[^>]*>(\d{2}/\d{2}/\d{4})</td>'
-        r'\s*<td[^>]*>([\d,.-]+)</td>'  # contracts
-        r'\s*<td[^>]*>([\d,.-]+)</td>'  # total turnover
-        r'\s*<td[^>]*>([\d,.-]+)</td>'  # futures turnover
-        r'\s*<td[^>]*>([\d,.-]+)</td>'  # options notional
-        r'\s*<td[^>]*>([\d,.-]+)</td>',  # options premium
-        re.DOTALL
+    # Table: Date | Total Contracts | Total Turnover | OI Contracts | OI Value |
+    #        Futures Turnover | Options Notional | Options Premium
+    pattern = re.compile(
+        r'<td[^>]*class="TTRow"[^>]*>\s*([A-Za-z]{3}\s+\d{1,2})\s*</td>'
+        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # contracts
+        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # total turnover
+        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # OI contracts
+        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # OI value
+        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # futures turnover
+        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # options notional
+        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>',  # options premium
+        re.DOTALL | re.IGNORECASE
     )
 
-    for m in table_pattern.finditer(html):
+    for m in pattern.finditer(html):
         try:
-            date_str = m.group(1)
+            date_label = m.group(1).strip()  # e.g., "Mar 02"
+            # Parse with context year: "Mar 02" -> "Mar 02 2026"
+            dt = datetime.strptime(f"{date_label} {ctx_year}", "%b %d %Y")
             rows.append({
-                "date": date_str,
+                "date": f"{dt.day:02d}/{dt.month:02d}/{dt.year}",
                 "total_contracts": clean_number(m.group(2)),
                 "total_turnover": clean_number(m.group(3)),
-                "futures_turnover": clean_number(m.group(4)),
-                "options_notional_turnover": clean_number(m.group(5)),
-                "options_premium_turnover": clean_number(m.group(6)),
+                "futures_turnover": clean_number(m.group(6)),
+                "options_notional_turnover": clean_number(m.group(7)),
+                "options_premium_turnover": clean_number(m.group(8)),
             })
         except (ValueError, IndexError) as e:
-            print(f"Warning: skipping F&O row parse: {e}")
+            print(f"  Warning: skipping F&O row: {e}")
             continue
 
     return rows
 
 
-def parse_bse_cash_html(html):
-    """Parse BSE equity segment HTML table into structured data."""
+def fetch_bse_cash_data():
+    """Fetch BSE Cash market daily data via 3-step ASP.NET postback."""
+    try:
+        from curl_cffi import requests as cffi_requests
+    except ImportError:
+        print("ERROR: curl_cffi not installed. Run: pip install curl_cffi")
+        sys.exit(1)
+
+    session = cffi_requests.Session()
+    url = "https://www.bseindia.com/markets/Equity/EQReports/Historical_EquitySegment.aspx"
+    print(f"Fetching BSE Cash page: {url}")
+
+    # Step 1: GET yearly summary
+    resp = session.get(url, impersonate="chrome")
+    if resp.status_code != 200:
+        print(f"ERROR: BSE Cash page returned {resp.status_code}")
+        return []
+
+    # Step 2: Click current year to get monthly view
+    year_targets = _find_postback_targets(resp.text, r'[^&]*gvReport[^&]*lnkyear[^&]*')
+    if not year_targets:
+        print("ERROR: No year links found on BSE Cash page")
+        return []
+
+    html_months = _postback(session, url, resp.text, year_targets[0])
+    if not html_months:
+        return []
+
+    # Step 3: Click each recent month to get daily data
+    month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise[^&]*Linkbtn[^&]*')
+    if not month_targets:
+        print("ERROR: No month links found on BSE Cash page")
+        return []
+
+    all_rows = []
+    months_to_fetch = month_targets[:2]
+    current_html = html_months
+
+    for target in months_to_fetch:
+        html_daily = _postback(session, url, current_html, target)
+        if not html_daily:
+            continue
+
+        rows = _parse_cash_daily_table(html_daily)
+        all_rows.extend(rows)
+        print(f"  Cash month: {len(rows)} daily rows")
+        current_html = html_daily
+
+    print(f"BSE Cash rows extracted: {len(all_rows)}")
+    return all_rows
+
+
+def _parse_cash_daily_table(html):
+    """Parse the daily Cash table (grddaily) from BSE HTML."""
     rows = []
-    table_pattern = re.compile(
-        r'<tr[^>]*>\s*<td[^>]*>(\d{2}/\d{2}/\d{4})</td>'
-        r'\s*<td[^>]*>([\d,.-]+)</td>'  # securities_traded
-        r'\s*<td[^>]*>([\d,.-]+)</td>'  # no_of_trades
-        r'\s*<td[^>]*>([\d,.-]+)</td>'  # traded_quantity
-        r'\s*<td[^>]*>([\d,.-]+)</td>',  # traded_value
-        re.DOTALL
+    # Table: Date | No. of Company Trades | Total No. of Trades | No. of Shares (Cr) | Net Turnover
+    pattern = re.compile(
+        r'<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\s*</td>'
+        r'\s*<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*([\d,.-]+)\s*</td>'   # companies traded
+        r'\s*<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*([\d,.-]+)\s*</td>'   # total trades
+        r'\s*<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*([\d,.-]+)\s*</td>'   # shares
+        r'\s*<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*([\d,.-]+)\s*</td>',  # net turnover
+        re.DOTALL | re.IGNORECASE
     )
 
-    for m in table_pattern.finditer(html):
+    for m in pattern.finditer(html):
         try:
-            date_str = m.group(1)
+            date_str = m.group(1).strip()  # "02 Mar 2026"
+            dt = datetime.strptime(date_str, "%d %b %Y")
             rows.append({
-                "date": date_str,
+                "date": f"{dt.day:02d}/{dt.month:02d}/{dt.year}",
                 "securities_traded": clean_number(m.group(2)),
                 "no_of_trades": clean_number(m.group(3)),
                 "traded_quantity": clean_number(m.group(4)),
                 "traded_value": clean_number(m.group(5)),
             })
         except (ValueError, IndexError) as e:
-            print(f"Warning: skipping cash row parse: {e}")
+            print(f"  Warning: skipping cash row: {e}")
             continue
 
     return rows
+
+
 
 
 def clean_number(s):
