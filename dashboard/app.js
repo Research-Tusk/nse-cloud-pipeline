@@ -2562,6 +2562,7 @@ async function downloadWeeklyReport() {
     const q2 = s.quarterly.prev2 || {};
     return `<div class="pr-sub-header">Total Revenue (Daily Avg, ₹ Cr)</div>
     <table class="pr-table">
+      <colgroup><col style="width:60%"><col style="width:20%"><col style="width:20%"></colgroup>
       <thead><tr><th>Metric</th><th>₹ Cr</th><th>% Change</th></tr></thead>
       <tbody>
         <tr class="pr-group-label"><td colspan="3">Weekly</td></tr>
@@ -2591,6 +2592,7 @@ async function downloadWeeklyReport() {
     }).join('');
     return `<div class="pr-sub-header">Day-of-Week Performance</div>
     <table class="pr-table">
+      <colgroup><col style="width:22%"><col style="width:15.6%"><col style="width:15.6%"><col style="width:15.6%"><col style="width:15.6%"><col style="width:15.6%"></colgroup>
       <thead><tr><th>Day</th><th>This Week (₹ Cr)</th><th>L3 Avg</th><th>Do3D</th><th>L10 Avg</th><th>Do10D</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
@@ -2608,6 +2610,7 @@ async function downloadWeeklyReport() {
     }).join('');
     return `<div class="pr-sub-header">Segment Revenue (L5 Daily Avg, ₹ Cr)</div>
     <table class="pr-table">
+      <colgroup><col style="width:28%"><col style="width:24%"><col style="width:24%"><col style="width:24%"></colgroup>
       <thead><tr><th>Segment</th><th>L5 Avg</th><th>WoW</th><th>Wo10W</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;

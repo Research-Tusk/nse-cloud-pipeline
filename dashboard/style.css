@@ -1743,6 +1743,7 @@ span.neutral {
 
 .pr-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 9px;
   margin-bottom: 2px;
@@ -1765,6 +1766,8 @@ span.neutral {
   text-align: right;
   border: 1px solid #ddd;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .pr-table td:first-child {
   text-align: left;
