@@ -37,7 +37,7 @@ Automated daily NSE trading data pipeline with a live analytics dashboard.
 ### Step 1: Create Supabase Project
 
 1. Go to [supabase.com](https://supabase.com) → **New Project**
-2. Name: `nse-analytics` (or anything you prefer)
+2. Name: `nse-cloud-pipeline` (or anything you prefer)
 3. Set a strong database password
 4. Region: **Mumbai (ap-south-1)** for lowest latency
 5. Wait for project to finish provisioning (~2 minutes)
@@ -63,8 +63,8 @@ On your local Mac:
 
 ```bash
 # Clone the repo (after Step 5)
-git clone https://github.com/Research-Tusk/nse-analytics.git
-cd nse-analytics
+git clone https://github.com/Research-Tusk/nse-cloud-pipeline.git
+cd nse-cloud-pipeline
 
 # Install Python deps
 pip3 install -r requirements.txt
@@ -80,7 +80,7 @@ python3 scripts/seed_supabase.py
 ### Step 5: Create GitHub Repository
 
 1. Go to [github.com/new](https://github.com/new)
-2. Name: `nse-analytics` (private recommended)
+2. Name: `nse-cloud-pipeline` (private recommended)
 3. Push the project:
 
 ```bash
@@ -88,7 +88,7 @@ cd nse-cloud-pipeline
 git init
 git add .
 git commit -m "Initial commit: NSE Analytics Pipeline"
-git remote add origin https://github.com/Research-Tusk/nse-analytics.git
+git remote add origin https://github.com/Research-Tusk/nse-cloud-pipeline.git
 git branch -M main
 git push -u origin main
 ```
@@ -103,7 +103,7 @@ git push -u origin main
 ### Step 7: Connect Vercel
 
 1. Go to [vercel.com](https://vercel.com) → **Add New Project**
-2. Import your `nse-analytics` GitHub repo
+2. Import your `nse-cloud-pipeline` GitHub repo
 3. Configure:
    - **Framework Preset:** Other
    - **Root Directory:** `./` (the repo root)
