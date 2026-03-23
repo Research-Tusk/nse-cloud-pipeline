@@ -2687,7 +2687,6 @@ async function downloadWeeklyReport() {
     </div>
     ${buildExchangeSection('NSE Update', nseEnrich, true)}
     ${buildExchangeSection('BSE Update', bseEnrich, false)}
-    ${buildValuationSection()}
     <div class="pr-footer">NSE/BSE Analytics Dashboard — Auto-generated report</div>
   </div>`;
 
