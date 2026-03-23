@@ -61,6 +61,7 @@
       <h1 class="header-title" id="headerTitle">Revenue Summary</h1>
     </div>
     <div class="header-right">
+      <button class="btn-download-pdf" id="downloadPdfBtn" onclick="downloadWeeklyReport()">&#11015; Download Report</button>
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
         <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"/>
@@ -538,6 +539,7 @@
   </main>
 </div>
 
+<div id="print-report" style="display:none"></div>
 <script src="./app.js"></script>
 </body>
 </html>

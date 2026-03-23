@@ -2340,4 +2340,155 @@ async function init() {
   if (firstNavItem) firstNavItem.click();
 }
 
+// ========================
+// WEEKLY REPORT PDF DOWNLOAD
+// ========================
+
+function downloadWeeklyReport() {
+  const dailyAll = DATA.daily_all || DATA.daily || [];
+  const latestDate = dailyAll.length > 0 ? dailyAll[dailyAll.length - 1].date : 'N/A';
+  const exchange = currentExchange.toUpperCase();
+  const genTime = new Date().toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  const segments = [
+    { label: 'Total Revenue',   key: 'total',   segData: ENRICHED_DATA.summary_total, qField: 'total_rev' },
+    { label: 'Options Revenue', key: 'options', segData: ENRICHED_DATA.seg_options,   qField: 'opt_rev'   },
+    { label: 'Futures Revenue', key: 'futures', segData: ENRICHED_DATA.seg_futures,   qField: 'fut_rev'   },
+    { label: 'Cash Revenue',    key: 'cash',    segData: ENRICHED_DATA.seg_cash,      qField: 'cash_rev'  },
+  ];
+
+  // Build FY totals by summing quarterly data
+  const fyMap = {};
+  (DATA.quarterly || []).forEach(q => {
+    const fy = q.quarter.replace(/^Q\d\s+/, '');
+    if (!fyMap[fy]) fyMap[fy] = { total_rev: 0, opt_rev: 0, fut_rev: 0, cash_rev: 0 };
+    ['total_rev', 'opt_rev', 'fut_rev', 'cash_rev'].forEach(f => {
+      fyMap[fy][f] = (fyMap[fy][f] || 0) + (q[f] || 0);
+    });
+  });
+  const fyList = Object.keys(fyMap).sort().reverse();
+
+  function p(val) { return fmtPctSigned(val); }
+  function n(num) { return fmtNum(num); }
+
+  function buildSegment(seg) {
+    const s = seg.segData;
+    if (!s) return '';
+    const qf = seg.qField;
+    const allQ = DATA.quarterly || [];
+    const allM = DATA.monthly || [];
+
+    // FY rows (last 2 FYs)
+    const fyRows = fyList.slice(0, 2).map((fy, i) => {
+      const v = (fyMap[fy] || {})[qf] || 0;
+      const prevFy = fyList[i + 1] ? (fyMap[fyList[i + 1]] || {})[qf] : null;
+      const yoy = (i === 0 && prevFy) ? (v - prevFy) / prevFy : null;
+      return `<tr><td>${fy}</td><td>${n(v)}</td><td>${i === 0 ? p(yoy) : '—'}</td></tr>`;
+    }).join('');
+
+    // Quarter rows (last 3)
+    const qIdxs = Array.from({ length: Math.min(3, allQ.length) }, (_, i) => allQ.length - 1 - i);
+    const qRows = qIdxs.map(idx => {
+      const q = allQ[idx];
+      const d = q.days || q.trading_days || 1;
+      const avg = (q[qf] || 0) / d;
+      const prev = idx > 0 ? allQ[idx - 1] : null;
+      const pDays = prev ? (prev.days || prev.trading_days || 1) : 1;
+      const pAvg = prev ? (prev[qf] || 0) / pDays : null;
+      const qoq = pAvg ? (avg - pAvg) / pAvg : null;
+      const yoyLabel = q.quarter.replace(/FY (\d{4})/, (_, y) => 'FY ' + (+y - 1));
+      const yoyQ = allQ.find(x => x.quarter === yoyLabel);
+      const yDays = yoyQ ? (yoyQ.days || yoyQ.trading_days || 1) : 1;
+      const yAvg = yoyQ ? (yoyQ[qf] || 0) / yDays : null;
+      const yoy = yAvg ? (avg - yAvg) / yAvg : null;
+      return `<tr><td>${q.quarter}</td><td>${n(q[qf])}</td><td>${n(avg)}</td><td>${p(qoq)}</td><td>${p(yoy)}</td></tr>`;
+    }).join('');
+
+    // Month rows (last 3)
+    const mIdxs = Array.from({ length: Math.min(3, allM.length) }, (_, i) => allM.length - 1 - i);
+    const mRows = mIdxs.map(idx => {
+      const m = allM[idx];
+      const d = m.trading_days || m.days || 1;
+      const avg = (m[qf] || 0) / d;
+      const prev = idx > 0 ? allM[idx - 1] : null;
+      const pDays = prev ? (prev.trading_days || prev.days || 1) : 1;
+      const pAvg = prev ? (prev[qf] || 0) / pDays : null;
+      const mom = pAvg ? (avg - pAvg) / pAvg : null;
+      return `<tr><td>${m.month}</td><td>${n(m[qf])}</td><td>${n(avg)}</td><td>${p(mom)}</td></tr>`;
+    }).join('');
+
+    // Weekly
+    const wl5 = s.weekly.last5;
+    const wp5 = s.weekly.prev5;
+    const w50 = s.weekly.last50;
+
+    // Day of week
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const dow = s.day_of_week || {};
+    const dowRows = dayNames.map(day => {
+      const dd = dow[day] || {};
+      return `<tr><td>${day}</td><td>${n(dd.latest)}</td><td>${n(dd.avg_3d)}</td><td>${p(dd.do3d)}</td><td>${n(dd.avg_10d)}</td><td>${p(dd.do10d)}</td></tr>`;
+    }).join('');
+
+    // Previous week
+    const pw = s.previous_week || null;
+    const pwTable = pw ? `<table class="pr-table" style="margin-top:6px">
+      <thead><tr><th colspan="2">Previous Week</th></tr></thead>
+      <tbody>${dayNames.map(d => `<tr><td>${d}</td><td>${n(pw[d])}</td></tr>`).join('')}</tbody>
+    </table>` : '';
+
+    return `<div class="pr-section">
+      <div class="pr-section-header">${seg.label}</div>
+      <div class="pr-cols">
+        <div>
+          <table class="pr-table">
+            <thead><tr><th>Financial Year</th><th>Total (₹ Cr)</th><th>YoY</th></tr></thead>
+            <tbody>${fyRows}</tbody>
+          </table>
+          <table class="pr-table" style="margin-top:6px">
+            <thead><tr><th>Quarter</th><th>Total (₹ Cr)</th><th>Daily Avg</th><th>QoQ</th><th>YoY</th></tr></thead>
+            <tbody>${qRows}</tbody>
+          </table>
+          <table class="pr-table" style="margin-top:6px">
+            <thead><tr><th>Month</th><th>Total (₹ Cr)</th><th>Daily Avg</th><th>MoM</th></tr></thead>
+            <tbody>${mRows}</tbody>
+          </table>
+        </div>
+        <div>
+          <table class="pr-table">
+            <thead><tr><th>Period</th><th>Daily Avg (₹ Cr)</th><th>WoW</th><th>Wo10W</th></tr></thead>
+            <tbody>
+              <tr><td>Last 5 Trading Days</td><td>${n(wl5.value)}</td><td>${p(wl5.wow)}</td><td>${p(wl5.wo10w)}</td></tr>
+              <tr><td>Prev 5 Trading Days</td><td>${n(wp5.value)}</td><td>—</td><td>—</td></tr>
+              <tr><td>Last 50 Trading Days</td><td>${n(w50.value)}</td><td>—</td><td>—</td></tr>
+            </tbody>
+          </table>
+          <table class="pr-table" style="margin-top:6px">
+            <thead><tr><th>Day</th><th>Latest</th><th>3-Day Avg</th><th>Do3D</th><th>10-Day Avg</th><th>Do10D</th></tr></thead>
+            <tbody>${dowRows}</tbody>
+          </table>
+          ${pwTable}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const html = `<div class="pr-wrapper">
+    <div class="pr-header">
+      <span class="pr-title">${exchange} Trading Revenue — Weekly Report</span>
+      <span class="pr-subtitle">As on: ${latestDate} &nbsp;|&nbsp; Generated: ${genTime}</span>
+    </div>
+    ${segments.map(buildSegment).join('')}
+    <div class="pr-footer">Exchange Analytics Dashboard — Auto-generated report</div>
+  </div>`;
+
+  const el = document.getElementById('print-report');
+  el.innerHTML = html;
+  el.style.display = 'block';
+  setTimeout(() => { window.print(); el.style.display = 'none'; }, 150);
+}
+
 init();
