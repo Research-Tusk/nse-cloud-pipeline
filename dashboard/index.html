@@ -179,6 +179,16 @@
       <div id="nseTemporalContent">
         <div class="chart-grid chart-grid-2">
           <div class="chart-panel">
+            <div class="chart-title">Quarterly Revenue — Stacked</div>
+            <div class="chart-wrapper"><canvas id="chartNseQuarterlyRev"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">Quarterly Revenue — Trend</div>
+            <div class="chart-wrapper"><canvas id="chartNseQuarterlyLine"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-grid chart-grid-2" style="margin-top:var(--space-4)">
+          <div class="chart-panel">
             <div class="chart-title">Average Revenue by Day of Week</div>
             <div class="chart-wrapper"><canvas id="chartDOW"></canvas></div>
           </div>
@@ -436,6 +446,22 @@
           <div class="chart-panel">
             <div class="chart-title">Quarterly Revenue Heatmap</div>
             <div id="heatmapContainer" style="overflow-x:auto"></div>
+          </div>
+        </div>
+        <div class="chart-grid chart-grid-2" style="margin-top:var(--space-4)">
+          <div class="chart-panel">
+            <div class="chart-title">Monthly Revenue Trend <span class="chart-badge">Last 12 Months</span></div>
+            <div class="chart-wrapper"><canvas id="chartNseMonthlyRev"></canvas></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">Monthly Revenue by Segment</div>
+            <div class="chart-wrapper"><canvas id="chartNseMonthlySegment"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-panel" style="margin-top:var(--space-4)">
+          <div class="chart-title">Monthly Revenue Table</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tableNseMonthly"></table>
           </div>
         </div>
       </div>
