@@ -2495,145 +2495,200 @@ async function init() {
 // WEEKLY REPORT PDF DOWNLOAD
 // ========================
 
-function downloadWeeklyReport() {
-  const dailyAll = DATA.daily_all || DATA.daily || [];
-  const latestDate = dailyAll.length > 0 ? dailyAll[dailyAll.length - 1].date : 'N/A';
-  const exchange = currentExchange.toUpperCase();
+async function downloadWeeklyReport() {
+  // Fetch both exchanges fresh — ENRICHED_DATA only holds the currently selected exchange
+  const [nseEnrich, bseEnrich, nseDash, bseDash] = await Promise.all([
+    fetch('./data/nse_enriched_data.json').then(r => r.json()),
+    fetch('./data/bse_enriched_data.json').then(r => r.json()),
+    fetch('./data/nse_dashboard_data.json').then(r => r.json()),
+    fetch('./data/bse_dashboard_data.json').then(r => r.json()),
+  ]);
+
+  // Compute Mon–Fri week range from latest NSE daily date
+  const nseDaily = nseDash.daily_all || nseDash.daily || [];
+  const latestDateStr = nseDaily.length > 0 ? nseDaily[nseDaily.length - 1].date : null;
+
+  function getWeekRange(dateStr) {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = d.getDay(); // 0=Sun,1=Mon..5=Fri
+    const daysToMon = day === 0 ? -6 : 1 - day;
+    const mon = new Date(d); mon.setDate(d.getDate() + daysToMon);
+    const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+    function ordinal(n) {
+      const s = ['th','st','nd','rd'], v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+    // If Mon and Fri are in different months, include month for Mon too
+    const monMonth = mon.toLocaleString('en-IN', { month: 'short' });
+    const friStr = ordinal(fri.getDate()) + ' ' + fri.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+    if (mon.getMonth() !== fri.getMonth()) {
+      return `${ordinal(mon.getDate())} ${monMonth} – ${friStr}`;
+    }
+    return `${ordinal(mon.getDate())} – ${friStr}`;
+  }
+
+  const weekRange = getWeekRange(latestDateStr);
   const genTime = new Date().toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
 
-  const segments = [
-    { label: 'Total Revenue',   key: 'total',   segData: ENRICHED_DATA.summary_total, qField: 'total_rev' },
-    { label: 'Options Revenue', key: 'options', segData: ENRICHED_DATA.seg_options,   qField: 'opt_rev'   },
-    { label: 'Futures Revenue', key: 'futures', segData: ENRICHED_DATA.seg_futures,   qField: 'fut_rev'   },
-    { label: 'Cash Revenue',    key: 'cash',    segData: ENRICHED_DATA.seg_cash,      qField: 'cash_rev'  },
-  ];
+  function n(num) {
+    if (num == null || isNaN(num)) return '—';
+    return fmtNum(num);
+  }
 
-  // Build FY totals by summing quarterly data
-  const fyMap = {};
-  (DATA.quarterly || []).forEach(q => {
-    const fy = q.quarter.replace(/^Q\d\s+/, '');
-    if (!fyMap[fy]) fyMap[fy] = { total_rev: 0, opt_rev: 0, fut_rev: 0, cash_rev: 0 };
-    ['total_rev', 'opt_rev', 'fut_rev', 'cash_rev'].forEach(f => {
-      fyMap[fy][f] = (fyMap[fy][f] || 0) + (q[f] || 0);
-    });
-  });
-  const fyList = Object.keys(fyMap).sort().reverse();
+  // PDF-style % formatting: positive = plain green text, negative = yellow highlight
+  function prFmt(val) {
+    if (val == null || isNaN(val)) return '—';
+    const pct = (val * 100).toFixed(1);
+    if (val > 0.0001) return `<span class="pr-pos">+${pct}%</span>`;
+    if (val < -0.0001) return `<span class="pr-neg">${pct}%</span>`;
+    return '0.0%';
+  }
 
-  function p(val) { return fmtPctSigned(val); }
-  function n(num) { return fmtNum(num); }
-
-  function buildSegment(seg) {
-    const s = seg.segData;
+  function buildTotalRevenueTable(enriched) {
+    const s = enriched.summary_total;
     if (!s) return '';
-    const qf = seg.qField;
-    const allQ = DATA.quarterly || [];
-    const allM = DATA.monthly || [];
+    const wl5 = s.weekly.last5 || {};
+    const wp5 = s.weekly.prev5 || {};
+    const w50 = s.weekly.last50 || {};
+    const mc = s.monthly.current || {};
+    const mp = s.monthly.previous || {};
+    const m6 = s.monthly.avg_6m || {};
+    const qc = s.quarterly.current || {};
+    const qp = s.quarterly.previous || {};
+    const q2 = s.quarterly.prev2 || {};
+    return `<div class="pr-sub-header">Total Revenue (Daily Avg, ₹ Cr)</div>
+    <table class="pr-table">
+      <thead><tr><th>Metric</th><th>₹ Cr</th><th>% Change</th></tr></thead>
+      <tbody>
+        <tr class="pr-group-label"><td colspan="3">Weekly</td></tr>
+        <tr><td>L5 – This Week</td><td>${n(wl5.value)}</td><td>${prFmt(wl5.wow)}</td></tr>
+        <tr><td>Prev5 – Last Week</td><td>${n(wp5.value)}</td><td>—</td></tr>
+        <tr><td>L50 – 10-Week Avg</td><td>${n(w50.value)}</td><td>—</td></tr>
+        <tr class="pr-separator"><td colspan="3"></td></tr>
+        <tr class="pr-group-label"><td colspan="3">Monthly</td></tr>
+        <tr><td>${mc.label || 'Current Month'} Avg</td><td>${n(mc.value)}</td><td>${prFmt(mc.mom)}</td></tr>
+        <tr><td>${mp.label || 'Prev Month'} Avg</td><td>${n(mp.value)}</td><td>—</td></tr>
+        <tr><td>6-Month Avg</td><td>${n(m6.value)}</td><td>—</td></tr>
+        <tr class="pr-separator"><td colspan="3"></td></tr>
+        <tr class="pr-group-label"><td colspan="3">Quarterly</td></tr>
+        <tr><td>${qc.label || 'Current Q'}</td><td>${n(qc.value)}</td><td>${prFmt(qc.qoq)}</td></tr>
+        <tr><td>${qp.label || 'Prev Q'}</td><td>${n(qp.value)}</td><td>—</td></tr>
+        <tr><td>${q2.label || 'YoY Q'}</td><td>${n(q2.value)}</td><td>${prFmt(qc.yoy)}</td></tr>
+      </tbody>
+    </table>`;
+  }
 
-    // FY rows (last 2 FYs)
-    const fyRows = fyList.slice(0, 2).map((fy, i) => {
-      const v = (fyMap[fy] || {})[qf] || 0;
-      const prevFy = fyList[i + 1] ? (fyMap[fyList[i + 1]] || {})[qf] : null;
-      const yoy = (i === 0 && prevFy) ? (v - prevFy) / prevFy : null;
-      return `<tr><td>${fy}</td><td>${n(v)}</td><td>${i === 0 ? p(yoy) : '—'}</td></tr>`;
-    }).join('');
-
-    // Quarter rows (last 3)
-    const qIdxs = Array.from({ length: Math.min(3, allQ.length) }, (_, i) => allQ.length - 1 - i);
-    const qRows = qIdxs.map(idx => {
-      const q = allQ[idx];
-      const d = q.days || q.trading_days || 1;
-      const avg = (q[qf] || 0) / d;
-      const prev = idx > 0 ? allQ[idx - 1] : null;
-      const pDays = prev ? (prev.days || prev.trading_days || 1) : 1;
-      const pAvg = prev ? (prev[qf] || 0) / pDays : null;
-      const qoq = pAvg ? (avg - pAvg) / pAvg : null;
-      const yoyLabel = q.quarter.replace(/FY (\d{4})/, (_, y) => 'FY ' + (+y - 1));
-      const yoyQ = allQ.find(x => x.quarter === yoyLabel);
-      const yDays = yoyQ ? (yoyQ.days || yoyQ.trading_days || 1) : 1;
-      const yAvg = yoyQ ? (yoyQ[qf] || 0) / yDays : null;
-      const yoy = yAvg ? (avg - yAvg) / yAvg : null;
-      return `<tr><td>${q.quarter}</td><td>${n(q[qf])}</td><td>${n(avg)}</td><td>${p(qoq)}</td><td>${p(yoy)}</td></tr>`;
-    }).join('');
-
-    // Month rows (last 3)
-    const mIdxs = Array.from({ length: Math.min(3, allM.length) }, (_, i) => allM.length - 1 - i);
-    const mRows = mIdxs.map(idx => {
-      const m = allM[idx];
-      const d = m.trading_days || m.days || 1;
-      const avg = (m[qf] || 0) / d;
-      const prev = idx > 0 ? allM[idx - 1] : null;
-      const pDays = prev ? (prev.trading_days || prev.days || 1) : 1;
-      const pAvg = prev ? (prev[qf] || 0) / pDays : null;
-      const mom = pAvg ? (avg - pAvg) / pAvg : null;
-      return `<tr><td>${m.month}</td><td>${n(m[qf])}</td><td>${n(avg)}</td><td>${p(mom)}</td></tr>`;
-    }).join('');
-
-    // Weekly
-    const wl5 = s.weekly.last5;
-    const wp5 = s.weekly.prev5;
-    const w50 = s.weekly.last50;
-
-    // Day of week
+  function buildDowTable(enriched) {
+    const dow = (enriched.summary_total || {}).day_of_week || {};
     const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const dow = s.day_of_week || {};
-    const dowRows = dayNames.map(day => {
+    const rows = dayNames.map(day => {
       const dd = dow[day] || {};
-      return `<tr><td>${day}</td><td>${n(dd.latest)}</td><td>${n(dd.avg_3d)}</td><td>${p(dd.do3d)}</td><td>${n(dd.avg_10d)}</td><td>${p(dd.do10d)}</td></tr>`;
+      return `<tr><td>${day}</td><td>${n(dd.latest)}</td><td>${n(dd.avg_3d)}</td><td>${prFmt(dd.do3d)}</td><td>${n(dd.avg_10d)}</td><td>${prFmt(dd.do10d)}</td></tr>`;
     }).join('');
+    return `<div class="pr-sub-header">Day-of-Week Performance</div>
+    <table class="pr-table">
+      <thead><tr><th>Day</th><th>This Week (₹ Cr)</th><th>L3 Avg</th><th>Do3D</th><th>L10 Avg</th><th>Do10D</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
 
-    // Previous week
-    const pw = s.previous_week || null;
-    const pwTable = pw ? `<table class="pr-table" style="margin-top:6px">
-      <thead><tr><th colspan="2">Previous Week</th></tr></thead>
-      <tbody>${dayNames.map(d => `<tr><td>${d}</td><td>${n(pw[d])}</td></tr>`).join('')}</tbody>
-    </table>` : '';
+  function buildSegmentTable(enriched) {
+    const segs = [
+      { label: 'Options', data: enriched.seg_options },
+      { label: 'Futures', data: enriched.seg_futures },
+      { label: 'Cash',    data: enriched.seg_cash },
+    ];
+    const rows = segs.map(seg => {
+      const l5 = ((seg.data || {}).weekly || {}).last5 || {};
+      return `<tr><td>${seg.label}</td><td>${n(l5.value)}</td><td>${prFmt(l5.wow)}</td><td>${prFmt(l5.wo10w)}</td></tr>`;
+    }).join('');
+    return `<div class="pr-sub-header">Segment Revenue (L5 Daily Avg, ₹ Cr)</div>
+    <table class="pr-table">
+      <thead><tr><th>Segment</th><th>L5 Avg</th><th>WoW</th><th>Wo10W</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  function buildSummaryPara(exchangeName, enriched) {
+    const s = enriched.summary_total;
+    if (!s) return '';
+    const wl5 = s.weekly.last5 || {};
+    const wp5 = s.weekly.prev5 || {};
+    const qc = s.quarterly.current || {};
+    const wowPct = wl5.wow != null ? Math.abs(wl5.wow * 100).toFixed(1) : null;
+    const dir = wl5.wow > 0 ? 'up' : wl5.wow < 0 ? 'down' : 'flat';
+    const wowStr = wowPct ? `, ${dir} ${wowPct}% WoW vs ₹${n(wp5.value)} Cr prior week` : '';
+    return `<p class="pr-summary">${exchangeName} daily avg revenue for L5 was ₹${n(wl5.value)} Cr${wowStr}. Current quarter (${qc.label || ''}) daily avg: ₹${n(qc.value)} Cr (${prFmt(qc.qoq)} QoQ).</p>`;
+  }
+
+  function buildExchangeSection(label, enriched, includeSegments) {
+    return `<div class="pr-section">
+      <div class="pr-section-header">${label}</div>
+      <div class="pr-section-body">
+        ${buildTotalRevenueTable(enriched)}
+        ${buildDowTable(enriched)}
+        ${includeSegments ? buildSegmentTable(enriched) : ''}
+        ${buildSummaryPara(label.replace(' Update', ''), enriched)}
+      </div>
+    </div>`;
+  }
+
+  function buildValuationSection() {
+    // Get annualised EPS from latest predicted quarter
+    function getAnnualEPS(enriched, dashData) {
+      const pq = enriched.pnl_predicted_quarters || {};
+      const keys = Object.keys(pq).sort().reverse();
+      if (keys.length > 0 && pq[keys[0]] && pq[keys[0]].eps) return pq[keys[0]].eps * 4;
+      const allQ = dashData.quarterly || [];
+      if (allQ.length > 0) {
+        const latest = allQ[allQ.length - 1];
+        if (latest.eps) return latest.eps * 4;
+      }
+      return null;
+    }
+
+    const nseEPS = getAnnualEPS(nseEnrich, nseDash);
+    const bseEPS = getAnnualEPS(bseEnrich, bseDash);
+
+    const bearPE = parseFloat(document.getElementById('predBearPE')?.value) || 35;
+    const basePE = parseFloat(document.getElementById('predBasePE')?.value) || 40;
+    const bullPE = parseFloat(document.getElementById('predBullPE')?.value) || 45;
+
+    function pt(eps, pe) {
+      if (!eps) return '—';
+      return '₹' + Math.round(eps * pe).toLocaleString('en-IN');
+    }
 
     return `<div class="pr-section">
-      <div class="pr-section-header">${seg.label}</div>
-      <div class="pr-cols">
-        <div>
-          <table class="pr-table">
-            <thead><tr><th>Financial Year</th><th>Total (₹ Cr)</th><th>YoY</th></tr></thead>
-            <tbody>${fyRows}</tbody>
-          </table>
-          <table class="pr-table" style="margin-top:6px">
-            <thead><tr><th>Quarter</th><th>Total (₹ Cr)</th><th>Daily Avg</th><th>QoQ</th><th>YoY</th></tr></thead>
-            <tbody>${qRows}</tbody>
-          </table>
-          <table class="pr-table" style="margin-top:6px">
-            <thead><tr><th>Month</th><th>Total (₹ Cr)</th><th>Daily Avg</th><th>MoM</th></tr></thead>
-            <tbody>${mRows}</tbody>
-          </table>
-        </div>
-        <div>
-          <table class="pr-table">
-            <thead><tr><th>Period</th><th>Daily Avg (₹ Cr)</th><th>WoW</th><th>Wo10W</th></tr></thead>
-            <tbody>
-              <tr><td>Last 5 Trading Days</td><td>${n(wl5.value)}</td><td>${p(wl5.wow)}</td><td>${p(wl5.wo10w)}</td></tr>
-              <tr><td>Prev 5 Trading Days</td><td>${n(wp5.value)}</td><td>—</td><td>—</td></tr>
-              <tr><td>Last 50 Trading Days</td><td>${n(w50.value)}</td><td>—</td><td>—</td></tr>
-            </tbody>
-          </table>
-          <table class="pr-table" style="margin-top:6px">
-            <thead><tr><th>Day</th><th>Latest</th><th>3-Day Avg</th><th>Do3D</th><th>10-Day Avg</th><th>Do10D</th></tr></thead>
-            <tbody>${dowRows}</tbody>
-          </table>
-          ${pwTable}
-        </div>
+      <div class="pr-section-header">Valuation Models – FY27E Estimates</div>
+      <div class="pr-section-body">
+        <table class="pr-table" style="max-width:320px">
+          <thead><tr><th>Scenario</th><th>NSE</th><th>BSE</th></tr></thead>
+          <tbody>
+            <tr><td>Est. EPS (FY27E)</td><td>${nseEPS ? '₹' + nseEPS.toFixed(0) : '—'}</td><td>${bseEPS ? '₹' + bseEPS.toFixed(0) : '—'}</td></tr>
+            <tr><td>Bear (${bearPE}x)</td><td>${pt(nseEPS, bearPE)}</td><td>${pt(bseEPS, bearPE)}</td></tr>
+            <tr><td>Base (${basePE}x)</td><td>${pt(nseEPS, basePE)}</td><td>${pt(bseEPS, basePE)}</td></tr>
+            <tr><td>Bull (${bullPE}x)</td><td>${pt(nseEPS, bullPE)}</td><td>${pt(bseEPS, bullPE)}</td></tr>
+          </tbody>
+        </table>
+        <p class="pr-summary" style="font-size:8px;color:#888;margin-top:4px">EPS annualised from latest predicted quarter. PE multiples are indicative estimates.</p>
       </div>
     </div>`;
   }
 
   const html = `<div class="pr-wrapper">
     <div class="pr-header">
-      <span class="pr-title">${exchange} Trading Revenue — Weekly Report</span>
-      <span class="pr-subtitle">As on: ${latestDate} &nbsp;|&nbsp; Generated: ${genTime}</span>
+      <span class="pr-title">NSE/BSE Weekly Update – Week of ${weekRange}</span>
+      <span class="pr-subtitle">Generated: ${genTime}</span>
     </div>
-    ${segments.map(buildSegment).join('')}
-    <div class="pr-footer">Exchange Analytics Dashboard — Auto-generated report</div>
+    ${buildExchangeSection('NSE Update', nseEnrich, true)}
+    ${buildExchangeSection('BSE Update', bseEnrich, false)}
+    ${buildValuationSection()}
+    <div class="pr-footer">NSE/BSE Analytics Dashboard — Auto-generated report</div>
   </div>`;
 
   const el = document.getElementById('print-report');
