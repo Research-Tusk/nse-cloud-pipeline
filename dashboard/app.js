@@ -2573,12 +2573,12 @@ async function downloadWeeklyReport() {
         <tr class="pr-group-label"><td colspan="3">Weekly</td></tr>
         <tr><td>L5 – This Week</td><td>${n(wl5.value)}</td><td>${prFmt(wl5.wow)}</td></tr>
         <tr><td>Prev5 – Last Week</td><td>${n(wp5.value)}</td><td>—</td></tr>
-        <tr><td>L50 – 10-Week Avg</td><td>${n(w50.value)}</td><td>—</td></tr>
+        <tr><td>L50 – 10-Week Avg</td><td>${n(w50.value)}</td><td>${prFmt(wl5.wo10w)}</td></tr>
         <tr class="pr-separator"><td colspan="3"></td></tr>
         <tr class="pr-group-label"><td colspan="3">Monthly</td></tr>
         <tr><td>${mc.label || 'Current Month'} Avg</td><td>${n(mc.value)}</td><td>${prFmt(mc.mom)}</td></tr>
         <tr><td>${mp.label || 'Prev Month'} Avg</td><td>${n(mp.value)}</td><td>—</td></tr>
-        <tr><td>6-Month Avg</td><td>${n(m6.value)}</td><td>—</td></tr>
+        <tr><td>6-Month Avg</td><td>${n(m6.value)}</td><td>${prFmt(mc.mo6m)}</td></tr>
         <tr class="pr-separator"><td colspan="3"></td></tr>
         <tr class="pr-group-label"><td colspan="3">Quarterly</td></tr>
         <tr><td>${qc.label || 'Current Q'}</td><td>${n(qc.value)}</td><td>${prFmt(qc.qoq)}</td></tr>
