@@ -1848,6 +1848,7 @@ function buildNSEPnLTable() {
 
 function buildNSEAdvancedCharts() {
   const d = DATA.daily;
+  const hasVix = d.some(x => x.vix > 0);
   const labels = d.map(x => {
     const dt = new Date(x.date);
     return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
@@ -1855,62 +1856,66 @@ function buildNSEAdvancedCharts() {
 
   // PN ratio vs VIX
   setCanvasHeight('chartPNVix', 300);
-  charts.pnVix = new Chart(document.getElementById('chartPNVix'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'P/N Ratio (bps)',
-          data: d.map(x => x.pn_ratio * 10000),
-          borderColor: CHART_COLORS[0],
-          yAxisID: 'y1',
-          borderWidth: 1.5,
-          pointRadius: 1,
-        },
-        {
-          label: 'India VIX',
-          data: d.map(x => x.vix),
-          borderColor: CHART_COLORS[5],
-          yAxisID: 'y2',
-          borderWidth: 2,
-          borderDash: [4, 3],
-          pointRadius: 0,
-        },
-      ]
-    },
-    options: {
-      scales: {
-        x: { ticks: { maxTicksLimit: 12, font: { size: 10 } } },
-        y1: { position: 'left', title: { display: true, text: 'P/N Ratio (bps)', color: CHART_COLORS[0], font: { size: 10 } } },
-        y2: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'India VIX', color: CHART_COLORS[5], font: { size: 10 } } },
+  if (hasVix) {
+    charts.pnVix = new Chart(document.getElementById('chartPNVix'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'P/N Ratio (bps)',
+            data: d.map(x => x.pn_ratio * 10000),
+            borderColor: CHART_COLORS[0],
+            yAxisID: 'y1',
+            borderWidth: 1.5,
+            pointRadius: 1,
+          },
+          {
+            label: 'India VIX',
+            data: d.map(x => x.vix),
+            borderColor: CHART_COLORS[5],
+            yAxisID: 'y2',
+            borderWidth: 2,
+            borderDash: [4, 3],
+            pointRadius: 0,
+          },
+        ]
+      },
+      options: {
+        scales: {
+          x: { ticks: { maxTicksLimit: 12, font: { size: 10 } } },
+          y1: { position: 'left', title: { display: true, text: 'P/N Ratio (bps)', color: CHART_COLORS[0], font: { size: 10 } } },
+          y2: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'India VIX', color: CHART_COLORS[5], font: { size: 10 } } },
+        }
       }
-    }
-  });
+    });
+  }
 
   // Scatter
   setCanvasHeight('chartScatter', 300);
-  charts.scatter = new Chart(document.getElementById('chartScatter'), {
-    type: 'scatter',
-    data: {
-      datasets: [{
-        label: 'Daily Revenue vs VIX',
-        data: d.map(x => ({ x: x.vix, y: x.total_rev })),
-        backgroundColor: CHART_COLORS[0] + '80',
-        pointRadius: 4,
-        pointHoverRadius: 6,
-      }]
-    },
-    options: {
-      scales: {
-        x: { title: { display: true, text: 'India VIX', font: { size: 10 } }, ticks: { font: { size: 10 } } },
-        y: { title: { display: true, text: 'Total Revenue (₹ Cr)', font: { size: 10 } }, ticks: { callback: v => '₹' + fmtNum(v, 0) } },
+  if (hasVix) {
+    charts.scatter = new Chart(document.getElementById('chartScatter'), {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: 'Daily Revenue vs VIX',
+          data: d.map(x => ({ x: x.vix, y: x.total_rev })),
+          backgroundColor: CHART_COLORS[0] + '80',
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        }]
       },
-      plugins: {
-        tooltip: { callbacks: { label: ctx => 'VIX: ' + fmtNum(ctx.raw.x, 1) + ', Rev: ' + fmt(ctx.raw.y) } }
+      options: {
+        scales: {
+          x: { title: { display: true, text: 'India VIX', font: { size: 10 } }, ticks: { font: { size: 10 } } },
+          y: { title: { display: true, text: 'Total Revenue (₹ Cr)', font: { size: 10 } }, ticks: { callback: v => '₹' + fmtNum(v, 0) } },
+        },
+        plugins: {
+          tooltip: { callbacks: { label: ctx => 'VIX: ' + fmtNum(ctx.raw.x, 1) + ', Rev: ' + fmt(ctx.raw.y) } }
+        }
       }
-    }
-  });
+    });
+  }
 
   // Contracts vs Revenue
   setCanvasHeight('chartContracts', 300);

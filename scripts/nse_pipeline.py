@@ -39,6 +39,34 @@ TR_CASH = 5.94e-05
 
 
 # ═══════════════════════════════════════════════════════════════
+# SECTION 0: VIX DATA FETCHER (Yahoo Finance ^INDIAVIX)
+# ═══════════════════════════════════════════════════════════════
+
+def fetch_indiavix_map(start_date, end_date):
+    """Fetch India VIX closing prices from Yahoo Finance.
+    Returns {date_str: vix_value} for the given date range, or {} on failure.
+    """
+    try:
+        import yfinance as yf
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=2)
+        ticker = yf.Ticker("^INDIAVIX")
+        hist = ticker.history(start=start_date, end=end_dt.strftime("%Y-%m-%d"))
+        if hist.empty:
+            print("WARNING: No VIX data returned from Yahoo Finance")
+            return {}
+        result = {str(idx.date()): round(float(row["Close"]), 4)
+                  for idx, row in hist.iterrows()}
+        print(f"Fetched {len(result)} India VIX data points ({start_date} to {end_date})")
+        return result
+    except ImportError:
+        print("WARNING: yfinance not installed — VIX data unavailable. Run: pip install yfinance")
+        return {}
+    except Exception as e:
+        print(f"WARNING: VIX fetch failed (non-fatal): {e}")
+        return {}
+
+
+# ═══════════════════════════════════════════════════════════════
 # SECTION 1: NSE DATA FETCHER (curl_cffi with Chrome impersonation)
 # ═══════════════════════════════════════════════════════════════
 
@@ -454,6 +482,92 @@ def seg_summary(daily_data, rev_key):
         "fy": {"current": round(curr_fy_avg, 4), "previous": round(prev_fy_avg, 4), "yoy": round(fy_yoy, 4)},
     }
 
+def _next_quarter(quarter_name):
+    """Return the quarter immediately following quarter_name.
+    e.g. 'Q4 FY 2026' -> 'Q1 FY 2027', 'Q2 FY 2026' -> 'Q3 FY 2026'
+    """
+    parts = quarter_name.split()          # ["Q4", "FY", "2026"]
+    q_num   = int(parts[0][1])
+    fy_year = int(parts[2])
+    if q_num == 4:
+        return f"Q1 FY {fy_year + 1}"
+    return f"Q{q_num + 1} FY {fy_year}"
+
+
+def compute_predicted_quarters(pnl_predictor, pnl_history, quarterly):
+    """Build the pnl_predicted_quarters dict using live predictor + historical cost ratios.
+
+    Returns a dict with two entries:
+      - current quarter (label "CURRENT" in the dashboard)
+      - next quarter (YoY-growth projection)
+    Both are derived from pnl_predictor values with cost ratios inferred from
+    the most recent 2 actual (non-predicted) historical P&L quarters.
+    """
+    if not pnl_predictor or not pnl_history:
+        return {}
+
+    actual_pnl = [p for p in pnl_history if not p.get("is_predicted")]
+    if not actual_pnl:
+        return {}
+
+    recent = actual_pnl[-2:] if len(actual_pnl) >= 2 else actual_pnl
+
+    def avg_ratio(num_key, den_key):
+        vals = [float(q[num_key]) / float(q[den_key])
+                for q in recent
+                if q.get(num_key) is not None and float(q.get(den_key, 0) or 0) > 0]
+        return sum(vals) / len(vals) if vals else None
+
+    exp_ratio     = avg_ratio("total_expense", "total_revenue") or 0.25
+    pat_ratio     = avg_ratio("pat",           "total_revenue") or 0.567
+    eps_pat_ratio = avg_ratio("eps",           "pat")           or 0.004
+
+    def build_entry(txn_rev, total_rev):
+        pat           = total_rev * pat_ratio
+        total_expense = total_rev * exp_ratio
+        ebitda        = total_rev - total_expense
+        ebitda_margin = ebitda / total_rev if total_rev else 0
+        eps           = pat * eps_pat_ratio
+        return {
+            "transaction_rev": round(txn_rev, 2),
+            "total_revenue":   round(total_rev, 2),
+            "total_expense":   round(total_expense, 2),
+            "ebitda":          round(ebitda, 2),
+            "ebitda_margin":   round(ebitda_margin, 4),
+            "pat":             round(pat, 2),
+            "pat_margin":      round(pat / total_rev, 4) if total_rev else 0,
+            "eps":             round(eps, 2),
+        }
+
+    result = {}
+
+    # Current quarter: from live trading data via pnl_predictor
+    cq_name = date_to_fy_quarter(datetime.now())
+    result[cq_name] = build_entry(
+        pnl_predictor["transaction_rev_extrapolated"],
+        pnl_predictor["total_revenue_predicted"],
+    )
+
+    # Next quarter: YoY-growth projection
+    nq_name = _next_quarter(cq_name)
+    if len(quarterly) >= 5:
+        same_q_prev = f"{cq_name.split()[0]} FY {int(cq_name.split()[2]) - 1}"
+        prev_q = next((q for q in quarterly if q["quarter"] == same_q_prev), None)
+        curr_q = quarterly[-1]
+        if prev_q and float(prev_q.get("total_rev", 0) or 0):
+            yoy_growth = float(curr_q["total_rev"]) / float(prev_q["total_rev"]) - 1
+        else:
+            yoy_growth = 0.10
+    else:
+        yoy_growth = 0.10
+
+    next_total_rev = pnl_predictor["total_revenue_predicted"] * (1 + yoy_growth)
+    next_txn_rev   = next_total_rev / (1 + float(pnl_predictor.get("other_income_ratio", 0.47)))
+    result[nq_name] = build_entry(next_txn_rev, next_total_rev)
+
+    return result
+
+
 def compute_enriched(daily, quarterly, pnl):
     enriched = {
         "summary_total": seg_summary(daily, "total_rev"),
@@ -486,7 +600,9 @@ def compute_enriched(daily, quarterly, pnl):
     else:
         enriched["pnl_predictor"] = {}
 
-    enriched["pnl_predicted_quarters"] = {}
+    enriched["pnl_predicted_quarters"] = compute_predicted_quarters(
+        enriched.get("pnl_predictor"), pnl, quarterly
+    )
     return enriched
 
 
@@ -619,6 +735,22 @@ def main():
             pnl, pnl_fy, cost_ratios = [], [], {}
 
     print(f"Total daily records: {len(all_daily)}")
+
+    # Apply VIX to any records that are missing it (vix == 0)
+    missing_vix = [d for d in all_daily if not float(d.get("vix", 0) or 0)]
+    if missing_vix:
+        vix_start = missing_vix[0]["date"]
+        vix_end   = missing_vix[-1]["date"]
+        print(f"Fetching VIX for {len(missing_vix)} records missing it ({vix_start} to {vix_end})")
+        vix_map = fetch_indiavix_map(vix_start, vix_end)
+        if vix_map:
+            for rec in all_daily:
+                if not float(rec.get("vix", 0) or 0):
+                    rec["vix"] = vix_map.get(rec["date"], 0)
+            filled = sum(1 for r in all_daily if float(r.get("vix", 0) or 0) > 0)
+            print(f"VIX applied: {filled}/{len(all_daily)} records now have VIX data")
+    else:
+        print("All records already have VIX data")
 
     # Step 5: Recompute aggregates
     quarterly = recompute_quarterly(all_daily)
