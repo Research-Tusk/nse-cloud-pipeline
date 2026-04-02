@@ -120,8 +120,10 @@ def fetch_bse_fo_data():
         current_html = html_months
 
         for i, target in enumerate(months_to_fetch):
-            year_val = re.search(rf'hdnYear_{i}"[^>]*value="(\d+)"', current_html)
-            month_val = re.search(rf'hdnMonth_{i}"[^>]*value="(\d+)"', current_html)
+            ctl_match = re.search(r'\$(ctl\d+)\$lnkMonth_T', target)
+            ctl_row = ctl_match.group(1) if ctl_match else f'ctl{i+2:02d}'
+            year_val = re.search(rf'{ctl_row}_hdnYear"[^>]*value="(\d+)"', current_html)
+            month_val = re.search(rf'{ctl_row}_hdnMonth"[^>]*value="(\d+)"', current_html)
             ctx_year = int(year_val.group(1)) if year_val else datetime.now().year
             ctx_month = int(month_val.group(1)) if month_val else datetime.now().month
 

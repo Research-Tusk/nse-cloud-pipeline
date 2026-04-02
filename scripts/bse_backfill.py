@@ -68,8 +68,10 @@ def backfill_fo(start_fy_index=0, end_fy_index=3):
         current_html = html_months
         for mi, mt in enumerate(month_targets):
             # Extract year/month context
-            year_val = re.search(rf'hdnYear_{mi}"[^>]*value="(\d+)"', current_html)
-            month_val = re.search(rf'hdnMonth_{mi}"[^>]*value="(\d+)"', current_html)
+            ctl_match = re.search(r'\$(ctl\d+)\$lnkMonth_T', mt)
+            ctl_row = ctl_match.group(1) if ctl_match else f'ctl{mi+2:02d}'
+            year_val = re.search(rf'{ctl_row}_hdnYear"[^>]*value="(\d+)"', current_html)
+            month_val = re.search(rf'{ctl_row}_hdnMonth"[^>]*value="(\d+)"', current_html)
             ctx_year = int(year_val.group(1)) if year_val else datetime.now().year
             ctx_month = int(month_val.group(1)) if month_val else 1
 
