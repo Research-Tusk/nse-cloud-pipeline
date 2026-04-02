@@ -62,14 +62,14 @@ def backfill_fo(start_fy_index=0, end_fy_index=3):
             page_html = resp.text
             continue
 
-        month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise_T_old[^&]*lnkMonth_T[^&]*')
+        month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise_T[^&]*lnkMonth_T[^&]*')
         print(f"  Found {len(month_targets)} month links")
 
         current_html = html_months
         for mi, mt in enumerate(month_targets):
             # Extract year/month context
-            year_val = re.search(rf'gvYearwise_T_old_hdnYear_{mi}"[^>]*value="(\d+)"', current_html)
-            month_val = re.search(rf'gvYearwise_T_old_hdnMonth_{mi}"[^>]*value="(\d+)"', current_html)
+            year_val = re.search(rf'hdnYear_{mi}"[^>]*value="(\d+)"', current_html)
+            month_val = re.search(rf'hdnMonth_{mi}"[^>]*value="(\d+)"', current_html)
             ctx_year = int(year_val.group(1)) if year_val else datetime.now().year
             ctx_month = int(month_val.group(1)) if month_val else 1
 

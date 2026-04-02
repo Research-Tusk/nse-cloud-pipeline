@@ -109,7 +109,7 @@ def fetch_bse_fo_data():
         if not html_months:
             continue
 
-        month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise_T_old[^&]*lnkMonth_T[^&]*')
+        month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise_T[^&]*lnkMonth_T[^&]*')
         if not month_targets:
             print(f"  No months in FY year index {year_idx}, trying next year")
             continue
@@ -120,8 +120,8 @@ def fetch_bse_fo_data():
         current_html = html_months
 
         for i, target in enumerate(months_to_fetch):
-            year_val = re.search(rf'gvYearwise_T_old_hdnYear_{i}"[^>]*value="(\d+)"', current_html)
-            month_val = re.search(rf'gvYearwise_T_old_hdnMonth_{i}"[^>]*value="(\d+)"', current_html)
+            year_val = re.search(rf'hdnYear_{i}"[^>]*value="(\d+)"', current_html)
+            month_val = re.search(rf'hdnMonth_{i}"[^>]*value="(\d+)"', current_html)
             ctx_year = int(year_val.group(1)) if year_val else datetime.now().year
             ctx_month = int(month_val.group(1)) if month_val else datetime.now().month
 
