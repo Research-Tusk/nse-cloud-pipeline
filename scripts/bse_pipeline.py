@@ -90,43 +90,55 @@ def fetch_bse_fo_data():
         print(f"ERROR: BSE F&O page returned {resp.status_code}")
         return []
 
-    # Step 2: Click the current FY year link to get monthly data
+    # Step 2: Click a FY year link to get monthly data.
+    # At the start of a new financial year, year_targets[0] is the new FY with no months
+    # yet published. Fall back to year_targets[1] (previous FY) in that case.
     year_targets = _find_postback_targets(resp.text, r'[^&]*gvReport_total[^&]*Linkbtn[^&]*')
     if not year_targets:
         print("ERROR: No year links found on BSE F&O page")
         return []
 
-    html_months = _postback(session, url, resp.text, year_targets[0])
-    if not html_months:
-        return []
+    base_html = resp.text  # save original page state; needed to postback different years
 
-    # Step 3: Click each recent month to get daily data
-    month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise_T_old[^&]*lnkMonth_T[^&]*')
-    if not month_targets:
-        print("ERROR: No month links found on BSE F&O page")
-        return []
-
+    # Step 3: Try each FY year in order until we find one with month links
     all_rows = []
-    # Fetch current month + previous month for safety
-    months_to_fetch = month_targets[:2]
-    current_html = html_months
+    found_months = False
 
-    for i, target in enumerate(months_to_fetch):
-        # Extract year/month context from hidden fields
-        idx = str(i)  # ctl02 = index 0, ctl03 = index 1
-        year_val = re.search(rf'gvYearwise_T_old_hdnYear_{i}"[^>]*value="(\d+)"', current_html)
-        month_val = re.search(rf'gvYearwise_T_old_hdnMonth_{i}"[^>]*value="(\d+)"', current_html)
-        ctx_year = int(year_val.group(1)) if year_val else datetime.now().year
-        ctx_month = int(month_val.group(1)) if month_val else datetime.now().month
-
-        html_daily = _postback(session, url, current_html, target)
-        if not html_daily:
+    for year_idx, year_target in enumerate(year_targets[:2]):
+        html_months = _postback(session, url, base_html, year_target)
+        if not html_months:
             continue
 
-        rows = _parse_fo_daily_table(html_daily, ctx_year, ctx_month)
-        all_rows.extend(rows)
-        print(f"  F&O month {ctx_year}-{ctx_month:02d}: {len(rows)} daily rows")
-        current_html = html_daily  # use latest page state for next postback
+        month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise_T_old[^&]*lnkMonth_T[^&]*')
+        if not month_targets:
+            print(f"  No months in FY year index {year_idx}, trying next year")
+            continue
+
+        found_months = True
+        # Fetch current month + previous month for safety
+        months_to_fetch = month_targets[:2]
+        current_html = html_months
+
+        for i, target in enumerate(months_to_fetch):
+            year_val = re.search(rf'gvYearwise_T_old_hdnYear_{i}"[^>]*value="(\d+)"', current_html)
+            month_val = re.search(rf'gvYearwise_T_old_hdnMonth_{i}"[^>]*value="(\d+)"', current_html)
+            ctx_year = int(year_val.group(1)) if year_val else datetime.now().year
+            ctx_month = int(month_val.group(1)) if month_val else datetime.now().month
+
+            html_daily = _postback(session, url, current_html, target)
+            if not html_daily:
+                continue
+
+            rows = _parse_fo_daily_table(html_daily, ctx_year, ctx_month)
+            all_rows.extend(rows)
+            print(f"  F&O month {ctx_year}-{ctx_month:02d}: {len(rows)} daily rows")
+            current_html = html_daily  # use latest page state for next postback
+
+        break  # stop after first year that has months
+
+    if not found_months:
+        print("ERROR: No month links found in any FY year on BSE F&O page")
+        return []
 
     print(f"BSE F&O rows extracted: {len(all_rows)}")
     return all_rows

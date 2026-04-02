@@ -29,7 +29,7 @@ import json
 def backfill_fo(start_fy_index=0, end_fy_index=3):
     """Fetch F&O daily data for multiple FY years via postback.
     
-    Year indices on BSE page: 0=current FY (2025-2026), 1=2024-2025, 2=2023-2024, etc.
+    Year indices on BSE page: 0=current FY, 1=previous FY, 2=two years ago, etc.
     """
     from curl_cffi import requests as cffi_requests
 
@@ -70,7 +70,7 @@ def backfill_fo(start_fy_index=0, end_fy_index=3):
             # Extract year/month context
             year_val = re.search(rf'gvYearwise_T_old_hdnYear_{mi}"[^>]*value="(\d+)"', current_html)
             month_val = re.search(rf'gvYearwise_T_old_hdnMonth_{mi}"[^>]*value="(\d+)"', current_html)
-            ctx_year = int(year_val.group(1)) if year_val else 2026
+            ctx_year = int(year_val.group(1)) if year_val else datetime.now().year
             ctx_month = int(month_val.group(1)) if month_val else 1
 
             html_daily = _postback(session, url, current_html, mt)
