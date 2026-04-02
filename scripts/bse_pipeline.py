@@ -369,6 +369,14 @@ def get_existing_dates(supabase):
     result = supabase.table("bse_daily").select("date").execute()
     return {row["date"] for row in result.data}
 
+def fetch_zero_fo_dates(supabase):
+    """Get dates that exist in DB but have zero F&O revenue (data-posting lag)."""
+    result = (supabase.table("bse_daily")
+              .select("date")
+              .eq("fo_rev", 0)
+              .execute())
+    return {row["date"] for row in result.data}
+
 def upsert_daily_records(supabase, records):
     """Upsert parsed daily records into Supabase."""
     if not records:
@@ -697,6 +705,11 @@ def main():
                 "pn_ratio": 0,
             })
 
+    if not fo_rows and cash_rows:
+        print(f"WARNING: BSE F&O returned 0 records while cash data has "
+              f"{len(cash_rows)} record(s). Likely a data-posting delay — "
+              "re-run pipeline after BSE publishes F&O data.")
+
     print(f"Parsed {len(new_parsed)} records from BSE")
 
     # Step 3: Supabase operations
@@ -707,8 +720,12 @@ def main():
     else:
         supabase = get_supabase_client()
         existing_dates = get_existing_dates(supabase)
-        to_insert = [r for r in new_parsed if r["date"] not in existing_dates]
-        print(f"Existing dates in DB: {len(existing_dates)}, New records to insert: {len(to_insert)}")
+        zero_fo_dates = fetch_zero_fo_dates(supabase)
+        to_insert = [r for r in new_parsed
+                     if r["date"] not in existing_dates or r["date"] in zero_fo_dates]
+        print(f"Existing dates in DB: {len(existing_dates)}, "
+              f"Zero-F&O dates to re-upsert: {len(zero_fo_dates & {r['date'] for r in new_parsed})}, "
+              f"Records to upsert: {len(to_insert)}")
 
         if to_insert:
             upsert_daily_records(supabase, to_insert)
