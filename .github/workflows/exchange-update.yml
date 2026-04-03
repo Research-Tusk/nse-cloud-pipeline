@@ -123,6 +123,42 @@ jobs:
           git commit -m "📊 BSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
           git push
 
+  excel-sync:
+    needs: [nse-update, bse-update]
+    if: ${{ always() && (needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Sync to OneDrive Excel
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          MSGRAPH_TENANT_ID: ${{ secrets.MSGRAPH_TENANT_ID }}
+          MSGRAPH_CLIENT_ID: ${{ secrets.MSGRAPH_CLIENT_ID }}
+          MSGRAPH_CLIENT_SECRET: ${{ secrets.MSGRAPH_CLIENT_SECRET }}
+          ONEDRIVE_USER: ${{ secrets.ONEDRIVE_USER }}
+          EXCEL_FILE_PATH: ${{ secrets.EXCEL_FILE_PATH }}
+        run: python scripts/excel_sync.py
+
   deploy:
     needs: [nse-update, bse-update]
     if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0') }}
