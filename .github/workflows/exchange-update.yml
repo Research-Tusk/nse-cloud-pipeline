@@ -125,7 +125,7 @@ jobs:
 
   excel-sync:
     needs: [nse-update, bse-update]
-    if: ${{ always() && (needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0') }}
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
