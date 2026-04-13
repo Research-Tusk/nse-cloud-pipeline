@@ -2989,6 +2989,55 @@ async function downloadWeeklyReport() {
     }
   }
 
+  // ── Header revenue ticker (always visible, polls both exchanges) ──
+  async function updateHeaderTicker() {
+    const el = document.getElementById('header-live-rev');
+    if (!el) return;
+    try {
+      const bust = Date.now();
+      const [nseRes, bseRes] = await Promise.all([
+        fetch(`./data/nse_live.json?t=${bust}`).catch(() => null),
+        fetch(`./data/bse_live.json?t=${bust}`).catch(() => null),
+      ]);
+      const nseData = (nseRes && nseRes.ok) ? await nseRes.json() : null;
+      const bseData = (bseRes && bseRes.ok) ? await bseRes.json() : null;
+
+      const [nseHourlyRes, bseHourlyRes] = await Promise.all([
+        fetch(`./data/nse_live_hourly.json?t=${bust}`).catch(() => null),
+        fetch(`./data/bse_live_hourly.json?t=${bust}`).catch(() => null),
+      ]);
+      const nseHourly = (nseHourlyRes && nseHourlyRes.ok) ? await nseHourlyRes.json() : null;
+      const bseHourly = (bseHourlyRes && bseHourlyRes.ok) ? await bseHourlyRes.json() : null;
+
+      function lastPred(hourly) {
+        const snaps = hourly && hourly.snapshots;
+        if (!snaps || !snaps.length) return null;
+        const last = snaps[snaps.length - 1];
+        return (last.predicted_eod && Math.abs(last.predicted_eod - last.total_revenue) > 0.05)
+          ? last.predicted_eod : null;
+      }
+
+      function chip(label, rev, pred, color) {
+        if (!rev) return '';
+        const predStr = pred ? ` <span style="color:var(--color-text-muted)">→ ${_cr(pred)}</span>` : '';
+        return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:3px;border:1px solid var(--color-border);background:var(--color-surface-solid)">
+          <span style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--color-text-muted);letter-spacing:.06em">${label}</span>
+          <span style="font-weight:700;color:${color};font-variant-numeric:tabular-nums">${_cr(rev)}</span>${predStr}
+        </span>`;
+      }
+
+      const nseRev  = nseData && nseData.revenue && nseData.revenue.has_data ? nseData.revenue.total_revenue : null;
+      const bseRev  = bseData && bseData.revenue && bseData.revenue.has_data ? bseData.revenue.total_revenue : null;
+
+      el.innerHTML = chip('NSE', nseRev, lastPred(nseHourly), 'var(--color-text)')
+                   + chip('BSE', bseRev, lastPred(bseHourly), 'var(--color-text)');
+    } catch(e) { /* silent */ }
+  }
+
+  // Kick off ticker immediately and refresh every 5 min
+  updateHeaderTicker();
+  setInterval(updateHeaderTicker, 5 * 60 * 1000);
+
   // ── Event delegation: start/stop polling when live tab is activated ──
   document.addEventListener('click', function(e) {
     const btn = e.target.closest('.nav-item[data-tab]');
