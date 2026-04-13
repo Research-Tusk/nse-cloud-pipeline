@@ -2893,11 +2893,11 @@ async function downloadWeeklyReport() {
         </div>
       ` : ''}
 
-      <!-- monthly history chart -->
-      ${hist.filter(h => h.revenue?.has_data).length > 1 ? `
+      <!-- hourly revenue chart -->
+      ${snaps.length > 1 ? `
         <div class="chart-panel" style="margin-bottom:14px">
-          <div class="chart-title" style="margin-bottom:12px">This Month — Daily Revenue</div>
-          <canvas id="liveRevChart" height="70"></canvas>
+          <div class="chart-title" style="margin-bottom:12px">Revenue by Hour (IST)</div>
+          <canvas id="liveRevChart" height="60"></canvas>
         </div>
       ` : ''}
 
@@ -2918,24 +2918,24 @@ async function downloadWeeklyReport() {
         </div>
       </div>`;
 
-    // ── Chart.js monthly daily revenue line ──
-    const histPts = hist.filter(h => h.revenue?.has_data);
-    if (histPts.length > 1) {
+    // ── Chart.js hourly revenue line ──
+    if (snaps.length > 1) {
       const canvas = document.getElementById('liveRevChart');
       if (canvas) {
         if (liveChart) { liveChart.destroy(); liveChart = null; }
         liveChart = new Chart(canvas.getContext('2d'), {
           type: 'line',
           data: {
-            labels: histPts.map(h => h.timestamp.slice(0, 5)),
+            labels: snaps.map(s => s.hour_label),
             datasets: [{
-              label: 'Total Revenue',
-              data: histPts.map(h => h.revenue.total_revenue),
+              data: snaps.map(s => s.total_revenue),
               borderColor: '#fff',
-              backgroundColor: 'rgba(255,255,255,.05)',
+              backgroundColor: 'rgba(255,255,255,.06)',
               tension: 0.3,
-              pointRadius: 3,
+              pointRadius: 4,
+              pointBackgroundColor: '#fff',
               fill: true,
+              borderWidth: 1.5,
             }],
           },
           options: {
