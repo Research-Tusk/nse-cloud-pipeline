@@ -2787,11 +2787,11 @@ async function downloadWeeklyReport() {
       open ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(48,209,88,.12);color:#30d158;border:1px solid rgba(48,209,88,.25)"><span style="width:5px;height:5px;border-radius:50%;background:#30d158;display:inline-block;animation:pulse 1.5s infinite"></span>OPEN</span>'
            : '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(120,120,120,.08);color:#666;border:1px solid rgba(120,120,120,.2)"><span style="width:5px;height:5px;border-radius:50%;background:#555;display:inline-block"></span>CLOSED</span>';
 
-    // revenue segment card — black box, white text
+    // revenue segment card
     const segCard = (label, revVal, color) => `
-      <div style="background:#111;border:1px solid #222;border-radius:10px;padding:20px 16px;text-align:center">
+      <div style="background:var(--color-surface-2);border:1px solid var(--color-border-strong);border-radius:6px;padding:20px 16px;text-align:center">
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:${color};margin-bottom:12px">${label}</div>
-        <div style="font-size:28px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-.5px">${hasRev ? _cr(revVal) : '—'}</div>
+        <div style="font-size:28px;font-weight:700;color:var(--color-text);font-variant-numeric:tabular-nums;letter-spacing:-.5px">${hasRev ? _cr(revVal) : '—'}</div>
       </div>`;
 
     // hourly table rows
@@ -2850,8 +2850,8 @@ async function downloadWeeklyReport() {
       <div class="chart-panel" style="margin-bottom:14px;text-align:center">
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Total Revenue Today${hasRev ? ' · ' + rev.trade_date : ''}</div>
         ${hasRev ? `
-          <div style="font-size:80px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1;margin-bottom:6px">${_cr(rev.total_revenue)}</div>
-          ${lastPred ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:24px">Latest forecast <span style="color:#fff;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums">${_cr(lastPred)}</span></div>` : '<div style="margin-bottom:24px"></div>'}
+          <div style="font-size:80px;font-weight:700;color:var(--color-text);font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1;margin-bottom:6px">${_cr(rev.total_revenue)}</div>
+          ${lastPred ? `<div style="font-size:11px;color:var(--color-text-muted);margin-bottom:24px">Latest forecast <span style="color:var(--color-text);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;letter-spacing:-.5px">${_cr(lastPred)}</span></div>` : '<div style="margin-bottom:24px"></div>'}
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">
             ${segCard('Futures', rev.futures_revenue, '#60a5fa')}
             ${segCard('Options', rev.options_revenue, '#a78bfa')}
