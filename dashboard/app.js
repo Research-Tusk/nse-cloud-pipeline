@@ -2851,7 +2851,7 @@ async function downloadWeeklyReport() {
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Total Revenue Today${hasRev ? ' · ' + rev.trade_date : ''}</div>
         ${hasRev ? `
           <div style="font-size:80px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1;margin-bottom:6px">${_cr(rev.total_revenue)}</div>
-          ${lastPred ? `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:24px">Latest forecast <span style="color:var(--text-primary);font-weight:600">${_cr(lastPred)}</span></div>` : '<div style="margin-bottom:24px"></div>'}
+          ${lastPred ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:24px">Latest forecast <span style="color:#fff;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums">${_cr(lastPred)}</span></div>` : '<div style="margin-bottom:24px"></div>'}
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">
             ${segCard('Futures', rev.futures_revenue, '#60a5fa')}
             ${segCard('Options', rev.options_revenue, '#a78bfa')}
