@@ -43,11 +43,11 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python scripts/nse_live_poller.py
 
-      - name: Commit nse_live.json
+      - name: Commit data files
         run: |
           git config user.name "Research-Tusk"
           git config user.email "research@tuskinvest.com"
-          git add dashboard/data/nse_live.json
+          git add dashboard/data/nse_live.json dashboard/data/nse_live_hourly.json
           git diff --cached --quiet && echo "No changes" || \
             git commit -m "📡 Live update: $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
           git push || true

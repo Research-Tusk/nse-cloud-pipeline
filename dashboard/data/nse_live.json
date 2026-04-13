@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-13T10:59:28",
+  "updated_at": "2026-04-13T11:08:57",
   "market_status": {
     "marketState": [
       {
@@ -53,8 +53,8 @@
         "marketStatusMessage": "Market is Open",
         "expiryDate": "17-Apr-2026",
         "underlying": "USDINR",
-        "updated_time": "13-Apr-2026 16:11",
-        "tradeDateFormatted": "13-Apr-2026 16:11",
+        "updated_time": "13-Apr-2026 16:29",
+        "tradeDateFormatted": "13-Apr-2026 16:29",
         "slickclass": "slick-item"
       }
     ],
@@ -81,17 +81,17 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "id": "0/NIFTYFUTIDX28-Apr-2026--",
+      "id": "1/NIFTYFUTIDX28-Apr-2026--",
       "INSTRUMENTTYPE": "FUTIDX",
       "SYMBOL": "NIFTY",
       "EXPIRYDATE": "28-Apr-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 23877.5,
-      "DAYCHANGE": 0,
-      "PERCHANGE": 0,
-      "CONTRACTSTRADED": 1,
-      "TIMESTMP": "13-Apr-2026 15:49"
+      "LASTPRICE": 23840,
+      "DAYCHANGE": -37.5,
+      "PERCHANGE": -0.16,
+      "CONTRACTSTRADED": 50247,
+      "TIMESTMP": "13-Apr-2026 16:37"
     }
   },
   "revenue": {
