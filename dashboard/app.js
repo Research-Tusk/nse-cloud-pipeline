@@ -2710,11 +2710,11 @@ async function downloadWeeklyReport() {
 }
 
 // ─── Live Market Tab ──────────────────────────────────────────────────────────
-// Self-contained IIFE — reads ./data/nse_live.json + nse_live_hourly.json
-// Does NOT touch any existing variables, functions, or DOM outside #tab-live.
+// Self-contained IIFE — reads nse_live.json or bse_live.json depending on
+// currentExchange. Does NOT touch any existing variables/DOM outside #tab-live.
 (function() {
-  const LIVE_JSON   = './data/nse_live.json';
-  const HOURLY_JSON = './data/nse_live_hourly.json';
+  function liveJsonPath()   { return `./data/${currentExchange}_live.json`; }
+  function hourlyJsonPath() { return `./data/${currentExchange}_live_hourly.json`; }
   const POLL_MS     = 5 * 60 * 1000;
   let   liveTimer   = null;
   let   liveChart   = null;
@@ -2753,8 +2753,8 @@ async function downloadWeeklyReport() {
     try {
       const bust = Date.now();
       const [liveRes, hourlyRes] = await Promise.all([
-        fetch(LIVE_JSON   + '?t=' + bust),
-        fetch(HOURLY_JSON + '?t=' + bust).catch(() => null),
+        fetch(liveJsonPath()   + '?t=' + bust),
+        fetch(hourlyJsonPath() + '?t=' + bust).catch(() => null),
       ]);
       if (!liveRes.ok) throw new Error('HTTP ' + liveRes.status);
       const liveData   = await liveRes.json();
@@ -2769,18 +2769,25 @@ async function downloadWeeklyReport() {
   }
 
   function renderLive(el, d, hourly) {
-    const ms       = d.market_status || {};
+    const isBSE    = currentExchange === 'bse';
     const rev      = d.revenue || null;
-    const hist     = d.history || [];
     const upd      = d.updated_at;
     const age      = _age(upd);
+    const hasRev   = rev && rev.has_data;
+
+    // ── NSE-specific market data ──
+    const ms       = d.market_status || {};
     const nifty    = (ms.marketState || []).find(m => m.market === 'Capital Market') || {};
     const mktcap   = ms.marketcap  || {};
     const gift     = ms.giftnifty  || {};
     const segments = ms.marketState || [];
-    const hasRev   = rev && rev.has_data;
     const niftyUp  = +nifty.percentChange >= 0;
     const giftUp   = +gift.PERCHANGE >= 0;
+
+    // ── BSE-specific market data ──
+    const sensex   = d.sensex       || {};
+    const stat     = d.market_stat  || {};
+    const sensexUp = (sensex.pct_change || 0) >= 0;
 
     // pill helper
     const pill = open =>
@@ -2833,17 +2840,25 @@ async function downloadWeeklyReport() {
       <!-- meta row -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          ${nifty.last != null ? `
-            <span style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">${_num(nifty.last, 1)}</span>
-            <span style="font-size:12px;font-weight:600;color:${niftyUp ? '#30d158' : '#ff453a'}">${niftyUp ? '▲' : '▼'}${Math.abs(+nifty.percentChange).toFixed(1)}%</span>
-            ${pill(String(nifty.marketStatus).toLowerCase() === 'open')}
-          ` : ''}
-          ${gift.LASTPRICE ? `<span style="font-size:11px;color:var(--text-secondary)">GIFT <span style="color:var(--text-primary)">${_num(gift.LASTPRICE, 0)}</span> <span style="color:${giftUp ? '#30d158' : '#ff453a'}">${giftUp ? '▲' : '▼'}${Math.abs(+gift.PERCHANGE).toFixed(1)}%</span></span>` : ''}
-          ${mktcap.marketCapinLACCRRupeesFormatted ? `<span style="font-size:11px;color:var(--text-secondary)">Mkt Cap ₹${mktcap.marketCapinLACCRRupeesFormatted} L Cr</span>` : ''}
+          ${isBSE ? `
+            ${sensex.last ? `<span style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">${_num(sensex.last, 1)}</span>` : ''}
+            ${sensex.pct_change != null ? `<span style="font-size:12px;font-weight:600;color:${sensexUp ? '#30d158' : '#ff453a'}">${sensexUp ? '▲' : '▼'}${Math.abs(sensex.pct_change).toFixed(1)}%</span>` : ''}
+            ${sensex.status ? pill(sensex.status === 'Open') : ''}
+            ${stat.market_cap_cr ? `<span style="font-size:11px;color:var(--color-text-muted)">Mkt Cap ₹${(+stat.market_cap_cr / 1e5).toFixed(1)} L Cr · $${stat.market_cap_usd_t}T</span>` : ''}
+            ${stat.advances != null ? `<span style="font-size:11px;color:var(--color-text-muted)"><span style="color:#30d158">${stat.advances}▲</span> <span style="color:#ff453a">${stat.declines}▼</span></span>` : ''}
+          ` : `
+            ${nifty.last != null ? `
+              <span style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">${_num(nifty.last, 1)}</span>
+              <span style="font-size:12px;font-weight:600;color:${niftyUp ? '#30d158' : '#ff453a'}">${niftyUp ? '▲' : '▼'}${Math.abs(+nifty.percentChange).toFixed(1)}%</span>
+              ${pill(String(nifty.marketStatus).toLowerCase() === 'open')}
+            ` : ''}
+            ${gift.LASTPRICE ? `<span style="font-size:11px;color:var(--color-text-muted)">GIFT ${_num(gift.LASTPRICE, 0)} <span style="color:${giftUp ? '#30d158' : '#ff453a'}">${giftUp ? '▲' : '▼'}${Math.abs(+gift.PERCHANGE).toFixed(1)}%</span></span>` : ''}
+            ${mktcap.marketCapinLACCRRupeesFormatted ? `<span style="font-size:11px;color:var(--color-text-muted)">Mkt Cap ₹${mktcap.marketCapinLACCRRupeesFormatted} L Cr</span>` : ''}
+          `}
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           ${ageStr}
-          <span style="font-size:11px;color:var(--text-secondary)">5-min updates</span>
+          <span style="font-size:11px;color:var(--color-text-muted)">5-min updates</span>
         </div>
       </div>
 
@@ -2853,10 +2868,15 @@ async function downloadWeeklyReport() {
         ${hasRev ? `
           <div style="font-size:80px;font-weight:700;color:var(--color-text);font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1;margin-bottom:6px">${_cr(rev.total_revenue)}</div>
           ${lastPred ? `<div style="font-size:11px;color:var(--color-text-muted);margin-bottom:24px">Latest forecast <span style="color:var(--color-text);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;letter-spacing:-.5px">${_cr(lastPred)}</span></div>` : '<div style="margin-bottom:24px"></div>'}
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">
-            ${segCard('Futures', rev.futures_revenue, '#60a5fa')}
-            ${segCard('Options', rev.options_revenue, '#a78bfa')}
-            ${segCard('Cash',    rev.cash_revenue,    '#34d399')}
+          <div style="display:grid;grid-template-columns:repeat(${isBSE ? 2 : 3},1fr);gap:10px;text-align:center">
+            ${isBSE ? `
+              ${segCard('Options (Sensex)', rev.options_revenue, '#a78bfa')}
+              ${segCard('Cash (Equity)',    rev.cash_revenue,    '#34d399')}
+            ` : `
+              ${segCard('Futures', rev.futures_revenue, '#60a5fa')}
+              ${segCard('Options', rev.options_revenue, '#a78bfa')}
+              ${segCard('Cash',    rev.cash_revenue,    '#34d399')}
+            `}
           </div>
         ` : `
           <div style="padding:32px 0;color:var(--text-secondary)">
@@ -2894,22 +2914,44 @@ async function downloadWeeklyReport() {
         </div>
       ` : ''}
 
-      <!-- market segments table -->
-      <div class="chart-panel">
-        <div class="chart-title" style="margin-bottom:10px">Market Segments</div>
-        <div style="overflow-x:auto">
-          <table class="data-table" style="width:100%">
-            <thead><tr>
-              <th style="text-align:left">Market</th>
-              <th style="text-align:left">Status</th>
-              <th style="text-align:left">Index</th>
-              <th style="text-align:right">Last</th>
-              <th style="text-align:right">Change</th>
-            </tr></thead>
-            <tbody>${segRows}</tbody>
-          </table>
+      ${isBSE ? `
+        <!-- BSE market stats -->
+        ${stat.advances != null ? `
+          <div class="chart-panel">
+            <div class="chart-title" style="margin-bottom:10px">Market Breadth</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center">
+              ${[
+                ['Advances',  stat.advances,  '#30d158'],
+                ['Declines',  stat.declines,  '#ff453a'],
+                ['Unchanged', stat.unchanged, 'var(--color-text-muted)'],
+                ['Scrips Traded', stat.turnover_cr ? stat.turnover_cr.toLocaleString('en-IN', {maximumFractionDigits:0}) + ' Cr' : '—', 'var(--color-text)'],
+              ].map(([label, val, color]) =>
+                `<div style="border:1px solid var(--color-border);border-radius:6px;padding:12px">
+                  <div style="font-size:10px;color:var(--color-text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">${label}</div>
+                  <div style="font-size:20px;font-weight:700;color:${color};font-variant-numeric:tabular-nums">${val}</div>
+                </div>`
+              ).join('')}
+            </div>
+          </div>
+        ` : ''}
+      ` : `
+        <!-- NSE market segments table -->
+        <div class="chart-panel">
+          <div class="chart-title" style="margin-bottom:10px">Market Segments</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" style="width:100%">
+              <thead><tr>
+                <th style="text-align:left">Market</th>
+                <th style="text-align:left">Status</th>
+                <th style="text-align:left">Index</th>
+                <th style="text-align:right">Last</th>
+                <th style="text-align:right">Change</th>
+              </tr></thead>
+              <tbody>${segRows}</tbody>
+            </table>
+          </div>
         </div>
-      </div>`;
+      `}`;
 
     // ── Chart.js hourly revenue line ──
     if (snaps.length > 1) {
