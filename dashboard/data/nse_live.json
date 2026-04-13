@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-13T10:37:12",
+  "updated_at": "2026-04-13T10:52:48",
   "market_status": {
     "marketState": [
       {
@@ -53,8 +53,8 @@
         "marketStatusMessage": "Market is Open",
         "expiryDate": "17-Apr-2026",
         "underlying": "USDINR",
-        "updated_time": "13-Apr-2026 15:46",
-        "tradeDateFormatted": "13-Apr-2026 15:46",
+        "updated_time": "13-Apr-2026 16:11",
+        "tradeDateFormatted": "13-Apr-2026 16:11",
         "slickclass": "slick-item"
       }
     ],
@@ -94,6 +94,146 @@
       "TIMESTMP": "13-Apr-2026 15:49"
     }
   },
-  "revenue": null,
-  "history": []
+  "revenue": {
+    "trade_date": "10-Apr-2026",
+    "index_futures_turnover": 22674.21,
+    "stock_futures_turnover": 79895.32,
+    "futures_turnover": 102569.53,
+    "index_options_premium": 59968.94,
+    "stock_options_premium": 8381.5,
+    "options_premium": 68350.44,
+    "options_notional": 15341531.52,
+    "cash_traded_value": 131731.07,
+    "fo_total_contracts": 103149391,
+    "fo_total_val": 15444101.05,
+    "take_rate_futures": 3.46e-05,
+    "take_rate_options": 0.0007006,
+    "take_rate_cash": 5.94e-05,
+    "futures_revenue": 3.5489,
+    "options_revenue": 47.8863,
+    "cash_revenue": 7.8248,
+    "total_revenue": 59.26,
+    "has_data": true
+  },
+  "history": [
+    {
+      "timestamp": "01-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "futures_revenue": 4.116,
+        "options_revenue": 42.4899,
+        "cash_revenue": 7.5582,
+        "total_revenue": 54.164,
+        "futures_turnover": 118958.55,
+        "options_premium": 60647.83,
+        "cash_traded_value": 127242.24,
+        "index_futures_turnover": 34738.49,
+        "stock_futures_turnover": 84220.06,
+        "index_options_premium": 52771.17,
+        "stock_options_premium": 7876.66
+      }
+    },
+    {
+      "timestamp": "02-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "futures_revenue": 3.8154,
+        "options_revenue": 41.9825,
+        "cash_revenue": 6.9551,
+        "total_revenue": 52.753,
+        "futures_turnover": 110271.43,
+        "options_premium": 59923.59,
+        "cash_traded_value": 117090.06,
+        "index_futures_turnover": 33095.14,
+        "stock_futures_turnover": 77176.29,
+        "index_options_premium": 52904.94,
+        "stock_options_premium": 7018.65
+      }
+    },
+    {
+      "timestamp": "06-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "futures_revenue": 3.4926,
+        "options_revenue": 71.3807,
+        "cash_revenue": 6.8973,
+        "total_revenue": 81.7706,
+        "futures_turnover": 100943.0,
+        "options_premium": 101885.15,
+        "cash_traded_value": 116115.39,
+        "index_futures_turnover": 27522.08,
+        "stock_futures_turnover": 73420.92,
+        "index_options_premium": 94250.25,
+        "stock_options_premium": 7634.9
+      }
+    },
+    {
+      "timestamp": "07-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "futures_revenue": 3.1879,
+        "options_revenue": 74.7296,
+        "cash_revenue": 6.5614,
+        "total_revenue": 84.4789,
+        "futures_turnover": 92136.54,
+        "options_premium": 106665.11,
+        "cash_traded_value": 110461.9,
+        "index_futures_turnover": 25181.61,
+        "stock_futures_turnover": 66954.93,
+        "index_options_premium": 100727.61,
+        "stock_options_premium": 5937.5
+      }
+    },
+    {
+      "timestamp": "08-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "futures_revenue": 5.0355,
+        "options_revenue": 40.5698,
+        "cash_revenue": 9.856,
+        "total_revenue": 55.4613,
+        "futures_turnover": 145534.54,
+        "options_premium": 57907.21,
+        "cash_traded_value": 165926.19,
+        "index_futures_turnover": 33045.04,
+        "stock_futures_turnover": 112489.5,
+        "index_options_premium": 47204.61,
+        "stock_options_premium": 10702.6
+      }
+    },
+    {
+      "timestamp": "09-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "futures_revenue": 3.4948,
+        "options_revenue": 35.1146,
+        "cash_revenue": 7.9218,
+        "total_revenue": 46.5313,
+        "futures_turnover": 101006.97,
+        "options_premium": 50120.78,
+        "cash_traded_value": 133363.65,
+        "index_futures_turnover": 23227.62,
+        "stock_futures_turnover": 77779.35,
+        "index_options_premium": 42532.94,
+        "stock_options_premium": 7587.84
+      }
+    },
+    {
+      "timestamp": "10-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "futures_revenue": 3.5489,
+        "options_revenue": 47.8863,
+        "cash_revenue": 7.8248,
+        "total_revenue": 59.26,
+        "futures_turnover": 102569.53,
+        "options_premium": 68350.44,
+        "cash_traded_value": 131731.07,
+        "index_futures_turnover": 22674.21,
+        "stock_futures_turnover": 79895.32,
+        "index_options_premium": 59968.94,
+        "stock_options_premium": 8381.5
+      }
+    }
+  ]
 }

@@ -1,10 +1,16 @@
 """
 NSE Live Market Poller — GitHub Actions script
-Fetches NSE market-turnover + marketStatus, computes revenue,
-writes dashboard/data/nse_live.json, and stores snapshots in Supabase.
+Fetches today's F&O + Cash turnover from NSE historical daily APIs,
+computes exchange revenue, writes dashboard/data/nse_live.json,
+and stores snapshots in Supabase nse_live_snapshots.
+
+APIs used (same as nse_pipeline.py — proven to work):
+  F&O:  /api/historicalOR/fo/tbg/daily?month=Apr&year=2026
+  Cash: /api/historicalOR/cm/tbg/daily?month=Apr&year=26
+  Status: /api/marketStatus
 
 Run: python scripts/nse_live_poller.py
-Env: SUPABASE_URL, SUPABASE_KEY
+Env: SUPABASE_URL, SUPABASE_KEY  (optional — writes JSON regardless)
 """
 
 import json
@@ -24,7 +30,7 @@ REPO_ROOT   = SCRIPT_DIR.parent
 OUTPUT_FILE = REPO_ROOT / "dashboard" / "data" / "nse_live.json"
 
 # ---------------------------------------------------------------------------
-# Take rates  (one-side bps × 2 = round-trip)
+# Take rates  (one-side × 2 = round-trip)
 # ---------------------------------------------------------------------------
 TR_FUT  = 0.00173 / 100 * 2   # Futures  on INR turnover
 TR_OPT  = 0.03503 / 100 * 2   # Options  on premium turnover
@@ -33,107 +39,198 @@ TR_CASH = 0.00297 / 100 * 2   # Cash     on traded value
 # ---------------------------------------------------------------------------
 # NSE endpoints
 # ---------------------------------------------------------------------------
-NSE_HOME      = "https://www.nseindia.com/"
-TURNOVER_API  = "https://www.nseindia.com/api/market-turnover"
-STATUS_API    = "https://www.nseindia.com/api/marketStatus"
-HISTORY_LIMIT = 48   # 4 hrs at 5-min intervals stored in JSON
+NSE_HOME   = "https://www.nseindia.com/"
+STATUS_API = "https://www.nseindia.com/api/marketStatus"
+FO_API     = "https://www.nseindia.com/api/historicalOR/fo/tbg/daily"
+CM_API     = "https://www.nseindia.com/api/historicalOR/cm/tbg/daily"
 
-HOME_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/122.0.0.0 Safari/537.36"
-    ),
-    "Accept": (
-        "text/html,application/xhtml+xml,application/xml;"
-        "q=0.9,image/avif,image/webp,*/*;q=0.8"
-    ),
-    "Accept-Language": "en-US,en;q=0.9",
-}
-API_HEADERS = {
-    **HOME_HEADERS,
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://www.nseindia.com/",
-}
+HISTORY_LIMIT = 48   # 4 hrs at 5-min intervals
+
 
 # ---------------------------------------------------------------------------
-# Revenue computation  (mirrors nse_server.py)
+# Fetch helpers
 # ---------------------------------------------------------------------------
 
-def _fval(d, *keys):
-    if not isinstance(d, dict):
-        return 0.0
-    for k in keys:
-        v = d.get(k)
-        if v is not None and v != "" and v != 0:
-            try:
-                return float(v)
-            except (TypeError, ValueError):
-                pass
-    return 0.0
+def make_session():
+    session = cffi_requests.Session()
+    r = session.get(NSE_HOME, impersonate="chrome")
+    print(f"Bootstrap: {r.status_code}")
+    time.sleep(2)
+    return session
 
 
-def _search(d, *keys):
-    val = _fval(d, *keys)
-    if val:
-        return val
-    if isinstance(d, dict):
-        for v in d.values():
-            if isinstance(v, dict):
-                val = _fval(v, *keys)
-                if val:
-                    return val
-            elif isinstance(v, list):
-                for item in v:
-                    if isinstance(item, dict):
-                        val = _fval(item, *keys)
-                        if val:
-                            return val
-    return 0.0
+def fetch_market_status(session):
+    try:
+        r = session.get(STATUS_API, impersonate="chrome", timeout=15)
+        if r.status_code == 200 and r.text.strip():
+            return r.json()
+    except Exception as e:
+        print(f"marketStatus error: {e}")
+    return None
 
 
-def compute_revenue(turnover_data):
-    if not turnover_data:
-        return None
+def fetch_fo_cm(session):
+    """
+    Fetch current month's F&O and Cash daily data.
+    Falls back to previous month if current month has no data yet
+    (first few days of month before the API populates).
+    Returns (fo_records, cm_records) — lists of dicts, newest first.
+    """
+    now = datetime.now()
+    month_abbr = now.strftime("%b")   # "Apr"
+    year_full  = str(now.year)        # "2026"
+    year_short = now.strftime("%y")   # "26"
 
-    if_val = _search(turnover_data,
-        "Index_Futures_VAL", "indexFuturesVAL", "indexFutures")
-    sf_val = _search(turnover_data,
-        "Stock_Futures_VAL", "stockFuturesVAL", "stockFutures")
+    fo_url = f"{FO_API}?month={month_abbr}&year={year_full}"
+    cm_url = f"{CM_API}?month={month_abbr}&year={year_short}"
+
+    print(f"Fetching F&O:  {fo_url}")
+    fo_r = session.get(fo_url, impersonate="chrome", timeout=15)
+    print(f"Fetching Cash: {cm_url}")
+    cm_r = session.get(cm_url, impersonate="chrome", timeout=15)
+
+    fo_data = fo_r.json().get("data", []) if fo_r.status_code == 200 and fo_r.text.strip() else []
+    cm_data = cm_r.json().get("data", []) if cm_r.status_code == 200 and cm_r.text.strip() else []
+
+    # Fallback to previous month if empty
+    if not fo_data:
+        prev = (now.replace(day=1) - timedelta(days=1))
+        pm   = prev.strftime("%b")
+        py   = str(prev.year)
+        pys  = prev.strftime("%y")
+        print(f"No F&O data for {month_abbr} — falling back to {pm}")
+        fo_url = f"{FO_API}?month={pm}&year={py}"
+        cm_url = f"{CM_API}?month={pm}&year={pys}"
+        fo_r = session.get(fo_url, impersonate="chrome", timeout=15)
+        cm_r = session.get(cm_url, impersonate="chrome", timeout=15)
+        fo_data = fo_r.json().get("data", []) if fo_r.status_code == 200 else []
+        cm_data = cm_r.json().get("data", []) if cm_r.status_code == 200 else []
+
+    print(f"F&O records: {len(fo_data)}, Cash records: {len(cm_data)}")
+    return fo_data, cm_data
+
+
+# ---------------------------------------------------------------------------
+# Revenue computation — uses confirmed field names from nse_pipeline.py
+# ---------------------------------------------------------------------------
+
+def compute_revenue(fo_records, cm_records):
+    """
+    Take the most recent trading day from F&O and Cash records
+    and compute exchange revenue.
+
+    F&O records: list of dicts with keys like Index_Futures_VAL, etc.
+    CM records:  list of dicts with key CDT_TRADES_VALUES and F_TIMESTAMP.
+
+    NSE returns records newest-first (index 0 = today or latest trading day).
+    """
+    if not fo_records and not cm_records:
+        return None, None
+
+    # Each record is {"data": {...fields...}} — unwrap one level (same as nse_pipeline.py)
+    def _unwrap(rec):
+        return rec.get("data", rec) if isinstance(rec, dict) else {}
+
+    # Latest F&O record
+    fo = _unwrap(fo_records[0]) if fo_records else {}
+    fo_date = fo.get("date", fo.get("F_TIMESTAMP", ""))
+
+    if_val   = float(fo.get("Index_Futures_VAL",  0) or 0)
+    sf_val   = float(fo.get("Stock_Futures_VAL",  0) or 0)
+    io_prem  = float(fo.get("Index_Options_PREM_VAL", 0) or 0)
+    so_prem  = float(fo.get("Stock_Options_PREM_VAL", 0) or 0)
+    io_not   = float(fo.get("Index_Options_VAL",  0) or 0)
+    so_not   = float(fo.get("Stock_Options_VAL",  0) or 0)
+    total_contracts = int(fo.get("F&O_Total_QTY", 0) or 0)
+    total_fo_val    = float(fo.get("F&O_Total_VAL", 0) or 0)
+
+    # Latest Cash record — match same date as F&O if possible
+    cash_val = 0.0
+    cm_date  = ""
+    if cm_records:
+        # Try to find the same date as F&O (unwrap nested "data" key)
+        cm_today = next(
+            (_unwrap(r) for r in cm_records if _unwrap(r).get("F_TIMESTAMP", "") == fo_date),
+            _unwrap(cm_records[0])
+        )
+        cash_val = float(cm_today.get("CDT_TRADES_VALUES", 0) or 0)
+        cm_date  = cm_today.get("F_TIMESTAMP", "")
+
     fut_turnover = if_val + sf_val
-
-    io_prem = _search(turnover_data,
-        "Index_Options_PREM_VAL", "indexOptionsPremVAL", "indexOptionsPremium")
-    so_prem = _search(turnover_data,
-        "Stock_Options_PREM_VAL", "stockOptionsPremVAL", "stockOptionsPremium")
-    opt_premium = io_prem + so_prem
-
-    cash_val = _search(turnover_data,
-        "CDT_TRADES_VALUES", "cashTradedValues", "cmTurnover", "equityTurnover")
+    opt_premium  = io_prem + so_prem
+    opt_notional = io_not  + so_not
 
     fut_rev   = fut_turnover * TR_FUT
     opt_rev   = opt_premium  * TR_OPT
     cash_rev  = cash_val     * TR_CASH
     total_rev = fut_rev + opt_rev + cash_rev
 
-    return {
-        "index_futures_turnover": round(if_val, 2),
-        "stock_futures_turnover": round(sf_val, 2),
-        "futures_turnover":       round(fut_turnover, 2),
-        "index_options_premium":  round(io_prem, 2),
-        "stock_options_premium":  round(so_prem, 2),
-        "options_premium":        round(opt_premium, 2),
-        "cash_traded_value":      round(cash_val, 2),
-        "take_rate_futures":      TR_FUT,
-        "take_rate_options":      TR_OPT,
-        "take_rate_cash":         TR_CASH,
-        "futures_revenue":        round(fut_rev, 4),
-        "options_revenue":        round(opt_rev, 4),
-        "cash_revenue":           round(cash_rev, 4),
-        "total_revenue":          round(total_rev, 4),
-        "has_data":               bool(fut_turnover or opt_premium or cash_val),
-        "api_top_keys":           list(turnover_data.keys()) if isinstance(turnover_data, dict) else [],
+    trade_date = fo_date or cm_date
+
+    revenue = {
+        # Turnover inputs (₹ Cr)
+        "trade_date":               trade_date,
+        "index_futures_turnover":   round(if_val,  2),
+        "stock_futures_turnover":   round(sf_val,  2),
+        "futures_turnover":         round(fut_turnover, 2),
+        "index_options_premium":    round(io_prem, 2),
+        "stock_options_premium":    round(so_prem, 2),
+        "options_premium":          round(opt_premium,  2),
+        "options_notional":         round(opt_notional, 2),
+        "cash_traded_value":        round(cash_val, 2),
+        "fo_total_contracts":       total_contracts,
+        "fo_total_val":             round(total_fo_val, 2),
+        # Take rates
+        "take_rate_futures":        TR_FUT,
+        "take_rate_options":        TR_OPT,
+        "take_rate_cash":           TR_CASH,
+        # Revenue (₹ Cr)
+        "futures_revenue":          round(fut_rev,  4),
+        "options_revenue":          round(opt_rev,  4),
+        "cash_revenue":             round(cash_rev, 4),
+        "total_revenue":            round(total_rev, 4),
+        "has_data":                 bool(fut_turnover or opt_premium or cash_val),
     }
+
+    # Full month breakdown (for chart history)
+    # Merge F&O + Cash by date for all available records this month
+    fo_by_date = {_unwrap(r).get("date", _unwrap(r).get("F_TIMESTAMP", "")): _unwrap(r) for r in fo_records}
+    cm_by_date = {_unwrap(r).get("F_TIMESTAMP", ""): _unwrap(r) for r in cm_records}
+    all_dates  = sorted(set(fo_by_date) | set(cm_by_date))
+
+    month_history = []
+    for d in all_dates:
+        fo_r  = fo_by_date.get(d, {})
+        cm_r  = cm_by_date.get(d, {})
+        ifv   = float(fo_r.get("Index_Futures_VAL", 0) or 0)
+        sfv   = float(fo_r.get("Stock_Futures_VAL", 0) or 0)
+        iop   = float(fo_r.get("Index_Options_PREM_VAL", 0) or 0)
+        sop   = float(fo_r.get("Stock_Options_PREM_VAL", 0) or 0)
+        cv    = float(cm_r.get("CDT_TRADES_VALUES", 0) or 0)
+        ft    = ifv + sfv
+        op    = iop + sop
+        fr    = ft * TR_FUT
+        orev  = op  * TR_OPT
+        cr    = cv  * TR_CASH
+        month_history.append({
+            "timestamp":        d,
+            "revenue": {
+                "has_data":              bool(ft or op or cv),
+                "futures_revenue":       round(fr,   4),
+                "options_revenue":       round(orev, 4),
+                "cash_revenue":          round(cr,   4),
+                "total_revenue":         round(fr + orev + cr, 4),
+                "futures_turnover":      round(ft,  2),
+                "options_premium":       round(op,  2),
+                "cash_traded_value":     round(cv,  2),
+                "index_futures_turnover":round(ifv, 2),
+                "stock_futures_turnover":round(sfv, 2),
+                "index_options_premium": round(iop, 2),
+                "stock_options_premium": round(sop, 2),
+            },
+        })
+
+    return revenue, month_history
 
 
 # ---------------------------------------------------------------------------
@@ -150,48 +247,18 @@ def get_supabase():
     return create_client(url, key)
 
 
-def supabase_upsert(sb, ts_iso, market_status, raw_turnover, revenue):
+def supabase_upsert(sb, ts_iso, market_status, revenue):
     try:
         sb.table("nse_live_snapshots").insert({
             "captured_at":   ts_iso,
             "market_status": market_status,
-            "raw_turnover":  raw_turnover,
+            "raw_turnover":  None,
             "revenue":       revenue,
             "has_data":      bool(revenue and revenue.get("has_data")),
         }).execute()
         print("Supabase insert OK")
     except Exception as e:
         print(f"Supabase insert ERROR: {e}")
-
-
-def supabase_get_history(sb):
-    """Return last HISTORY_LIMIT snapshots for embedding in nse_live.json."""
-    try:
-        res = (
-            sb.table("nse_live_snapshots")
-            .select("captured_at, revenue, has_data")
-            .order("captured_at", desc=True)
-            .limit(HISTORY_LIMIT)
-            .execute()
-        )
-        rows = res.data or []
-        # Return oldest-first for charting
-        return [
-            {"timestamp": r["captured_at"], "revenue": r["revenue"]}
-            for r in reversed(rows)
-        ]
-    except Exception as e:
-        print(f"Supabase history fetch ERROR: {e}")
-        return []
-
-
-def supabase_cleanup(sb):
-    """Delete snapshots older than 7 days to keep table lean."""
-    try:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        sb.table("nse_live_snapshots").delete().lt("captured_at", cutoff).execute()
-    except Exception as e:
-        print(f"Supabase cleanup ERROR: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -203,85 +270,50 @@ def main():
     ts_iso  = now_utc.strftime("%Y-%m-%dT%H:%M:%S")
     print(f"[{ts_iso}] NSE live poller starting…")
 
-    # ── 1. Bootstrap NSE cookies ──
-    session = cffi_requests.Session(impersonate="chrome110")
-    try:
-        r0 = session.get(NSE_HOME, headers=HOME_HEADERS, timeout=15)
-        print(f"Bootstrap status: {r0.status_code}")
-    except Exception as e:
-        print(f"Bootstrap ERROR: {e}")
-        sys.exit(1)
-    time.sleep(2)
+    session = make_session()
 
-    # ── 2. Fetch marketStatus ──
-    market_status = None
-    try:
-        r = session.get(STATUS_API, headers=API_HEADERS, timeout=15)
-        if r.text and r.text.strip():
-            market_status = r.json()
-            nifty = next(
-                (m for m in market_status.get("marketState", []) if m.get("market") == "Capital Market"),
-                {}
-            )
-            print(f"NIFTY 50: {nifty.get('last')} ({nifty.get('percentChange')}%)")
-        else:
-            print("marketStatus: empty response")
-    except Exception as e:
-        print(f"marketStatus ERROR: {e}")
+    # ── 1. Market status (NIFTY, market cap, GIFT Nifty) ──
+    market_status = fetch_market_status(session)
+    if market_status:
+        nifty = next((m for m in market_status.get("marketState", []) if m.get("market") == "Capital Market"), {})
+        print(f"NIFTY 50: {nifty.get('last')}  ({nifty.get('percentChange')}%)  [{nifty.get('marketStatus')}]")
 
-    # ── 3. Fetch market-turnover ──
-    raw_turnover = None
-    try:
-        r2 = session.get(TURNOVER_API, headers=API_HEADERS, timeout=15)
-        if r2.text and r2.text.strip():
-            raw_turnover = r2.json()
-            print(f"Turnover API keys: {list(raw_turnover.keys()) if isinstance(raw_turnover, dict) else type(raw_turnover).__name__}")
-        else:
-            print("market-turnover: empty (market closed?)")
-    except Exception as e:
-        print(f"market-turnover ERROR: {e}")
+    # ── 2. F&O + Cash turnover (historical daily APIs) ──
+    fo_records, cm_records = fetch_fo_cm(session)
 
-    # ── 4. Compute revenue ──
-    revenue = compute_revenue(raw_turnover)
+    # ── 3. Revenue ──
+    revenue, month_history = compute_revenue(fo_records, cm_records)
+
     if revenue and revenue["has_data"]:
         print(
-            f"Revenue — Fut: ₹{revenue['futures_revenue']} Cr | "
-            f"Opt: ₹{revenue['options_revenue']} Cr | "
-            f"Cash: ₹{revenue['cash_revenue']} Cr | "
-            f"Total: ₹{revenue['total_revenue']} Cr"
+            f"Revenue ({revenue['trade_date']}) — "
+            f"Fut ₹{revenue['futures_revenue']} Cr | "
+            f"Opt ₹{revenue['options_revenue']} Cr | "
+            f"Cash ₹{revenue['cash_revenue']} Cr | "
+            f"Total ₹{revenue['total_revenue']} Cr"
         )
     else:
-        print("Revenue: no turnover data (market closed or fields not yet mapped)")
+        print("Revenue: no data (market not yet traded today or holiday)")
 
-    # ── 5. Supabase ──
+    # ── 4. Supabase ──
     sb = get_supabase()
-    history = []
     if sb:
-        supabase_upsert(sb, ts_iso, market_status, raw_turnover, revenue)
-        history = supabase_get_history(sb)
-        supabase_cleanup(sb)
-    else:
-        # Fallback: read existing nse_live.json history if Supabase unavailable
-        if OUTPUT_FILE.exists():
-            try:
-                old = json.loads(OUTPUT_FILE.read_text())
-                history = old.get("history", [])[-HISTORY_LIMIT:]
-                # Append current snapshot
-                history.append({"timestamp": ts_iso, "revenue": revenue})
-                history = history[-HISTORY_LIMIT:]
-            except Exception:
-                pass
+        supabase_upsert(sb, ts_iso, market_status, revenue)
 
-    # ── 6. Write nse_live.json ──
+    # ── 5. Write nse_live.json ──
+    # history = all trading days this month (for the chart)
+    # Newest-last so the chart renders left-to-right in time order
     payload = {
-        "updated_at":     ts_iso,
-        "market_status":  market_status,
-        "revenue":        revenue,
-        "history":        history,
+        "updated_at":    ts_iso,
+        "market_status": market_status,
+        "revenue":       revenue,
+        "history":       month_history or [],
     }
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(json.dumps(payload, indent=2, default=str))
-    print(f"Wrote {OUTPUT_FILE} ({OUTPUT_FILE.stat().st_size} bytes, {len(history)} history entries)")
+    size = OUTPUT_FILE.stat().st_size
+    hist_len = len(month_history) if month_history else 0
+    print(f"Wrote {OUTPUT_FILE} ({size} bytes, {hist_len} history entries)")
 
 
 if __name__ == "__main__":
