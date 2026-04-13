@@ -2798,13 +2798,14 @@ async function downloadWeeklyReport() {
     const snaps = (hourly && hourly.snapshots) || [];
     const hourlyRows = snaps.map((s, i) => {
       const isLast = i === snaps.length - 1;
+      const showPred = s.predicted_eod && Math.abs(s.predicted_eod - s.total_revenue) > 0.05;
       return `<tr style="${isLast ? 'font-weight:600' : ''}">
         <td style="padding:4px 8px;font-variant-numeric:tabular-nums">${s.hour_label}</td>
         <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums">${s.has_data ? _cr(s.total_revenue) : '—'}</td>
         <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#60a5fa">${s.has_data ? _cr(s.futures_revenue) : '—'}</td>
         <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#a78bfa">${s.has_data ? _cr(s.options_revenue) : '—'}</td>
         <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#34d399">${s.has_data ? _cr(s.cash_revenue) : '—'}</td>
-        <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-secondary)">${s.predicted_eod ? _cr(s.predicted_eod) : '—'}</td>
+        <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:var(--color-text-muted)">${showPred ? _cr(s.predicted_eod) : '—'}</td>
       </tr>`;
     }).join('');
 
