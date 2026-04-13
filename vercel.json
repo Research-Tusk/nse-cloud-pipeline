@@ -3,9 +3,16 @@
   "outputDirectory": "dashboard",
   "framework": null,
   "rewrites": [
+    { "source": "/live", "destination": "/live.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
+    {
+      "source": "/data/nse_live.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=60, s-maxage=60, stale-while-revalidate=60" }
+      ]
+    },
     {
       "source": "/data/(.*)",
       "headers": [
@@ -14,5 +21,3 @@
     }
   ]
 }
-
- 

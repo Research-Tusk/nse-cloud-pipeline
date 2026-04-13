@@ -2,6 +2,33 @@
 
 Automated daily NSE trading data pipeline with a live analytics dashboard.
 
+---
+
+## Live Market Turnover Tracker
+
+Real-time NSE market data dashboard that polls NSE APIs every 60 seconds.
+
+**Shows:** NIFTY 50 price & change · Total Market Cap · GIFT Nifty Futures · All market segment statuses · Live turnover breakdown (during market hours) · 4-hour history chart.
+
+### Quick Start
+
+```bash
+pip install -r requirements.txt
+python nse_server.py
+# Open http://localhost:5001
+```
+
+**Requirements:** Python 3.9+ · Internet access to nseindia.com
+
+**Market hours:** Data is richest 9:15 AM – 3:30 PM IST, Mon–Fri. The server runs 24/7 and shows "Market Closed" for turnover outside hours; NIFTY 50 and market status are always fetched.
+
+**Files:**
+- `nse_server.py` — Flask backend (port 5000), polls NSE, serves `dashboard.html`
+- `dashboard.html` — single-file React + Tailwind + Recharts frontend
+- `turnover_log.csv` — auto-created, appended every poll (gitignored)
+
+---
+
 **Stack:** GitHub Actions (cron) → curl_cffi (NSE fetch) → Supabase (PostgreSQL) → Vercel (static dashboard)
 
 ---

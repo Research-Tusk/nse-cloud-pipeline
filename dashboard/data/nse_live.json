@@ -1,0 +1,99 @@
+{
+  "updated_at": "2026-04-13T10:37:12",
+  "market_status": {
+    "marketState": [
+      {
+        "market": "Capital Market",
+        "marketStatus": "Closed",
+        "tradeDate": "13-Apr-2026 15:30",
+        "index": "NIFTY 50",
+        "last": 23842.65,
+        "variation": -207.9499999999971,
+        "percentChange": -0.86,
+        "marketStatusMessage": "Normal Market has Closed"
+      },
+      {
+        "market": "Currency",
+        "marketStatus": "Open",
+        "tradeDate": "13-Apr-2026",
+        "index": "",
+        "last": "",
+        "variation": "",
+        "percentChange": "",
+        "marketStatusMessage": "Market is Open"
+      },
+      {
+        "market": "Commodity",
+        "marketStatus": "Open",
+        "tradeDate": "13-Apr-2026",
+        "index": "",
+        "last": "",
+        "variation": "",
+        "percentChange": "",
+        "marketStatusMessage": "Market is Open"
+      },
+      {
+        "market": "Debt",
+        "marketStatus": "Open",
+        "tradeDate": "13-Apr-2026",
+        "index": "",
+        "last": "",
+        "variation": "",
+        "percentChange": "",
+        "marketStatusMessage": "Market is Open"
+      },
+      {
+        "market": "currencyfuture",
+        "marketStatus": "Open",
+        "tradeDate": "13-Apr-2026",
+        "index": "",
+        "last": "93.5000",
+        "variation": "",
+        "percentChange": "",
+        "marketStatusMessage": "Market is Open",
+        "expiryDate": "17-Apr-2026",
+        "underlying": "USDINR",
+        "updated_time": "13-Apr-2026 15:46",
+        "tradeDateFormatted": "13-Apr-2026 15:46",
+        "slickclass": "slick-item"
+      }
+    ],
+    "marketcap": {
+      "timeStamp": "13-Apr-2026",
+      "marketCapinTRDollars": 4.79,
+      "marketCapinLACCRRupees": 447.5601756326173,
+      "marketCapinCRRupees": 44756017.56,
+      "marketCapinCRRupeesFormatted": "44,756,017.56",
+      "marketCapinLACCRRupeesFormatted": "447.56",
+      "underlying": "Market Cap"
+    },
+    "indicativenifty50": {
+      "dateTime": "13-Apr-2026 15:30",
+      "indicativeTime": null,
+      "indexName": "NIFTY 50",
+      "indexLast": null,
+      "indexPercChange": null,
+      "indexTimeVal": null,
+      "closingValue": 23842.65,
+      "finalClosingValue": 23842.65,
+      "change": -207.98,
+      "perChange": -0.86,
+      "status": "CLOSE"
+    },
+    "giftnifty": {
+      "id": "1/NIFTYFUTIDX28-Apr-2026--",
+      "INSTRUMENTTYPE": "FUTIDX",
+      "SYMBOL": "NIFTY",
+      "EXPIRYDATE": "28-Apr-2026",
+      "OPTIONTYPE": "-",
+      "STRIKEPRICE": 0,
+      "LASTPRICE": 23877.5,
+      "DAYCHANGE": -142.5,
+      "PERCHANGE": -0.59,
+      "CONTRACTSTRADED": 50090,
+      "TIMESTMP": "13-Apr-2026 15:49"
+    }
+  },
+  "revenue": null,
+  "history": []
+}

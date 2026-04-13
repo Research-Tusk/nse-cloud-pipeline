@@ -7,3 +7,4 @@ node_modules/
 .vercel/
 .next/
 .DS_Store
+turnover_log.csv
