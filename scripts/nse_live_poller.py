@@ -327,7 +327,7 @@ def main():
 
     # ── 5. Hourly snapshot + archive ──
     now_ist = datetime.now(IST)
-    save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE)
+    save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE, exchange="nse")
 
     # ── 7. Supabase ──
     sb = get_supabase()

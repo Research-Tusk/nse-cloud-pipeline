@@ -1,23 +1,38 @@
 """
 Shared hourly snapshot + prediction logic for NSE and BSE live pollers.
 
-Prediction methodology:
-  - Linear fallback: predicted = revenue_so_far × (375 / elapsed_min)
-  - Historical (preferred, requires ≥3 days): for each hour label, compute
-    the average fraction of EOD revenue earned by that point across all
-    historical days. Then: predicted = revenue_so_far / avg_fraction.
+Prediction hierarchy (best available wins):
+  1. Weekday-specific historical fractions (same weekday type, ≥3 samples)
+  2. Overall historical fractions (any weekday, ≥3 days)
+  3. Linear fallback: revenue_so_far × (375 / elapsed_min)
 
-Historical file format ({exchange}_hourly_history.json):
+Weekday classification per exchange:
+  NSE: Tuesday = expiry day. If Tuesday is a holiday, Monday becomes expiry.
+       Monday (before a Tuesday expiry) = pre-expiry.
+  BSE: Thursday = expiry day. If Thursday is a holiday, Wednesday becomes expiry.
+       Wednesday (before a Thursday expiry) = pre-expiry.
+
+Each archived day records:
+  weekday (0=Mon … 4=Fri), day_type ('expiry'|'pre_expiry'|'normal'),
+  eod_revenue, and per-hour fractions.
+
+Over time the model learns separate intraday curves for:
+  expiry / pre_expiry / normal days — and within each, per-weekday if
+  enough samples accumulate.
+
+Historical file: dashboard/data/{exchange}_hourly_history.json
   {
-    "exchange": "nse",
     "days": [
       {
-        "date": "2026-04-13",
-        "eod_revenue": 74.08,
+        "date":        "2026-04-15",
+        "weekday":     1,          // 0=Mon … 4=Fri
+        "weekday_name":"Tuesday",
+        "day_type":    "expiry",   // "expiry"|"pre_expiry"|"normal"
+        "eod_revenue": 92.3,
         "snapshots": [
-          {"hour_label": "10:00", "total_revenue": 25.3, "fraction": 0.341},
+          {"hour_label":"10:00","total_revenue":28.1,"fraction":0.305},
           ...
-          {"hour_label": "15:30", "total_revenue": 74.08, "fraction": 1.0}
+          {"hour_label":"15:30","total_revenue":92.3,"fraction":1.0}
         ]
       }
     ]
@@ -25,15 +40,87 @@ Historical file format ({exchange}_hourly_history.json):
 """
 
 import json
+from datetime import date, timedelta
 from pathlib import Path
 
 MARKET_OPEN_MIN  = 9 * 60 + 15   # 9:15 AM IST
-MARKET_TOTAL_MIN = 375            # 9:15 → 15:30
-MIN_HISTORY_DAYS = 3              # fall back to linear below this
+MARKET_TOTAL_MIN = 375            # → 15:30
+MIN_SAMPLES      = 3              # minimum days to use historical fractions
 
+WEEKDAY_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+
+# NSE expiry = Tuesday (1); BSE expiry = Thursday (3)
+EXPIRY_WEEKDAY = {"nse": 1, "bse": 3}
+# Pre-expiry = day before expiry
+PRE_EXPIRY_WEEKDAY = {"nse": 0, "bse": 2}
+
+
+# ---------------------------------------------------------------------------
+# Day-type classification
+# ---------------------------------------------------------------------------
+
+def classify_day(d: date, exchange: str, market_dates: set = None) -> str:
+    """
+    Returns 'expiry', 'pre_expiry', or 'normal'.
+
+    market_dates: optional set of YYYY-MM-DD strings of known trading days.
+    Used to detect holiday shifts (e.g. Tuesday holiday → Monday becomes expiry).
+    When not provided, uses simple weekday rules.
+    """
+    wd = d.weekday()   # 0=Mon … 4=Fri
+    exp_wd = EXPIRY_WEEKDAY.get(exchange, -1)
+    pre_wd = PRE_EXPIRY_WEEKDAY.get(exchange, -1)
+
+    if market_dates:
+        # Find the canonical expiry day of the same week
+        days_to_exp = (exp_wd - wd) % 7
+        canonical_expiry = d + timedelta(days=days_to_exp)
+        canonical_str = canonical_expiry.strftime("%Y-%m-%d")
+
+        # Only apply holiday-shift logic if the canonical expiry is in the past
+        # (i.e. we would already have it in market_dates if it were a trading day).
+        # If it's today or in the future we can't know yet → use simple weekday rule.
+        max_known = max(market_dates) if market_dates else ""
+        expiry_is_holiday = (canonical_str <= max_known) and (canonical_str not in market_dates)
+
+        if expiry_is_holiday:
+            # Expiry shifts to the trading day just before canonical expiry
+            # that day is the new expiry
+            shifted = canonical_expiry - timedelta(days=1)
+            while shifted.strftime("%Y-%m-%d") not in market_dates and shifted > d:
+                shifted -= timedelta(days=1)
+            if d == shifted:
+                return "expiry"
+            # Pre-expiry = day before shifted expiry
+            pre_shifted = shifted - timedelta(days=1)
+            while pre_shifted.strftime("%Y-%m-%d") not in market_dates and pre_shifted > d:
+                pre_shifted -= timedelta(days=1)
+            if d == pre_shifted:
+                return "pre_expiry"
+        else:
+            if wd == exp_wd:
+                return "expiry"
+            # Pre-expiry = closest trading day before canonical expiry
+            pre = canonical_expiry - timedelta(days=1)
+            while pre.weekday() > 4:   # skip weekends
+                pre -= timedelta(days=1)
+            if d == pre:
+                return "pre_expiry"
+    else:
+        # Simple weekday rule (no holiday awareness)
+        if wd == exp_wd:
+            return "expiry"
+        if wd == pre_wd:
+            return "pre_expiry"
+
+    return "normal"
+
+
+# ---------------------------------------------------------------------------
+# Core helpers
+# ---------------------------------------------------------------------------
 
 def hourly_label(now_ist):
-    """Return snapshot label if this run is in a capture window, else None."""
     h, m = now_ist.hour, now_ist.minute
     if h == 15 and 28 <= m <= 35:
         return "15:30"
@@ -56,62 +143,91 @@ def _load_history(history_file: Path):
     return {"days": []}
 
 
-def _historical_fractions(history_file: Path):
-    """
-    Returns dict: {hour_label -> avg_fraction} across all historical days
-    that have a 15:30 (EOD) entry. Returns {} if insufficient data.
-    """
-    data = _load_history(history_file)
-    days = [d for d in data.get("days", []) if d.get("eod_revenue", 0) > 0]
-    if len(days) < MIN_HISTORY_DAYS:
-        return {}
+# ---------------------------------------------------------------------------
+# Fraction computation (overall + weekday-filtered)
+# ---------------------------------------------------------------------------
 
+def _avg_fractions(days: list) -> dict:
+    """Average per-hour fractions across a list of day records."""
     from collections import defaultdict
-    label_fractions = defaultdict(list)
+    label_fracs = defaultdict(list)
     for day in days:
-        eod = day["eod_revenue"]
         for snap in day.get("snapshots", []):
             frac = snap.get("fraction")
             if frac is not None and snap.get("hour_label"):
-                label_fractions[snap["hour_label"]].append(frac)
-
+                label_fracs[snap["hour_label"]].append(frac)
     return {
-        label: round(sum(fracs) / len(fracs), 4)
-        for label, fracs in label_fractions.items()
-        if fracs
+        lbl: round(sum(fs) / len(fs), 4)
+        for lbl, fs in label_fracs.items() if fs
     }
 
 
-def predict_eod(revenue_so_far, label, history_file: Path):
+def _best_fractions(label: str, history_file: Path, today_day_type: str, today_weekday: int):
     """
-    Predict EOD revenue.
-    Uses historical avg fractions when ≥3 days available, else linear.
-    Returns (predicted_value, method_string).
+    Returns (avg_fraction, method_label) using the best available sample set.
+
+    Priority:
+      1. Same day_type + same weekday (most specific)
+      2. Same day_type (e.g. all expiry days regardless of weekday)
+      3. All days overall
+      4. None → caller uses linear
     """
+    data = _load_history(history_file)
+    all_days = [d for d in data.get("days", []) if d.get("eod_revenue", 0) > 0]
+
+    def try_set(days, method):
+        if len(days) < MIN_SAMPLES:
+            return None, None
+        fracs = _avg_fractions(days)
+        f = fracs.get(label)
+        return (f, method) if f else (None, None)
+
+    # 1. Same day_type + same weekday
+    specific = [d for d in all_days
+                if d.get("day_type") == today_day_type and d.get("weekday") == today_weekday]
+    f, m = try_set(specific, f"historical/{today_day_type}/wd{today_weekday}")
+    if f:
+        return f, m
+
+    # 2. Same day_type
+    typed = [d for d in all_days if d.get("day_type") == today_day_type]
+    f, m = try_set(typed, f"historical/{today_day_type}")
+    if f:
+        return f, m
+
+    # 3. All days
+    f, m = try_set(all_days, "historical/overall")
+    if f:
+        return f, m
+
+    return None, None
+
+
+# ---------------------------------------------------------------------------
+# Public: predict EOD
+# ---------------------------------------------------------------------------
+
+def predict_eod(revenue_so_far, label, history_file: Path,
+                today_day_type: str = "normal", today_weekday: int = 0):
     if not revenue_so_far or revenue_so_far <= 0:
         return None, "none"
-
     elapsed = elapsed_for_label(label)
     if elapsed <= 0:
         return None, "none"
 
-    fractions = _historical_fractions(history_file)
-    avg_frac  = fractions.get(label)
+    avg_frac, method = _best_fractions(label, history_file, today_day_type, today_weekday)
 
     if avg_frac and avg_frac > 0:
-        predicted = round(revenue_so_far / avg_frac, 2)
-        return predicted, "historical"
+        return round(revenue_so_far / avg_frac, 2), method
     else:
-        # Linear: assume constant rate through the day
-        predicted = round(revenue_so_far * MARKET_TOTAL_MIN / elapsed, 2)
-        return predicted, "linear"
+        return round(revenue_so_far * MARKET_TOTAL_MIN / elapsed, 2), "linear"
 
 
-def archive_day_to_history(hourly_file: Path, history_file: Path):
-    """
-    Called at 15:30. If today's hourly file has a 15:30 entry, append it
-    to the history file (idempotent — won't re-add same date).
-    """
+# ---------------------------------------------------------------------------
+# Public: archive day to history
+# ---------------------------------------------------------------------------
+
+def archive_day_to_history(hourly_file: Path, history_file: Path, exchange: str = "nse"):
     if not hourly_file.exists():
         return
 
@@ -120,10 +236,9 @@ def archive_day_to_history(hourly_file: Path, history_file: Path):
     except Exception:
         return
 
-    today_date = today_data.get("date")
-    snaps      = today_data.get("snapshots", [])
+    today_date_str = today_data.get("date")       # "2026-04-15"
+    snaps          = today_data.get("snapshots", [])
 
-    # Need the 15:30 snap to know EOD revenue
     eod_snap = next((s for s in snaps if s.get("hour_label") == "15:30"), None)
     if not eod_snap or not eod_snap.get("has_data"):
         return
@@ -132,48 +247,66 @@ def archive_day_to_history(hourly_file: Path, history_file: Path):
     if eod_rev <= 0:
         return
 
-    # Compute fractions relative to EOD
-    snaps_with_fractions = []
+    history = _load_history(history_file)
+    days    = history.get("days", [])
+
+    if any(d.get("date") == today_date_str for d in days):
+        print(f"  History: {today_date_str} already archived — skipping")
+        return
+
+    # Build known trading dates from history (for holiday-shift detection)
+    market_dates = {d["date"] for d in days}
+    market_dates.add(today_date_str)
+
+    today_date = date.fromisoformat(today_date_str)
+    weekday    = today_date.weekday()
+    day_type   = classify_day(today_date, exchange, market_dates)
+
+    snaps_archived = []
     for s in snaps:
         rev = s.get("total_revenue") or 0
-        snaps_with_fractions.append({
+        snaps_archived.append({
             "hour_label":    s["hour_label"],
             "total_revenue": rev,
             "fraction":      round(rev / eod_rev, 4) if eod_rev else None,
         })
 
-    history = _load_history(history_file)
-    days    = history.get("days", [])
-
-    # Idempotent: skip if date already archived
-    if any(d.get("date") == today_date for d in days):
-        print(f"  History: {today_date} already archived — skipping")
-        return
-
     days.append({
-        "date":        today_date,
-        "eod_revenue": eod_rev,
-        "snapshots":   snaps_with_fractions,
+        "date":         today_date_str,
+        "weekday":      weekday,
+        "weekday_name": WEEKDAY_NAMES[weekday],
+        "day_type":     day_type,
+        "eod_revenue":  eod_rev,
+        "snapshots":    snaps_archived,
     })
-    # Keep last 60 trading days
     history["days"] = sorted(days, key=lambda d: d["date"])[-60:]
 
     history_file.parent.mkdir(parents=True, exist_ok=True)
     history_file.write_text(json.dumps(history, indent=2))
     n = len(history["days"])
-    print(f"  History: archived {today_date} (EOD ₹{eod_rev} Cr) — {n} days in history")
+    print(f"  History: archived {today_date_str} [{WEEKDAY_NAMES[weekday]}/{day_type}] "
+          f"EOD ₹{eod_rev} Cr — {n} days total")
 
 
-def save_hourly_snapshot(revenue, now_ist, hourly_file: Path, history_file: Path):
-    """
-    Save the current hour's snapshot to hourly_file.
-    At 15:30, also archives the day to history_file.
-    """
+# ---------------------------------------------------------------------------
+# Public: save hourly snapshot
+# ---------------------------------------------------------------------------
+
+def save_hourly_snapshot(revenue, now_ist, hourly_file: Path, history_file: Path,
+                         exchange: str = "nse"):
     label = hourly_label(now_ist)
     if label is None:
         return
 
-    today_str = now_ist.strftime("%Y-%m-%d")
+    today_str  = now_ist.strftime("%Y-%m-%d")
+    today_date = now_ist.date()
+    weekday    = today_date.weekday()
+
+    # Load known market dates for holiday-shift detection
+    hist_data    = _load_history(history_file)
+    market_dates = {d["date"] for d in hist_data.get("days", [])}
+    market_dates.add(today_str)
+    day_type = classify_day(today_date, exchange, market_dates)
 
     existing = {}
     if hourly_file.exists():
@@ -183,18 +316,19 @@ def save_hourly_snapshot(revenue, now_ist, hourly_file: Path, history_file: Path
             existing = {}
 
     if existing.get("date") != today_str:
-        existing = {"date": today_str, "snapshots": []}
+        existing = {"date": today_str, "weekday": weekday,
+                    "weekday_name": WEEKDAY_NAMES[weekday], "day_type": day_type,
+                    "snapshots": []}
 
     snaps = existing.get("snapshots", [])
     if any(s["hour_label"] == label for s in snaps):
         print(f"  Hourly snapshot {label} already recorded — skipping")
-        # Still try to archive at 15:30 (in case previous run failed)
         if label == "15:30":
-            archive_day_to_history(hourly_file, history_file)
+            archive_day_to_history(hourly_file, history_file, exchange)
         return
 
     total_rev = round(float(revenue.get("total_revenue") or 0), 2) if revenue else None
-    pred, method = predict_eod(total_rev, label, history_file)
+    pred, method = predict_eod(total_rev, label, history_file, day_type, weekday)
 
     snap = {
         "hour_label":      label,
@@ -214,8 +348,8 @@ def save_hourly_snapshot(revenue, now_ist, hourly_file: Path, history_file: Path
 
     hourly_file.parent.mkdir(parents=True, exist_ok=True)
     hourly_file.write_text(json.dumps(existing, indent=2))
-    print(f"  Hourly snapshot {label} — ₹{total_rev} Cr, pred EOD ₹{pred} Cr [{method}]")
+    print(f"  [{WEEKDAY_NAMES[weekday]}/{day_type}] {label} — "
+          f"₹{total_rev} Cr, pred EOD ₹{pred} Cr [{method}]")
 
-    # At end of day, archive to history
     if label == "15:30":
-        archive_day_to_history(hourly_file, history_file)
+        archive_day_to_history(hourly_file, history_file, exchange)

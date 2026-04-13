@@ -2914,27 +2914,7 @@ async function downloadWeeklyReport() {
         </div>
       ` : ''}
 
-      ${isBSE ? `
-        <!-- BSE market stats -->
-        ${stat.advances != null ? `
-          <div class="chart-panel">
-            <div class="chart-title" style="margin-bottom:10px">Market Breadth</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center">
-              ${[
-                ['Advances',  stat.advances,  '#30d158'],
-                ['Declines',  stat.declines,  '#ff453a'],
-                ['Unchanged', stat.unchanged, 'var(--color-text-muted)'],
-                ['Scrips Traded', stat.turnover_cr ? stat.turnover_cr.toLocaleString('en-IN', {maximumFractionDigits:0}) + ' Cr' : '—', 'var(--color-text)'],
-              ].map(([label, val, color]) =>
-                `<div style="border:1px solid var(--color-border);border-radius:6px;padding:12px">
-                  <div style="font-size:10px;color:var(--color-text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">${label}</div>
-                  <div style="font-size:20px;font-weight:700;color:${color};font-variant-numeric:tabular-nums">${val}</div>
-                </div>`
-              ).join('')}
-            </div>
-          </div>
-        ` : ''}
-      ` : `
+      ${isBSE ? `` : `
         <!-- NSE market segments table -->
         <div class="chart-panel">
           <div class="chart-title" style="margin-bottom:10px">Market Segments</div>

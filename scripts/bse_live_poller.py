@@ -227,7 +227,7 @@ def main():
     revenue = fetch_turnover()
 
     print("Hourly snapshot:")
-    save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE)
+    save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE, exchange="bse")
 
     payload = {
         "updated_at":    ts_iso,
