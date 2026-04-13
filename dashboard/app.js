@@ -2787,14 +2787,11 @@ async function downloadWeeklyReport() {
       open ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(48,209,88,.12);color:#30d158;border:1px solid rgba(48,209,88,.25)"><span style="width:5px;height:5px;border-radius:50%;background:#30d158;display:inline-block;animation:pulse 1.5s infinite"></span>OPEN</span>'
            : '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(120,120,120,.08);color:#666;border:1px solid rgba(120,120,120,.2)"><span style="width:5px;height:5px;border-radius:50%;background:#555;display:inline-block"></span>CLOSED</span>';
 
-    // revenue segment card
-    const segCard = (label, rev, turnoverLabel, turnoverVal, subA, subAVal, subB, subBVal, color, borderColor) => `
-      <div style="border:1px solid ${borderColor};border-radius:10px;padding:14px;background:rgba(0,0,0,.3)">
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:${color};margin-bottom:8px">${label}</div>
-        <div style="font-size:20px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;margin-bottom:6px">${hasRev ? _cr(rev) : '—'}</div>
-        <div style="font-size:10px;color:var(--text-secondary)">${turnoverLabel} · ${hasRev ? _cr(turnoverVal, 0) : '—'}</div>
-        ${subA ? `<div style="margin-top:6px;font-size:10px;color:var(--text-secondary);display:flex;justify-content:space-between"><span>${subA}</span><span style="font-variant-numeric:tabular-nums">${hasRev ? _cr(subAVal, 0) : '—'}</span></div>` : ''}
-        ${subB ? `<div style="font-size:10px;color:var(--text-secondary);display:flex;justify-content:space-between"><span>${subB}</span><span style="font-variant-numeric:tabular-nums">${hasRev ? _cr(subBVal, 0) : '—'}</span></div>` : ''}
+    // revenue segment card — revenue only, no volumes
+    const segCard = (label, revVal, color, borderColor) => `
+      <div style="border:1px solid ${borderColor};border-radius:10px;padding:16px;background:rgba(0,0,0,.3);text-align:center">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:${color};margin-bottom:10px">${label}</div>
+        <div style="font-size:24px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums">${hasRev ? _cr(revVal) : '—'}</div>
       </div>`;
 
     // hourly table rows
@@ -2850,23 +2847,18 @@ async function downloadWeeklyReport() {
       </div>
 
       <!-- revenue hero -->
-      <div class="chart-panel" style="margin-bottom:14px">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
-          <div>
-            <div class="chart-title" style="margin-bottom:4px">Total Revenue Today</div>
-            ${hasRev ? `<div style="font-size:11px;color:var(--text-secondary)">● ${rev.trade_date} · Futures + Options + Cash</div>` : ''}
-          </div>
-          ${lastPred && hasRev ? `<div style="text-align:right"><div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px">Latest forecast</div><div style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums">${_cr(lastPred)}</div></div>` : ''}
-        </div>
+      <div class="chart-panel" style="margin-bottom:14px;text-align:center">
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Total Revenue Today${hasRev ? ' · ' + rev.trade_date : ''}</div>
         ${hasRev ? `
-          <div style="font-size:38px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-.5px;margin-bottom:18px">${_cr(rev.total_revenue)}</div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-            ${segCard('Futures', rev.futures_revenue, 'INR turnover', rev.futures_turnover, 'Index', rev.index_futures_turnover, 'Stock', rev.stock_futures_turnover, '#60a5fa', 'rgba(96,165,250,.2)')}
-            ${segCard('Options', rev.options_revenue, 'Premium', rev.options_premium, 'Index', rev.index_options_premium, 'Stock', rev.stock_options_premium, '#a78bfa', 'rgba(167,139,250,.2)')}
-            ${segCard('Cash', rev.cash_revenue, 'Traded value', rev.cash_traded_value, '', null, '', null, '#34d399', 'rgba(52,211,153,.2)')}
+          <div style="font-size:56px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-1px;line-height:1;margin-bottom:6px">${_cr(rev.total_revenue)}</div>
+          ${lastPred ? `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:20px">Latest forecast <span style="color:var(--text-primary);font-weight:600">${_cr(lastPred)}</span></div>` : '<div style="margin-bottom:20px"></div>'}
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">
+            ${segCard('Futures', rev.futures_revenue, '#60a5fa', 'rgba(96,165,250,.15)')}
+            ${segCard('Options', rev.options_revenue, '#a78bfa', 'rgba(167,139,250,.15)')}
+            ${segCard('Cash',    rev.cash_revenue,    '#34d399', 'rgba(52,211,153,.15)')}
           </div>
         ` : `
-          <div style="text-align:center;padding:28px 0;color:var(--text-secondary)">
+          <div style="padding:32px 0;color:var(--text-secondary)">
             <div style="font-size:13px;font-weight:600;margin-bottom:6px">Data not yet published</div>
             <div style="font-size:11px;opacity:.6">NSE publishes today's turnover 1–2 hrs after market close (3:30 PM IST)</div>
           </div>
