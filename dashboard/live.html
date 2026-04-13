@@ -160,8 +160,8 @@ function RevenueSection({ revenue, pulse: doPulse }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M12 7h.01M9 7H7a2 2 0 00-2 2v9a2 2 0 002 2h10a2 2 0 002-2V9a2 2 0 00-2-2h-2" />
           </svg>
-          <p className="text-sm font-medium">Market Closed</p>
-          <p className="text-xs mt-1 opacity-60">Revenue data available 9:15 AM – 3:30 PM IST</p>
+          <p className="text-sm font-medium">Data not yet published</p>
+          <p className="text-xs mt-1 opacity-60">NSE publishes today's turnover 1–2 hrs after market close (3:30 PM IST). Will auto-update.</p>
         </div>
       </div>
     );
@@ -192,8 +192,8 @@ function RevenueSection({ revenue, pulse: doPulse }) {
       <div className="flex items-center justify-between mb-5">
         <div className="text-xs text-zinc-500 uppercase tracking-widest">Exchange Revenue Estimate</div>
         {has_data
-          ? <span className="text-xs text-yellow-400 font-semibold">Live</span>
-          : <span className="text-xs text-zinc-600">Awaiting turnover fields</span>}
+          ? <span className="text-xs text-yellow-400 font-semibold">● {revenue.trade_date || 'Latest'}</span>
+          : <span className="text-xs text-zinc-600">Awaiting NSE data publish</span>}
       </div>
 
       {/* Total hero */}

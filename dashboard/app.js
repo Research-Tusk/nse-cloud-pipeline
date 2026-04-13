@@ -2864,15 +2864,17 @@ async function downloadWeeklyReport() {
       <div class="chart-panel" style="margin-bottom:16px;border-color:rgba(234,179,8,.35)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
           <div class="chart-title">Exchange Revenue Estimate</div>
-          ${hasRev ? '<span style="font-size:11px;font-weight:700;color:#eab308">● Live</span>' : '<span style="font-size:11px;color:var(--text-secondary)">Market closed — no turnover data</span>'}
+          ${hasRev
+            ? `<span style="font-size:11px;font-weight:700;color:#eab308">● ${rev.trade_date || 'Latest'}</span>`
+            : `<span style="font-size:11px;color:var(--text-secondary)">Awaiting NSE data publish</span>`}
         </div>
         ${hasRev ? `
-          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">Total (Futures + Options + Cash)</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">Total (Futures + Options + Cash) · trade date: ${rev.trade_date}</div>
           <div style="font-size:28px;font-weight:700;color:#eab308;font-variant-numeric:tabular-nums;margin-bottom:16px">${_cr(rev.total_revenue, 4)}</div>
         ` : `
           <div style="text-align:center;padding:24px 0;color:var(--text-secondary)">
-            <div style="font-size:14px;font-weight:600;margin-bottom:6px">Market Closed</div>
-            <div style="font-size:12px;opacity:.6">Revenue data available 9:15 AM – 3:30 PM IST, Mon–Fri</div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">Data not yet published</div>
+            <div style="font-size:12px;opacity:.6">NSE publishes today's turnover 1–2 hrs after market close (3:30 PM IST). Will auto-update.</div>
           </div>
         `}
         <div style="overflow-x:auto">
