@@ -206,6 +206,7 @@ const NAV_ICONS = {
   advanced: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
   executive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
   weekly: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  live: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M2 12h3M19 12h3M12 2v3M12 19v3"/><path d="M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>',
 };
 
 // ========================
@@ -220,6 +221,7 @@ const EXCHANGE_TABS = {
     { id: 'prediction', label: 'PAT Prediction',      icon: 'prediction' },
     { id: 'advanced',   label: 'Advanced Analytics',  icon: 'advanced' },
     { id: 'executive',  label: 'Executive Summary',   icon: 'executive' },
+    { id: 'live',       label: 'Live Market',          icon: 'live' },
   ],
   bse: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
@@ -229,6 +231,7 @@ const EXCHANGE_TABS = {
     { id: 'advanced',   label: 'Monthly Analysis',     icon: 'advanced' },
     { id: 'executive',  label: 'Executive Summary',    icon: 'executive' },
     { id: 'weekly',     label: 'Weekly Analysis',      icon: 'weekly' },
+    { id: 'live',       label: 'Live Market',           icon: 'live' },
   ],
 };
 
@@ -240,6 +243,7 @@ const TAB_TITLES = {
     prediction: 'PAT Prediction Engine',
     advanced: 'Advanced Analytics',
     executive: 'Executive Summary',
+    live: 'NSE Live Market',
   },
   bse: {
     revenue: 'Revenue Summary',
@@ -249,6 +253,7 @@ const TAB_TITLES = {
     advanced: 'Monthly Analysis',
     executive: 'Executive Summary',
     weekly: 'Weekly Analysis',
+    live: 'NSE Live Market',
   }
 };
 
@@ -2703,5 +2708,258 @@ async function downloadWeeklyReport() {
   el.style.display = 'block';
   setTimeout(() => { window.print(); el.style.display = 'none'; }, 150);
 }
+
+// ─── Live Market Tab ──────────────────────────────────────────────────────────
+// Self-contained IIFE — reads ./data/nse_live.json (written by GH Actions every 5 min).
+// Does NOT touch any existing variables, functions, or DOM outside #tab-live.
+(function() {
+  const LIVE_JSON = './data/nse_live.json';
+  const POLL_MS   = 5 * 60 * 1000;
+  let   liveTimer = null;
+  let   liveChart = null;
+
+  // ── Formatters (scoped, no conflict with outer scope) ──
+  function _cr(v, d) {
+    if (v == null || isNaN(+v)) return '—';
+    const n = +v;
+    if (Math.abs(n) >= 1e5) return '₹' + (n / 1e5).toFixed(d ?? 2) + ' L Cr';
+    return '₹' + n.toFixed(d ?? 2) + ' Cr';
+  }
+  function _num(v, d) {
+    if (v == null || isNaN(+v)) return '—';
+    return (+v).toLocaleString('en-IN', { minimumFractionDigits: d ?? 2, maximumFractionDigits: d ?? 2 });
+  }
+  function _pct(v) {
+    if (v == null || isNaN(+v)) return '';
+    const n = +v; return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  }
+  function _time(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); }
+    catch { return iso; }
+  }
+  function _age(iso) {
+    if (!iso) return null;
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  }
+
+  // ── Main fetch + render ──
+  async function fetchAndRender() {
+    const el = document.getElementById('tab-live');
+    if (!el) return;
+    try {
+      const res = await fetch(LIVE_JSON + '?t=' + Date.now());
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      renderLive(el, await res.json());
+    } catch (e) {
+      el.querySelector('#live-inner').innerHTML =
+        '<div class="chart-panel" style="text-align:center;padding:40px;color:var(--text-secondary)">' +
+        '<p style="margin:0 0 8px;font-weight:600">Could not load nse_live.json</p>' +
+        '<p style="margin:0;font-size:12px;opacity:.6">' + e.message + '</p></div>';
+    }
+  }
+
+  function renderLive(el, d) {
+    const ms    = d.market_status || {};
+    const rev   = d.revenue || null;
+    const hist  = d.history || [];
+    const upd   = d.updated_at;
+    const age   = _age(upd);
+    const nifty = (ms.marketState || []).find(m => m.market === 'Capital Market') || {};
+    const mktcap  = ms.marketcap  || {};
+    const gift    = ms.giftnifty  || {};
+    const segments = ms.marketState || [];
+    const hasRev  = rev && rev.has_data;
+    const TR_FUT  = 0.00173 / 100 * 2;
+    const TR_OPT  = 0.03503 / 100 * 2;
+    const TR_CASH = 0.00297 / 100 * 2;
+
+    const niftyUp = +nifty.percentChange >= 0;
+    const giftUp  = +gift.PERCHANGE >= 0;
+
+    // staleness badge
+    const staleBadge = age != null && age > 10
+      ? `<span style="background:rgba(234,179,8,.15);color:#eab308;padding:2px 8px;border-radius:12px;font-size:11px;margin-left:8px">⏱ ${age}m old</span>`
+      : age != null
+        ? `<span style="color:var(--text-secondary);font-size:11px;margin-left:8px">${age === 0 ? 'just now' : age + 'm ago'}</span>`
+        : '';
+
+    // pill helper
+    const pill = open =>
+      open ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:12px;font-size:10px;font-weight:700;background:rgba(48,209,88,.15);color:#30d158"><span style="width:6px;height:6px;border-radius:50%;background:#30d158;display:inline-block"></span>OPEN</span>'
+           : '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:12px;font-size:10px;font-weight:700;background:rgba(255,69,58,.15);color:#ff453a"><span style="width:6px;height:6px;border-radius:50%;background:#ff453a;display:inline-block"></span>CLOSED</span>';
+
+    // stat card helper
+    const card = (title, value, sub, accent) =>
+      `<div class="chart-panel" style="padding:18px 20px">
+        <div class="chart-title" style="margin-bottom:6px">${title}</div>
+        <div style="font-size:22px;font-weight:700;letter-spacing:-.5px;color:${accent || 'var(--text-primary)'};font-variant-numeric:tabular-nums">${value}</div>
+        ${sub ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">${sub}</div>` : ''}
+      </div>`;
+
+    // revenue segment rows
+    const revRows = [
+      ['Index Futures',        '#60a5fa', rev?.index_futures_turnover, TR_FUT, rev?.index_futures_turnover * TR_FUT],
+      ['Stock Futures',        '#60a5fa', rev?.stock_futures_turnover, TR_FUT, rev?.stock_futures_turnover * TR_FUT],
+      ['Futures Total',        '#3b82f6', rev?.futures_turnover,       null,   rev?.futures_revenue,        true],
+      ['Index Opt Premium',    '#a78bfa', rev?.index_options_premium,  TR_OPT, rev?.index_options_premium * TR_OPT],
+      ['Stock Opt Premium',    '#a78bfa', rev?.stock_options_premium,  TR_OPT, rev?.stock_options_premium * TR_OPT],
+      ['Options Total',        '#8b5cf6', rev?.options_premium,        null,   rev?.options_revenue,        true],
+      ['Cash / Equity',        '#34d399', rev?.cash_traded_value,      TR_CASH,rev?.cash_revenue],
+    ];
+
+    const revTableRows = revRows.map(([label, color, tv, rate, rv, bold]) => `
+      <tr style="${bold ? 'font-weight:600;border-top:1px solid var(--border-subtle)' : ''}">
+        <td style="padding:5px 8px;color:${color}">${label}</td>
+        <td style="padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums">${hasRev ? _num(tv) : '—'}</td>
+        <td style="padding:5px 8px;text-align:right;color:var(--text-secondary);font-size:11px">${rate ? (rate === TR_FUT ? '0.00173%×2' : rate === TR_OPT ? '0.03503%×2' : '0.00297%×2') : ''}</td>
+        <td style="padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums;color:${color}">${hasRev ? _num(rv, 4) : '—'}</td>
+      </tr>`).join('');
+
+    // segment status rows
+    const segRows = segments.map(m => `
+      <tr>
+        <td style="padding:5px 8px">${m.market}</td>
+        <td style="padding:5px 8px">${pill(String(m.marketStatus).toLowerCase() === 'open')}</td>
+        <td style="padding:5px 8px;color:var(--text-secondary)">${m.index || m.underlying || '—'}</td>
+        <td style="padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums">${m.last !== '' && m.last != null ? _num(m.last) : '—'}</td>
+        <td style="padding:5px 8px;text-align:right;color:${+m.percentChange >= 0 ? '#30d158' : '#ff453a'};font-variant-numeric:tabular-nums">
+          ${m.percentChange !== '' && m.percentChange != null ? _pct(m.percentChange) : '—'}
+        </td>
+      </tr>`).join('');
+
+    el.querySelector('#live-inner').innerHTML = `
+      <!-- header row -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:600;opacity:.5;text-transform:uppercase;letter-spacing:.08em">NSE Live</span>
+          ${nifty.last != null ? `
+            <span style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">${_num(nifty.last)}</span>
+            <span style="font-size:13px;font-weight:600;color:${niftyUp ? '#30d158' : '#ff453a'}">${niftyUp ? '▲' : '▼'} ${Math.abs(+nifty.percentChange).toFixed(2)}%</span>
+            ${pill(String(nifty.marketStatus).toLowerCase() === 'open')}
+          ` : ''}
+        </div>
+        <span style="font-size:11px;color:var(--text-secondary)">
+          Data updated ${upd ? _time(upd) + ' IST' : '—'}${staleBadge}
+          &nbsp;·&nbsp; auto-refresh every 5 min
+        </span>
+      </div>
+
+      <!-- stat cards -->
+      <div class="chart-grid chart-grid-${gift.LASTPRICE ? '3' : '2'}" style="margin-bottom:16px">
+        ${card('NIFTY 50',
+          nifty.last != null ? _num(nifty.last) : '—',
+          nifty.tradeDate || '',
+          niftyUp ? '#30d158' : '#ff453a')}
+        ${mktcap.marketCapinLACCRRupeesFormatted ? card('Market Cap',
+          '₹' + mktcap.marketCapinLACCRRupeesFormatted + ' L Cr',
+          '$' + mktcap.marketCapinTRDollars + 'T · as of ' + mktcap.timeStamp) : ''}
+        ${gift.LASTPRICE ? card('GIFT Nifty Futures',
+          _num(gift.LASTPRICE),
+          'Exp ' + gift.EXPIRYDATE + ' · ' + (giftUp ? '+' : '') + (+gift.PERCHANGE).toFixed(2) + '%',
+          giftUp ? '#30d158' : '#ff453a') : ''}
+      </div>
+
+      <!-- revenue section -->
+      <div class="chart-panel" style="margin-bottom:16px;border-color:rgba(234,179,8,.35)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div class="chart-title">Exchange Revenue Estimate</div>
+          ${hasRev ? '<span style="font-size:11px;font-weight:700;color:#eab308">● Live</span>' : '<span style="font-size:11px;color:var(--text-secondary)">Market closed — no turnover data</span>'}
+        </div>
+        ${hasRev ? `
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">Total (Futures + Options + Cash)</div>
+          <div style="font-size:28px;font-weight:700;color:#eab308;font-variant-numeric:tabular-nums;margin-bottom:16px">${_cr(rev.total_revenue, 4)}</div>
+        ` : `
+          <div style="text-align:center;padding:24px 0;color:var(--text-secondary)">
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">Market Closed</div>
+            <div style="font-size:12px;opacity:.6">Revenue data available 9:15 AM – 3:30 PM IST, Mon–Fri</div>
+          </div>
+        `}
+        <div style="overflow-x:auto">
+          <table class="data-table" style="width:100%">
+            <thead><tr>
+              <th style="text-align:left">Segment</th>
+              <th style="text-align:right">Turnover / Premium (₹ Cr)</th>
+              <th style="text-align:right">Take Rate</th>
+              <th style="text-align:right">Revenue (₹ Cr)</th>
+            </tr></thead>
+            <tbody>${revTableRows}</tbody>
+            <tfoot><tr style="font-weight:700;font-size:13px;border-top:2px solid var(--border-subtle)">
+              <td style="padding:7px 8px;color:#eab308">TOTAL</td>
+              <td></td><td></td>
+              <td style="padding:7px 8px;text-align:right;color:#eab308;font-variant-numeric:tabular-nums">${hasRev ? _num(rev.total_revenue, 4) : '—'}</td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- revenue history chart -->
+      ${hist.filter(h => h.revenue?.has_data).length > 1 ? `
+        <div class="chart-panel" style="margin-bottom:16px">
+          <div class="chart-title" style="margin-bottom:12px">Revenue History — last 4 hrs (5-min snapshots)</div>
+          <canvas id="liveRevChart" height="80"></canvas>
+        </div>
+      ` : ''}
+
+      <!-- market segments table -->
+      <div class="chart-panel">
+        <div class="chart-title" style="margin-bottom:12px">Market Segments</div>
+        <div style="overflow-x:auto">
+          <table class="data-table" style="width:100%">
+            <thead><tr>
+              <th style="text-align:left">Market</th>
+              <th style="text-align:left">Status</th>
+              <th style="text-align:left">Index / Underlying</th>
+              <th style="text-align:right">Last</th>
+              <th style="text-align:right">Change</th>
+            </tr></thead>
+            <tbody>${segRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+
+    // ── Chart.js revenue history chart ──
+    const histPts = hist.filter(h => h.revenue?.has_data);
+    if (histPts.length > 1) {
+      const canvas = document.getElementById('liveRevChart');
+      if (canvas) {
+        if (liveChart) { liveChart.destroy(); liveChart = null; }
+        liveChart = new Chart(canvas.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: histPts.map(h => _time(h.timestamp)),
+            datasets: [
+              { label: 'Futures Rev',  data: histPts.map(h => h.revenue.futures_revenue), borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,.1)',  tension: 0.4, pointRadius: 0, fill: true },
+              { label: 'Options Rev',  data: histPts.map(h => h.revenue.options_revenue),  borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,.1)', tension: 0.4, pointRadius: 0, fill: true },
+              { label: 'Cash Rev',     data: histPts.map(h => h.revenue.cash_revenue),     borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.1)',  tension: 0.4, pointRadius: 0, fill: true },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#999', font: { size: 11 } } }, tooltip: { mode: 'index', intersect: false } },
+            scales: {
+              x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+              y: { ticks: { color: '#666', font: { size: 10 }, callback: v => '₹' + (+v).toFixed(2) + ' Cr' }, grid: { color: 'rgba(255,255,255,.05)' } },
+            },
+          },
+        });
+      }
+    }
+  }
+
+  // ── Event delegation: start/stop polling when live tab is activated ──
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.nav-item[data-tab]');
+    if (!btn) return;
+    if (btn.dataset.tab === 'live') {
+      fetchAndRender();
+      if (!liveTimer) liveTimer = setInterval(fetchAndRender, POLL_MS);
+    } else {
+      clearInterval(liveTimer);
+      liveTimer = null;
+    }
+  }, true);  // capture phase so it runs alongside (not instead of) attachTabListeners
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 
 init();
