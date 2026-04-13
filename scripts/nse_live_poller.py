@@ -18,31 +18,28 @@ Env: SUPABASE_URL, SUPABASE_KEY  (optional — writes JSON regardless)
 
 import json
 import os
+import sys
 import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from curl_cffi import requests as cffi_requests
+sys.path.insert(0, str(Path(__file__).parent))
+from live_common import save_hourly_snapshot
 
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-SCRIPT_DIR  = Path(__file__).parent
-REPO_ROOT   = SCRIPT_DIR.parent
-OUTPUT_FILE   = REPO_ROOT / "dashboard" / "data" / "nse_live.json"
-HOURLY_FILE   = REPO_ROOT / "dashboard" / "data" / "nse_live_hourly.json"
+SCRIPT_DIR   = Path(__file__).parent
+REPO_ROOT    = SCRIPT_DIR.parent
+OUTPUT_FILE  = REPO_ROOT / "dashboard" / "data" / "nse_live.json"
+HOURLY_FILE  = REPO_ROOT / "dashboard" / "data" / "nse_live_hourly.json"
+HISTORY_FILE = REPO_ROOT / "dashboard" / "data" / "nse_hourly_history.json"
 
 # ---------------------------------------------------------------------------
 # IST timezone
 # ---------------------------------------------------------------------------
 IST = timezone(timedelta(hours=5, minutes=30))
-
-# Market session constants
-MARKET_OPEN_MIN  = 9 * 60 + 15   # 9:15 AM IST in minutes since midnight
-MARKET_TOTAL_MIN = 375            # 9:15 AM → 3:30 PM = 375 min
-
-# Snapshot hours (IST): on-the-hour marks from 10–15, plus 15:30 close
-SNAPSHOT_LABELS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "15:30"]
 
 # ---------------------------------------------------------------------------
 # Take rates  (one-side × 2 = round-trip)
@@ -289,86 +286,7 @@ def supabase_upsert(sb, ts_iso, market_status, revenue):
         print(f"Supabase insert ERROR: {e}")
 
 
-# ---------------------------------------------------------------------------
-# Hourly revenue snapshots (10:00–15:30 IST)
-# ---------------------------------------------------------------------------
-
-def _hourly_label(now_ist):
-    """Return snapshot label if this run falls in an hourly capture window, else None."""
-    h, m = now_ist.hour, now_ist.minute
-    # 15:30 close window: 15:28–15:35
-    if h == 15 and 28 <= m <= 35:
-        return "15:30"
-    # On-the-hour marks 10–15: first 5-minute window
-    if h in (10, 11, 12, 13, 14, 15) and m < 5:
-        return f"{h:02d}:00"
-    return None
-
-
-def _elapsed_for_label(label):
-    """Minutes elapsed since market open (9:15 AM) for a given label like '13:00'."""
-    h, m = map(int, label.split(":"))
-    return h * 60 + m - MARKET_OPEN_MIN
-
-
-def _predict_eod(revenue, label):
-    """Simple linear projection: revenue_so_far × (375 / elapsed_minutes)."""
-    if not revenue or not revenue.get("has_data"):
-        return None
-    total   = float(revenue.get("total_revenue") or 0)
-    elapsed = _elapsed_for_label(label)
-    if elapsed <= 0:
-        return None
-    return round(total * MARKET_TOTAL_MIN / elapsed, 2)
-
-
-def save_hourly_snapshot(revenue, now_ist):
-    """Append or update today's hourly snapshot file."""
-    label = _hourly_label(now_ist)
-    if label is None:
-        return  # not a snapshot window
-
-    today_str = now_ist.strftime("%Y-%m-%d")
-
-    # Load existing file
-    existing = {}
-    if HOURLY_FILE.exists():
-        try:
-            existing = json.loads(HOURLY_FILE.read_text())
-        except Exception:
-            existing = {}
-
-    # Reset on new day
-    if existing.get("date") != today_str:
-        existing = {"date": today_str, "snapshots": []}
-
-    # Skip if label already recorded (idempotent)
-    snaps = existing.get("snapshots", [])
-    if any(s["hour_label"] == label for s in snaps):
-        print(f"Hourly snapshot {label} already recorded — skipping")
-        return
-
-    elapsed = _elapsed_for_label(label)
-    pred    = _predict_eod(revenue, label)
-
-    snap = {
-        "hour_label":       label,
-        "captured_ist":     now_ist.strftime("%Y-%m-%dT%H:%M:%S"),
-        "elapsed_minutes":  elapsed,
-        "total_revenue":    round(float(revenue.get("total_revenue") or 0), 2) if revenue else None,
-        "futures_revenue":  round(float(revenue.get("futures_revenue") or 0), 2) if revenue else None,
-        "options_revenue":  round(float(revenue.get("options_revenue") or 0), 2) if revenue else None,
-        "cash_revenue":     round(float(revenue.get("cash_revenue") or 0), 2) if revenue else None,
-        "has_data":         bool(revenue and revenue.get("has_data")),
-        "predicted_eod":    pred,
-    }
-    snaps.append(snap)
-    snaps.sort(key=lambda x: x["hour_label"])
-    existing["snapshots"] = snaps
-
-    HOURLY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    HOURLY_FILE.write_text(json.dumps(existing, indent=2))
-    print(f"Hourly snapshot {label} saved — revenue ₹{snap['total_revenue']} Cr, predicted EOD ₹{pred} Cr")
+# save_hourly_snapshot imported from live_common (handles archiving + prediction)
 
 
 # ---------------------------------------------------------------------------
@@ -407,9 +325,9 @@ def main():
         })
         month_history.sort(key=lambda x: x["timestamp"])
 
-    # ── 5. Hourly snapshot ──
+    # ── 5. Hourly snapshot + archive ──
     now_ist = datetime.now(IST)
-    save_hourly_snapshot(revenue, now_ist)
+    save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE)
 
     # ── 7. Supabase ──
     sb = get_supabase()

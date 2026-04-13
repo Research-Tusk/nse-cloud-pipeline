@@ -23,7 +23,10 @@ import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+import sys
 import requests
+sys.path.insert(0, str(Path(__file__).parent))
+from live_common import save_hourly_snapshot
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -32,6 +35,7 @@ SCRIPT_DIR   = Path(__file__).parent
 REPO_ROOT    = SCRIPT_DIR.parent
 OUTPUT_FILE  = REPO_ROOT / "dashboard" / "data" / "bse_live.json"
 HOURLY_FILE  = REPO_ROOT / "dashboard" / "data" / "bse_live_hourly.json"
+HISTORY_FILE = REPO_ROOT / "dashboard" / "data" / "bse_hourly_history.json"
 
 # ---------------------------------------------------------------------------
 # Take rates (both sides)
@@ -198,73 +202,7 @@ def fetch_market_stat():
     }
 
 
-# ---------------------------------------------------------------------------
-# Hourly snapshot logic (same pattern as NSE)
-# ---------------------------------------------------------------------------
-def _hourly_label(now_ist):
-    h, m = now_ist.hour, now_ist.minute
-    if h == 15 and 28 <= m <= 35:
-        return "15:30"
-    if h in (10, 11, 12, 13, 14, 15) and m < 5:
-        return f"{h:02d}:00"
-    return None
-
-
-def _elapsed(label):
-    h, m = map(int, label.split(":"))
-    return h * 60 + m - MARKET_OPEN_MIN
-
-
-def _predict_eod(revenue, label):
-    if not revenue or not revenue.get("has_data"):
-        return None
-    total   = float(revenue.get("total_revenue") or 0)
-    elapsed = _elapsed(label)
-    if elapsed <= 0:
-        return None
-    return round(total * MARKET_TOTAL_MIN / elapsed, 2)
-
-
-def save_hourly_snapshot(revenue, now_ist):
-    label = _hourly_label(now_ist)
-    if label is None:
-        return
-
-    today_str = now_ist.strftime("%Y-%m-%d")
-    existing  = {}
-    if HOURLY_FILE.exists():
-        try:
-            existing = json.loads(HOURLY_FILE.read_text())
-        except Exception:
-            existing = {}
-
-    if existing.get("date") != today_str:
-        existing = {"date": today_str, "snapshots": []}
-
-    snaps = existing.get("snapshots", [])
-    if any(s["hour_label"] == label for s in snaps):
-        print(f"  Hourly snapshot {label} already recorded — skipping")
-        return
-
-    pred = _predict_eod(revenue, label)
-    snap = {
-        "hour_label":      label,
-        "captured_ist":    now_ist.strftime("%Y-%m-%dT%H:%M:%S"),
-        "elapsed_minutes": _elapsed(label),
-        "total_revenue":   round(float(revenue.get("total_revenue") or 0), 2) if revenue else None,
-        "cash_revenue":    round(float(revenue.get("cash_revenue")   or 0), 2) if revenue else None,
-        "options_revenue": round(float(revenue.get("options_revenue") or 0), 2) if revenue else None,
-        "futures_revenue": round(float(revenue.get("futures_revenue") or 0), 2) if revenue else None,
-        "has_data":        bool(revenue and revenue.get("has_data")),
-        "predicted_eod":   pred,
-    }
-    snaps.append(snap)
-    snaps.sort(key=lambda x: x["hour_label"])
-    existing["snapshots"] = snaps
-
-    HOURLY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    HOURLY_FILE.write_text(json.dumps(existing, indent=2))
-    print(f"  Hourly snapshot {label} — ₹{snap['total_revenue']} Cr, pred EOD ₹{pred} Cr")
+# save_hourly_snapshot imported from live_common (handles archiving + prediction)
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +227,7 @@ def main():
     revenue = fetch_turnover()
 
     print("Hourly snapshot:")
-    save_hourly_snapshot(revenue, now_ist)
+    save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE)
 
     payload = {
         "updated_at":    ts_iso,

@@ -1,0 +1,15 @@
+{
+  "days": [
+    {
+      "date": "2026-04-13",
+      "eod_revenue": 8.43,
+      "snapshots": [
+        {
+          "hour_label": "15:30",
+          "total_revenue": 8.43,
+          "fraction": 1.0
+        }
+      ]
+    }
+  ]
+}
