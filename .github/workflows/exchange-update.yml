@@ -2,8 +2,10 @@ name: Exchange Daily Update
 
 on:
   schedule:
-    # 6:00 AM IST = 00:30 UTC (Mon-Fri)
+    # 6:00 AM IST = 00:30 UTC — picks up yesterday's confirmed data
     - cron: '30 0 * * 1-5'
+    # 6:00 PM IST = 12:30 UTC — picks up today's data after market close (3:30 PM IST)
+    - cron: '30 12 * * 1-5'
   workflow_dispatch:
     inputs:
       exchange:
