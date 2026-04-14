@@ -1,20 +1,20 @@
 {
-  "updated_at": "2026-04-13T11:59:20",
+  "updated_at": "2026-04-14T05:29:42",
   "market_status": {
     "marketState": [
       {
         "market": "Capital Market",
-        "marketStatus": "Closed",
+        "marketStatus": "Close",
         "tradeDate": "13-Apr-2026 15:30",
         "index": "NIFTY 50",
         "last": 23842.65,
         "variation": -207.9499999999971,
         "percentChange": -0.86,
-        "marketStatusMessage": "Normal Market has Closed"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Currency",
-        "marketStatus": "Closed",
+        "marketStatus": "Close",
         "tradeDate": "13-Apr-2026",
         "index": "",
         "last": "",
@@ -25,26 +25,26 @@
       {
         "market": "Commodity",
         "marketStatus": "Open",
-        "tradeDate": "13-Apr-2026",
+        "tradeDate": "14-Apr-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Debt",
-        "marketStatus": "Open",
+        "marketStatus": "Close",
         "tradeDate": "13-Apr-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Closed",
+        "marketStatus": "Close",
         "tradeDate": "13-Apr-2026",
         "index": "",
         "last": "93.5000",
@@ -53,8 +53,8 @@
         "marketStatusMessage": "Market is Closed",
         "expiryDate": "17-Apr-2026",
         "underlying": "USDINR",
-        "updated_time": "13-Apr-2026 16:51",
-        "tradeDateFormatted": "13-Apr-2026 16:51",
+        "updated_time": "13-Apr-2026 17:00",
+        "tradeDateFormatted": "13-Apr-2026 17:00",
         "slickclass": "slick-item"
       }
     ],
@@ -67,19 +67,6 @@
       "marketCapinLACCRRupeesFormatted": "447.56",
       "underlying": "Market Cap"
     },
-    "indicativenifty50": {
-      "dateTime": "13-Apr-2026 15:30",
-      "indicativeTime": null,
-      "indexName": "NIFTY 50",
-      "indexLast": null,
-      "indexPercChange": null,
-      "indexTimeVal": null,
-      "closingValue": 23842.65,
-      "finalClosingValue": 23842.65,
-      "change": -207.98,
-      "perChange": -0.86,
-      "status": "CLOSE"
-    },
     "giftnifty": {
       "id": "1/NIFTYFUTIDX28-Apr-2026--",
       "INSTRUMENTTYPE": "FUTIDX",
@@ -87,11 +74,11 @@
       "EXPIRYDATE": "28-Apr-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 23812,
-      "DAYCHANGE": -65.5,
-      "PERCHANGE": -0.27,
-      "CONTRACTSTRADED": 50919,
-      "TIMESTMP": "13-Apr-2026 17:27"
+      "LASTPRICE": 24108,
+      "DAYCHANGE": 108,
+      "PERCHANGE": 0.45,
+      "CONTRACTSTRADED": 7190,
+      "TIMESTMP": "14-Apr-2026 10:55"
     }
   },
   "revenue": {
@@ -252,17 +239,17 @@
       "revenue": {
         "has_data": true,
         "trade_date": "13-Apr-2026",
-        "futures_turnover": 0.0,
-        "options_premium": 0.0,
+        "futures_turnover": 99639.04,
+        "options_premium": 89824.52,
         "cash_traded_value": 129987.55,
-        "index_futures_turnover": 0.0,
-        "stock_futures_turnover": 0.0,
-        "index_options_premium": 0.0,
-        "stock_options_premium": 0.0,
-        "futures_revenue": 0.0,
-        "options_revenue": 0.0,
+        "index_futures_turnover": 22053.31,
+        "stock_futures_turnover": 77585.73,
+        "index_options_premium": 82656.58,
+        "stock_options_premium": 7167.94,
+        "futures_revenue": 3.4475,
+        "options_revenue": 62.9311,
         "cash_revenue": 7.7213,
-        "total_revenue": 7.7213,
+        "total_revenue": 74.0998,
         "source": "historical"
       }
     },
