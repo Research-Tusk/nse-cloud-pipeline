@@ -7,6 +7,7 @@
 
 let DATA = {};
 let ENRICHED_DATA = {};
+let SHARE_DATA = null;   // BSE Ltd share price analysis
 let currentExchange = 'nse';
 const charts = {};
 
@@ -231,6 +232,7 @@ const EXCHANGE_TABS = {
     { id: 'advanced',   label: 'Monthly Analysis',     icon: 'advanced' },
     { id: 'executive',  label: 'Executive Summary',    icon: 'executive' },
     { id: 'weekly',     label: 'Weekly Analysis',      icon: 'weekly' },
+    { id: 'share',      label: 'Share Analytics',      icon: 'share' },
     { id: 'live',       label: 'Live Market',           icon: 'live' },
   ],
 };
@@ -253,7 +255,8 @@ const TAB_TITLES = {
     advanced: 'Monthly Analysis',
     executive: 'Executive Summary',
     weekly: 'Weekly Analysis',
-    live: 'NSE Live Market',
+    share: 'Share Price Analytics',
+    live: 'BSE Live Market',
   }
 };
 
@@ -405,12 +408,21 @@ function toggleExchangeContent(exchange) {
 
 async function loadExchangeData(exchange) {
   const prefix = exchange === 'nse' ? 'nse' : 'bse';
-  const [dashRes, enrichRes] = await Promise.all([
+  const fetches = [
     fetch(`./data/${prefix}_dashboard_data.json`),
-    fetch(`./data/${prefix}_enriched_data.json`)
-  ]);
-  DATA = await dashRes.json();
-  ENRICHED_DATA = await enrichRes.json();
+    fetch(`./data/${prefix}_enriched_data.json`),
+  ];
+  if (exchange === 'bse') {
+    fetches.push(fetch('./data/bse_share_analysis.json').catch(() => null));
+  }
+  const results = await Promise.all(fetches);
+  DATA = await results[0].json();
+  ENRICHED_DATA = await results[1].json();
+  if (exchange === 'bse' && results[2]) {
+    SHARE_DATA = await results[2].json().catch(() => null);
+  } else {
+    SHARE_DATA = null;
+  }
 }
 
 // ========================
@@ -461,6 +473,7 @@ function rebuildAll() {
     buildBSERevenuePredictor();
     buildBSEMonthlyAnalysis();
     buildBSEWeeklyAnalysis();
+    buildBSEShareAnalysis();
   }
 }
 
@@ -2484,6 +2497,225 @@ function buildBSEWeeklyAnalysis() {
 }
 
 // ========================
+// BSE SHARE ANALYTICS
+// ========================
+
+function buildBSEShareAnalysis() {
+  const el = document.getElementById('bse-share-inner');
+  if (!el) return;
+
+  if (!SHARE_DATA) {
+    el.innerHTML = `<div class="chart-panel" style="text-align:center;padding:48px;color:var(--color-text-muted)">
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px">Share analytics data not available</div>
+      <div style="font-size:12px">Run scripts/bse_share_analysis.py to generate bse_share_analysis.json</div>
+    </div>`;
+    return;
+  }
+
+  const reg  = SHARE_DATA.regression;
+  const lat  = SHARE_DATA.latest;
+  const ser  = SHARE_DATA.series || [];
+  const r2pct = Math.round(reg.r_squared * 100);
+  const errSign = lat.price_pred > lat.price_actual ? '+' : '';
+  const errDiff = lat.price_pred - lat.price_actual;
+
+  // ── KPI row ──
+  const kpiHTML = `
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
+    ${kpi('Model R²', r2pct + '%', reg.fit + ' fit', r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
+    ${kpi('Pearson r', reg.pearson_r.toFixed(2), 'revenue ↔ price', '')}
+    ${kpi('Predicted Price', '₹' + fmtNum(lat.price_pred, 0), 'model estimate', '')}
+    ${kpi('Actual Price', '₹' + fmtNum(lat.price_actual, 0), errSign + fmtNum(errDiff, 0) + ' vs model', errDiff > 0 ? 'positive' : 'negative')}
+  </div>`;
+
+  // ── Regression equation card ──
+  const eqHTML = `
+  <div class="chart-panel" style="margin-bottom:var(--space-4);padding:20px 24px">
+    <div class="chart-title">Regression Equation</div>
+    <div style="font-size:20px;font-weight:700;color:var(--color-text);margin:12px 0 8px;font-family:var(--font-mono,monospace)">
+      ${reg.equation}
+    </div>
+    <div style="font-size:12px;color:var(--color-text-muted);display:flex;gap:24px;flex-wrap:wrap">
+      <span>R² = ${reg.r_squared.toFixed(3)} &nbsp;|&nbsp; r = ${reg.pearson_r.toFixed(3)} &nbsp;|&nbsp; n = ${SHARE_DATA.n_days} trading days</span>
+      <span>Revenue MA window: ${SHARE_DATA.ma_window} days &nbsp;|&nbsp; Ticker: ${SHARE_DATA.ticker}</span>
+      <span>Prediction error: ${lat.error_pct}% &nbsp;|&nbsp; As of: ${lat.date}</span>
+    </div>
+  </div>`;
+
+  // ── Charts placeholders ──
+  const chartsHTML = `
+  <div class="chart-grid chart-grid-2">
+    <div class="chart-panel">
+      <div class="chart-title">BSE Share Price: Actual vs Model <span class="chart-badge">Last ${ser.length} days</span></div>
+      <div class="chart-wrapper"><canvas id="chartBseSharePrice"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">50-Day MA of Daily Revenue (₹ Cr)</div>
+      <div class="chart-wrapper"><canvas id="chartBseRevMA50"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-panel" style="margin-top:var(--space-4)">
+    <div class="chart-title">Revenue → Price Scatter</div>
+    <div class="chart-wrapper" style="max-height:300px"><canvas id="chartBseShareScatter"></canvas></div>
+  </div>`;
+
+  el.innerHTML = kpiHTML + eqHTML + chartsHTML;
+
+  // ── Chart 1: Price actual vs predicted ──
+  const labels   = ser.map(r => r.date.slice(5));   // MM-DD
+  const actuals  = ser.map(r => r.price);
+  const preds    = ser.map(r => r.price_pred);
+  const ma50s    = ser.map(r => r.price_ma50);
+
+  setCanvasHeight('chartBseSharePrice', 280);
+  charts.bseSharePrice = new Chart(document.getElementById('chartBseSharePrice'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Actual Price',
+          data: actuals,
+          borderColor: CHART_COLORS[0],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+        },
+        {
+          label: 'Model Prediction',
+          data: preds,
+          borderColor: CHART_COLORS[2],
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [5, 3],
+          pointRadius: 0,
+          tension: 0.2,
+        },
+        {
+          label: '50-Day MA Price',
+          data: ma50s,
+          borderColor: CHART_COLORS[4],
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderDash: [2, 2],
+          pointRadius: 0,
+          tension: 0.2,
+        },
+      ]
+    },
+    options: {
+      plugins: {
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 0) } }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
+        y: { ticks: { callback: v => '₹' + fmtNum(v, 0) } }
+      }
+    }
+  });
+
+  // ── Chart 2: 50-day MA of revenue ──
+  const revMA = ser.map(r => r.rev_ma50);
+  const revRaw = ser.map(r => r.revenue_cr);
+  setCanvasHeight('chartBseRevMA50', 280);
+  charts.bseRevMA50 = new Chart(document.getElementById('chartBseRevMA50'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Daily Revenue',
+          data: revRaw,
+          borderColor: CHART_COLORS[3],
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          pointRadius: 0,
+          tension: 0.2,
+        },
+        {
+          label: '50-Day MA',
+          data: revMA,
+          borderColor: CHART_COLORS[0],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+        },
+      ]
+    },
+    options: {
+      plugins: {
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 2) + ' Cr' } }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
+        y: { ticks: { callback: v => '₹' + fmtNum(v, 1) + ' Cr' } }
+      }
+    }
+  });
+
+  // ── Chart 3: Scatter (Revenue MA50 → Price) ──
+  const scatterData = ser.map(r => ({ x: r.rev_ma50, y: r.price }));
+  // Regression line points
+  const xMin = Math.min(...ser.map(r => r.rev_ma50));
+  const xMax = Math.max(...ser.map(r => r.rev_ma50));
+  const regLine = [
+    { x: xMin, y: reg.slope * xMin + reg.intercept },
+    { x: xMax, y: reg.slope * xMax + reg.intercept },
+  ];
+
+  setCanvasHeight('chartBseShareScatter', 260);
+  charts.bseShareScatter = new Chart(document.getElementById('chartBseShareScatter'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Trading Days',
+          data: scatterData,
+          backgroundColor: CHART_COLORS[0] + '88',
+          pointRadius: 4,
+        },
+        {
+          label: 'Regression Line',
+          data: regLine,
+          type: 'line',
+          borderColor: CHART_COLORS[2],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [5, 3],
+          pointRadius: 0,
+        }
+      ]
+    },
+    options: {
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => `Rev MA50: ₹${fmtNum(ctx.parsed.x, 1)} Cr | Price: ₹${fmtNum(ctx.parsed.y, 0)}`
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: '50-Day MA Revenue (₹ Cr)' }, ticks: { callback: v => '₹' + fmtNum(v, 0) } },
+        y: { title: { display: true, text: 'BSE Share Price (₹)' }, ticks: { callback: v => '₹' + fmtNum(v, 0) } }
+      }
+    }
+  });
+}
+
+function kpi(title, value, sub, sentiment) {
+  const col = sentiment === 'positive' ? 'var(--color-success,#30d158)'
+            : sentiment === 'negative' ? 'var(--color-error,#ff453a)'
+            : 'var(--color-text)';
+  return `<div class="chart-panel" style="padding:16px 20px">
+    <div style="font-size:11px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">${title}</div>
+    <div style="font-size:28px;font-weight:700;color:${col};line-height:1">${value}</div>
+    <div style="font-size:11px;color:var(--color-text-muted);margin-top:6px">${sub}</div>
+  </div>`;
+}
+
+// ========================
 // INIT
 // ========================
 
@@ -2713,8 +2945,9 @@ async function downloadWeeklyReport() {
 // Self-contained IIFE — reads nse_live.json or bse_live.json depending on
 // currentExchange. Does NOT touch any existing variables/DOM outside #tab-live.
 (function() {
-  function liveJsonPath()   { return `./data/${currentExchange}_live.json`; }
-  function hourlyJsonPath() { return `./data/${currentExchange}_live_hourly.json`; }
+  const GH_RAW = 'https://raw.githubusercontent.com/Research-Tusk/nse-cloud-pipeline/main/dashboard/data';
+  function liveJsonPath()   { return `${GH_RAW}/${currentExchange}_live.json`; }
+  function hourlyJsonPath() { return `${GH_RAW}/${currentExchange}_live_hourly.json`; }
   const POLL_MS     = 5 * 60 * 1000;
   let   liveTimer   = null;
   let   liveChart   = null;
@@ -2762,8 +2995,8 @@ async function downloadWeeklyReport() {
       renderLive(el, liveData, hourlyData);
     } catch (e) {
       el.querySelector('#live-inner').innerHTML =
-        '<div class="chart-panel" style="text-align:center;padding:40px;color:var(--text-secondary)">' +
-        '<p style="margin:0 0 8px;font-weight:600">Could not load nse_live.json</p>' +
+        '<div class="chart-panel" style="text-align:center;padding:40px;color:var(--color-text-muted)">' +
+        '<p style="margin:0 0 8px;font-weight:600">Could not load live data</p>' +
         '<p style="margin:0;font-size:12px;opacity:.6">' + e.message + '</p></div>';
     }
   }
@@ -2975,16 +3208,17 @@ async function downloadWeeklyReport() {
     if (!el) return;
     try {
       const bust = Date.now();
+      const GH = 'https://raw.githubusercontent.com/Research-Tusk/nse-cloud-pipeline/main/dashboard/data';
       const [nseRes, bseRes] = await Promise.all([
-        fetch(`./data/nse_live.json?t=${bust}`).catch(() => null),
-        fetch(`./data/bse_live.json?t=${bust}`).catch(() => null),
+        fetch(`${GH}/nse_live.json?t=${bust}`).catch(() => null),
+        fetch(`${GH}/bse_live.json?t=${bust}`).catch(() => null),
       ]);
       const nseData = (nseRes && nseRes.ok) ? await nseRes.json() : null;
       const bseData = (bseRes && bseRes.ok) ? await bseRes.json() : null;
 
       const [nseHourlyRes, bseHourlyRes] = await Promise.all([
-        fetch(`./data/nse_live_hourly.json?t=${bust}`).catch(() => null),
-        fetch(`./data/bse_live_hourly.json?t=${bust}`).catch(() => null),
+        fetch(`${GH}/nse_live_hourly.json?t=${bust}`).catch(() => null),
+        fetch(`${GH}/bse_live_hourly.json?t=${bust}`).catch(() => null),
       ]);
       const nseHourly = (nseHourlyRes && nseHourlyRes.ok) ? await nseHourlyRes.json() : null;
       const bseHourly = (bseHourlyRes && bseHourlyRes.ok) ? await bseHourlyRes.json() : null;

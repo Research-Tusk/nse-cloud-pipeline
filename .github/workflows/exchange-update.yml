@@ -161,8 +161,47 @@ jobs:
           EXCEL_FILE_PATH: ${{ secrets.EXCEL_FILE_PATH }}
         run: python scripts/excel_sync.py
 
+  bse-share-analysis:
+    needs: [bse-update]
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.bse-update.outputs.new_days != '0') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run BSE share price analysis
+        run: python scripts/bse_share_analysis.py
+
+      - name: Commit analysis
+        run: |
+          git config user.name "Research-Tusk"
+          git config user.email "research@tuskinvest.com"
+          git add dashboard/data/bse_share_analysis.json
+          git commit -m "📈 BSE share analysis: $(date +%Y-%m-%d)" || true
+          git push
+
   deploy:
-    needs: [nse-update, bse-update]
+    needs: [nse-update, bse-update, bse-share-analysis]
     if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
