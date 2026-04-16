@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-16T10:24:20",
+  "updated_at": "2026-04-16T11:38:08",
   "market_status": {
     "marketState": [
       {
@@ -10,17 +10,17 @@
         "last": 24196.75,
         "variation": -34.54999999999927,
         "percentChange": -0.14,
-        "marketStatusMessage": "Market in Post-Close Session"
+        "marketStatusMessage": "Normal Market has Closed"
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "16-Apr-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -44,27 +44,27 @@
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "16-Apr-2026",
         "index": "",
         "last": "93.9800",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "17-Apr-2026",
         "underlying": "USDINR",
-        "updated_time": "16-Apr-2026 15:44",
-        "tradeDateFormatted": "16-Apr-2026 15:44",
+        "updated_time": "16-Apr-2026 16:23",
+        "tradeDateFormatted": "16-Apr-2026 16:23",
         "slickclass": "slick-item"
       }
     ],
     "marketcap": {
-      "timeStamp": "15-Apr-2026",
-      "marketCapinTRDollars": 4.89,
-      "marketCapinLACCRRupees": 456.44197969183745,
-      "marketCapinCRRupees": 45644197.97,
-      "marketCapinCRRupeesFormatted": "45,644,197.97",
-      "marketCapinLACCRRupeesFormatted": "456.44",
+      "timeStamp": "16-Apr-2026",
+      "marketCapinTRDollars": 4.91,
+      "marketCapinLACCRRupees": 458.5967194788453,
+      "marketCapinCRRupees": 45859671.95,
+      "marketCapinCRRupeesFormatted": "45,859,671.95",
+      "marketCapinLACCRRupeesFormatted": "458.60",
       "underlying": "Market Cap"
     },
     "indicativenifty50": {
@@ -81,17 +81,17 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "id": "1/NIFTYFUTIDX28-Apr-2026--",
+      "id": "0/NIFTYFUTIDX28-Apr-2026--",
       "INSTRUMENTTYPE": "FUTIDX",
       "SYMBOL": "NIFTY",
       "EXPIRYDATE": "28-Apr-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 24171,
-      "DAYCHANGE": -175.5,
-      "PERCHANGE": -0.72,
-      "CONTRACTSTRADED": 42758,
-      "TIMESTMP": "16-Apr-2026 15:49"
+      "LASTPRICE": 24170,
+      "DAYCHANGE": -1,
+      "PERCHANGE": 0,
+      "CONTRACTSTRADED": 43701,
+      "TIMESTMP": "16-Apr-2026 17:04"
     }
   },
   "revenue": {
@@ -102,14 +102,14 @@
     "index_options_premium": 36630.04,
     "stock_options_premium": 8385.81,
     "options_premium": 45015.85,
-    "cash_traded_value": 152390.44,
+    "cash_traded_value": 152408.06,
     "take_rate_futures": 3.46e-05,
     "take_rate_options": 0.0007006,
     "take_rate_cash": 5.94e-05,
     "futures_revenue": 3.9526,
     "options_revenue": 31.5381,
-    "cash_revenue": 9.052,
-    "total_revenue": 44.5427,
+    "cash_revenue": 9.053,
+    "total_revenue": 44.5438,
     "has_data": true,
     "source": "live"
   },
@@ -286,6 +286,25 @@
       }
     },
     {
+      "timestamp": "16-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "16-Apr-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 152709.34,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 9.0709,
+        "total_revenue": 9.0709,
+        "source": "historical"
+      }
+    },
+    {
       "timestamp": "2026-04-16",
       "revenue": {
         "trade_date": "2026-04-16",
@@ -295,14 +314,14 @@
         "index_options_premium": 36630.04,
         "stock_options_premium": 8385.81,
         "options_premium": 45015.85,
-        "cash_traded_value": 152390.44,
+        "cash_traded_value": 152408.06,
         "take_rate_futures": 3.46e-05,
         "take_rate_options": 0.0007006,
         "take_rate_cash": 5.94e-05,
         "futures_revenue": 3.9526,
         "options_revenue": 31.5381,
-        "cash_revenue": 9.052,
-        "total_revenue": 44.5427,
+        "cash_revenue": 9.053,
+        "total_revenue": 44.5438,
         "has_data": true,
         "source": "live"
       }
