@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-17T11:28:02",
+  "updated_at": "2026-04-17T11:42:48",
   "market_status": {
     "marketState": [
       {
@@ -14,13 +14,13 @@
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "17-Apr-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -44,13 +44,13 @@
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "17-Apr-2026",
         "index": "",
         "last": "93.9800",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "17-Apr-2026",
         "underlying": "USDINR",
         "updated_time": "17-Apr-2026 12:29",
@@ -87,11 +87,11 @@
       "EXPIRYDATE": "28-Apr-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 24390,
-      "DAYCHANGE": -30,
-      "PERCHANGE": -0.12,
-      "CONTRACTSTRADED": 37061,
-      "TIMESTMP": "17-Apr-2026 16:55"
+      "LASTPRICE": 24395,
+      "DAYCHANGE": -25,
+      "PERCHANGE": -0.1,
+      "CONTRACTSTRADED": 37103,
+      "TIMESTMP": "17-Apr-2026 17:08"
     }
   },
   "revenue": {
