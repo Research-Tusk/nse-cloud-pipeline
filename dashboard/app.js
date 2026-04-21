@@ -2945,9 +2945,8 @@ async function downloadWeeklyReport() {
 // Self-contained IIFE — reads nse_live.json or bse_live.json depending on
 // currentExchange. Does NOT touch any existing variables/DOM outside #tab-live.
 (function() {
-  const GH_RAW = 'https://raw.githubusercontent.com/Research-Tusk/nse-cloud-pipeline/main/dashboard/data';
-  function liveJsonPath()   { return `${GH_RAW}/${currentExchange}_live.json`; }
-  function hourlyJsonPath() { return `${GH_RAW}/${currentExchange}_live_hourly.json`; }
+  function liveJsonPath()   { return `/api/live?exchange=${currentExchange}&file=live`; }
+  function hourlyJsonPath() { return `/api/live?exchange=${currentExchange}&file=hourly`; }
   const POLL_MS     = 5 * 60 * 1000;
   let   liveTimer   = null;
   let   liveChart   = null;
@@ -3208,17 +3207,16 @@ async function downloadWeeklyReport() {
     if (!el) return;
     try {
       const bust = Date.now();
-      const GH = 'https://raw.githubusercontent.com/Research-Tusk/nse-cloud-pipeline/main/dashboard/data';
       const [nseRes, bseRes] = await Promise.all([
-        fetch(`${GH}/nse_live.json?t=${bust}`).catch(() => null),
-        fetch(`${GH}/bse_live.json?t=${bust}`).catch(() => null),
+        fetch(`/api/live?exchange=nse&file=live&t=${bust}`).catch(() => null),
+        fetch(`/api/live?exchange=bse&file=live&t=${bust}`).catch(() => null),
       ]);
       const nseData = (nseRes && nseRes.ok) ? await nseRes.json() : null;
       const bseData = (bseRes && bseRes.ok) ? await bseRes.json() : null;
 
       const [nseHourlyRes, bseHourlyRes] = await Promise.all([
-        fetch(`${GH}/nse_live_hourly.json?t=${bust}`).catch(() => null),
-        fetch(`${GH}/bse_live_hourly.json?t=${bust}`).catch(() => null),
+        fetch(`/api/live?exchange=nse&file=hourly&t=${bust}`).catch(() => null),
+        fetch(`/api/live?exchange=bse&file=hourly&t=${bust}`).catch(() => null),
       ]);
       const nseHourly = (nseHourlyRes && nseHourlyRes.ok) ? await nseHourlyRes.json() : null;
       const bseHourly = (bseHourlyRes && bseHourlyRes.ok) ? await bseHourlyRes.json() : null;

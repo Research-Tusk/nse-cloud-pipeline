@@ -4,9 +4,16 @@
   "framework": null,
   "rewrites": [
     { "source": "/live", "destination": "/live.html" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
+    {
+      "source": "/api/live",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=30, stale-while-revalidate=60" }
+      ]
+    },
     {
       "source": "/data/nse_live.json",
       "headers": [
