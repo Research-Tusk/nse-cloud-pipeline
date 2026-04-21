@@ -2985,8 +2985,8 @@ async function downloadWeeklyReport() {
     try {
       const bust = Date.now();
       const [liveRes, hourlyRes] = await Promise.all([
-        fetch(liveJsonPath()   + '?t=' + bust),
-        fetch(hourlyJsonPath() + '?t=' + bust).catch(() => null),
+        fetch(liveJsonPath()   + '&t=' + bust),
+        fetch(hourlyJsonPath() + '&t=' + bust).catch(() => null),
       ]);
       if (!liveRes.ok) throw new Error('HTTP ' + liveRes.status);
       const liveData   = await liveRes.json();
@@ -3243,6 +3243,20 @@ async function downloadWeeklyReport() {
 
       el.innerHTML = chip('NSE', nseRev, lastPred(nseHourly), 'var(--color-text)')
                    + chip('BSE', bseRev, lastPred(bseHourly), 'var(--color-text)');
+
+      // Update "Last Updated" span with live data timestamp
+      const updatedAt = (nseData && nseData.updated_at) || (bseData && bseData.updated_at);
+      if (updatedAt) {
+        const span = document.getElementById('lastUpdatedSpan');
+        if (span) {
+          const d = new Date(updatedAt + 'Z'); // UTC
+          const IST = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+          const hh  = String(IST.getUTCHours()).padStart(2, '0');
+          const mm  = String(IST.getUTCMinutes()).padStart(2, '0');
+          const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          span.textContent = `Live as of ${IST.getUTCDate()} ${months[IST.getUTCMonth()]} ${hh}:${mm} IST`;
+        }
+      }
     } catch(e) { /* silent */ }
   }
 
