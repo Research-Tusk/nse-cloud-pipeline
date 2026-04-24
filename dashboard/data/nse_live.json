@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-24T10:47:52",
+  "updated_at": "2026-04-24T11:49:54",
   "market_status": {
     "marketState": [
       {
@@ -14,13 +14,13 @@
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "24-Apr-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -44,17 +44,17 @@
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "24-Apr-2026",
         "index": "",
-        "last": "94.2375",
+        "last": "94.1875",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "28-Apr-2026",
         "underlying": "USDINR",
-        "updated_time": "24-Apr-2026 16:16",
-        "tradeDateFormatted": "24-Apr-2026 16:16",
+        "updated_time": "24-Apr-2026 16:59",
+        "tradeDateFormatted": "24-Apr-2026 16:59",
         "slickclass": "slick-item"
       }
     ],
@@ -81,17 +81,17 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "id": "1/NIFTYFUTIDX28-Apr-2026--",
+      "id": "0/NIFTYFUTIDX28-Apr-2026--",
       "INSTRUMENTTYPE": "FUTIDX",
       "SYMBOL": "NIFTY",
       "EXPIRYDATE": "28-Apr-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 23954,
-      "DAYCHANGE": -170.5,
-      "PERCHANGE": -0.71,
-      "CONTRACTSTRADED": 110523,
-      "TIMESTMP": "24-Apr-2026 15:49"
+      "LASTPRICE": 24065,
+      "DAYCHANGE": 111,
+      "PERCHANGE": 0.46,
+      "CONTRACTSTRADED": 112340,
+      "TIMESTMP": "24-Apr-2026 17:16"
     }
   },
   "revenue": {
@@ -418,6 +418,25 @@
         "options_revenue": 28.1809,
         "cash_revenue": 8.0476,
         "total_revenue": 48.1583,
+        "source": "historical"
+      }
+    },
+    {
+      "timestamp": "24-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "24-Apr-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 130943.28,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 7.778,
+        "total_revenue": 7.778,
         "source": "historical"
       }
     }
