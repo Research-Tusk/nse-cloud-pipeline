@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-27T10:48:54",
+  "updated_at": "2026-04-27T12:13:48",
   "market_status": {
     "marketState": [
       {
@@ -14,13 +14,13 @@
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "27-Apr-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -44,17 +44,17 @@
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "27-Apr-2026",
         "index": "",
         "last": "94.1200",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "28-Apr-2026",
         "underlying": "USDINR",
-        "updated_time": "27-Apr-2026 16:18",
-        "tradeDateFormatted": "27-Apr-2026 16:18",
+        "updated_time": "27-Apr-2026 16:59",
+        "tradeDateFormatted": "27-Apr-2026 16:59",
         "slickclass": "slick-item"
       }
     ],
@@ -87,11 +87,11 @@
       "EXPIRYDATE": "28-Apr-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 24093,
-      "DAYCHANGE": -23,
-      "PERCHANGE": -0.1,
-      "CONTRACTSTRADED": 72819,
-      "TIMESTMP": "27-Apr-2026 16:15"
+      "LASTPRICE": 24104.5,
+      "DAYCHANGE": -11.5,
+      "PERCHANGE": -0.05,
+      "CONTRACTSTRADED": 74204,
+      "TIMESTMP": "27-Apr-2026 17:41"
     }
   },
   "revenue": {
@@ -437,6 +437,25 @@
         "options_revenue": 45.8806,
         "cash_revenue": 7.778,
         "total_revenue": 66.4623,
+        "source": "historical"
+      }
+    },
+    {
+      "timestamp": "27-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "27-Apr-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 131255.64,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 7.7966,
+        "total_revenue": 7.7966,
         "source": "historical"
       }
     }
