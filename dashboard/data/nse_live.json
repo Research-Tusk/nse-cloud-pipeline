@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-27T12:13:48",
+  "updated_at": "2026-04-27T12:16:22",
   "market_status": {
     "marketState": [
       {
@@ -34,7 +34,7 @@
       },
       {
         "market": "Debt",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "27-Apr-2026",
         "index": "",
         "last": "",
@@ -87,10 +87,10 @@
       "EXPIRYDATE": "28-Apr-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 24104.5,
-      "DAYCHANGE": -11.5,
+      "LASTPRICE": 24104,
+      "DAYCHANGE": -12,
       "PERCHANGE": -0.05,
-      "CONTRACTSTRADED": 74204,
+      "CONTRACTSTRADED": 74209,
       "TIMESTMP": "27-Apr-2026 17:41"
     }
   },
