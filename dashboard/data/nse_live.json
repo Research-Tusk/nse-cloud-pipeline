@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-28T10:49:51",
+  "updated_at": "2026-04-28T12:20:03",
   "market_status": {
     "marketState": [
       {
@@ -14,13 +14,13 @@
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "28-Apr-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -34,27 +34,27 @@
       },
       {
         "market": "Debt",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "28-Apr-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "28-Apr-2026",
         "index": "",
         "last": "94.4800",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "28-Apr-2026",
         "underlying": "USDINR",
-        "updated_time": "28-Apr-2026 12:29",
-        "tradeDateFormatted": "28-Apr-2026 12:29",
+        "updated_time": "28-Apr-2026 17:01",
+        "tradeDateFormatted": "28-Apr-2026 17:01",
         "slickclass": "slick-item"
       }
     ],
@@ -87,11 +87,11 @@
       "EXPIRYDATE": "26-May-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 24097,
-      "DAYCHANGE": 30,
-      "PERCHANGE": 0.12,
-      "CONTRACTSTRADED": 60158,
-      "TIMESTMP": "28-Apr-2026 16:17"
+      "LASTPRICE": 24013.5,
+      "DAYCHANGE": -53.5,
+      "PERCHANGE": -0.22,
+      "CONTRACTSTRADED": 62086,
+      "TIMESTMP": "28-Apr-2026 17:46"
     }
   },
   "revenue": {
@@ -456,6 +456,25 @@
         "options_revenue": 48.9522,
         "cash_revenue": 7.7966,
         "total_revenue": 69.1148,
+        "source": "historical"
+      }
+    },
+    {
+      "timestamp": "28-Apr-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "28-Apr-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 138087.33,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 8.2024,
+        "total_revenue": 8.2024,
         "source": "historical"
       }
     }
