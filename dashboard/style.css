@@ -1853,12 +1853,6 @@ span.pr-neg {
    MOBILE OPTIMIZATIONS
    ========================= */
 
-/* Hide download button on tablet and smaller — nav is already a drawer */
-@media (max-width: 1024px) {
-  .btn-download-pdf {
-    display: none;
-  }
-}
 
 @media (max-width: 640px) {
   /* ── Header ── */
