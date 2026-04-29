@@ -217,19 +217,13 @@ const NAV_ICONS = {
 const EXCHANGE_TABS = {
   nse: [
     { id: 'revenue',    label: 'Revenue Summary',    icon: 'revenue' },
-    { id: 'segment',    label: 'Segment Deep-Dive',  icon: 'segment' },
-    { id: 'temporal',   label: 'Temporal Analysis',   icon: 'temporal' },
     { id: 'prediction', label: 'PAT Prediction',      icon: 'prediction' },
-    { id: 'advanced',   label: 'Advanced Analytics',  icon: 'advanced' },
     { id: 'executive',  label: 'Executive Summary',   icon: 'executive' },
     { id: 'live',       label: 'Live Market',          icon: 'live' },
   ],
   bse: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
-    { id: 'segment',    label: 'Segment Deep-Dive',   icon: 'segment' },
-    { id: 'temporal',   label: 'Quarterly Analysis',   icon: 'temporal' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
-    { id: 'advanced',   label: 'Monthly Analysis',     icon: 'advanced' },
     { id: 'executive',  label: 'Executive Summary',    icon: 'executive' },
     { id: 'weekly',     label: 'Weekly Analysis',      icon: 'weekly' },
     { id: 'share',      label: 'Share Analytics',      icon: 'share' },
@@ -240,19 +234,13 @@ const EXCHANGE_TABS = {
 const TAB_TITLES = {
   nse: {
     revenue: 'Revenue Summary',
-    segment: 'Segment Deep-Dive',
-    temporal: 'Temporal Analysis',
     prediction: 'PAT Prediction Engine',
-    advanced: 'Advanced Analytics',
     executive: 'Executive Summary',
     live: 'NSE Live Market',
   },
   bse: {
     revenue: 'Revenue Summary',
-    segment: 'Segment Deep-Dive',
-    temporal: 'Quarterly Analysis',
     prediction: 'Revenue Predictor',
-    advanced: 'Monthly Analysis',
     executive: 'Executive Summary',
     weekly: 'Weekly Analysis',
     share: 'Share Price Analytics',
@@ -456,22 +444,13 @@ function rebuildAll() {
   buildExecutiveSummary();
 
   if (currentExchange === 'nse') {
-    buildNSESegmentCharts();
-    buildNSETemporalCharts();
-    buildNSEQuarterlyCharts();
-    initNSEQuarterCompare();
     buildNSEExtrapolationKPIs();
     buildNSEPredictedPnLTable();
     initNSEPATPredictor();
     initNSEPEValuation();
     initNSEPrediction();
-    buildNSEAdvancedCharts();
-    buildNSEMonthlyAnalysis();
   } else {
-    buildBSESegmentCharts();
-    buildBSEQuarterlyAnalysis();
     buildBSERevenuePredictor();
-    buildBSEMonthlyAnalysis();
     buildBSEWeeklyAnalysis();
     buildBSEShareAnalysis();
   }
