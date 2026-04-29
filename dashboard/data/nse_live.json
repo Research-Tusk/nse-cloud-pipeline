@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-04-29T12:06:25",
+  "updated_at": "2026-04-29T12:11:19",
   "market_status": {
     "marketState": [
       {
@@ -87,11 +87,11 @@
       "EXPIRYDATE": "26-May-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 24233.5,
-      "DAYCHANGE": -5.5,
-      "PERCHANGE": -0.02,
-      "CONTRACTSTRADED": 55293,
-      "TIMESTMP": "29-Apr-2026 17:33"
+      "LASTPRICE": 24230,
+      "DAYCHANGE": -9,
+      "PERCHANGE": -0.04,
+      "CONTRACTSTRADED": 55300,
+      "TIMESTMP": "29-Apr-2026 17:39"
     }
   },
   "revenue": {
