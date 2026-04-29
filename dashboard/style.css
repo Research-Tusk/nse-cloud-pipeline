@@ -1425,7 +1425,7 @@ span.neutral {
 
 @media (max-width: 640px) {
   .kpi-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .pred-result {
@@ -1847,4 +1847,102 @@ span.pr-neg {
   .pr-table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pr-section-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pr-table tr.pr-group-label td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* =========================
+   MOBILE OPTIMIZATIONS
+   ========================= */
+
+/* Hide download button on tablet and smaller — nav is already a drawer */
+@media (max-width: 1024px) {
+  .btn-download-pdf {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* ── Header ── */
+  .header {
+    padding: 0 10px;
+  }
+
+  .header-right {
+    gap: 6px;
+    min-width: 0;
+  }
+
+  /* Live revenue chips in header take too much space on phones — live tab shows the same info */
+  #header-live-rev {
+    display: none !important;
+  }
+
+  /* Quarter and separator — redundant on small screen */
+  #currentQuarterSpan,
+  #currentQuarterSpan + span {
+    display: none;
+  }
+
+  .header-meta {
+    gap: 4px;
+    font-size: 10px;
+  }
+
+  /* ── Main padding ── */
+  .main {
+    padding: 8px;
+  }
+
+  /* ── KPI cards ── */
+  .kpi-value {
+    font-size: var(--text-xl);
+  }
+
+  /* ── Sub-tabs: horizontally scrollable ── */
+  .sub-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    width: 100%;
+  }
+
+  .sub-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sub-tab {
+    flex-shrink: 0;
+  }
+
+  /* ── Data tables: horizontal scroll ── */
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Chart panel titles ── */
+  .chart-title {
+    padding: 12px 14px 10px;
+    font-size: var(--text-xs);
+  }
+
+  /* ── Live tab: scale down 80px hero number ── */
+  .live-hero-number {
+    font-size: 44px !important;
+    letter-spacing: -1px !important;
+  }
+
+  /* ── Live tab: segment cards stack on phones ── */
+  .live-seg-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── BSE Share analytics: 4-col KPI → 2-col ── */
+  .share-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* ── Regression equation card: smaller font ── */
+  #bse-share-inner .chart-panel [style*="font-size:20px"] {
+    font-size: 14px !important;
+  }
 }

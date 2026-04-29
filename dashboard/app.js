@@ -2521,7 +2521,7 @@ function buildBSEShareAnalysis() {
 
   // ── KPI row ──
   const kpiHTML = `
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
+  <div class="share-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
     ${kpi('Model R²', r2pct + '%', reg.fit + ' fit', r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
     ${kpi('Pearson r', reg.pearson_r.toFixed(2), 'revenue ↔ price', '')}
     ${kpi('Predicted Price', '₹' + fmtNum(lat.price_pred, 0), 'model estimate', '')}
@@ -3098,9 +3098,9 @@ async function downloadWeeklyReport() {
       <div class="chart-panel" style="margin-bottom:14px;text-align:center">
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Total Revenue Today${hasRev ? ' · ' + rev.trade_date : ''}</div>
         ${hasRev ? `
-          <div style="font-size:80px;font-weight:700;color:var(--color-text);font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1;margin-bottom:6px">${_cr(rev.total_revenue)}</div>
+          <div class="live-hero-number" style="font-size:80px;font-weight:700;color:var(--color-text);font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1;margin-bottom:6px">${_cr(rev.total_revenue)}</div>
           ${lastPred ? `<div style="font-size:11px;color:var(--color-text-muted);margin-bottom:24px">Latest forecast <span style="color:var(--color-text);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;letter-spacing:-.5px">${_cr(lastPred)}</span></div>` : '<div style="margin-bottom:24px"></div>'}
-          <div style="display:grid;grid-template-columns:repeat(${isBSE ? 2 : 3},1fr);gap:10px;text-align:center">
+          <div class="live-seg-grid" style="display:grid;grid-template-columns:repeat(${isBSE ? 2 : 3},1fr);gap:10px;text-align:center">
             ${isBSE ? `
               ${segCard('Options (Sensex)', rev.options_revenue, '#a78bfa')}
               ${segCard('Cash (Equity)',    rev.cash_revenue,    '#34d399')}
