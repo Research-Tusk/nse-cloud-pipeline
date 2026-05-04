@@ -72,30 +72,46 @@ def _find_postback_targets(html, pattern):
     return re.findall(r"__doPostBack\(&#39;(" + pattern + r")&#39;", html)
 
 
+def _make_bse_session():
+    """Create a curl_cffi session pre-warmed with BSE homepage cookies."""
+    from curl_cffi import requests as cffi_requests
+    session = cffi_requests.Session()
+    try:
+        r = session.get("https://www.bseindia.com/", impersonate="chrome", timeout=15)
+        print(f"BSE session warmup: {r.status_code}")
+    except Exception as e:
+        print(f"WARNING: BSE homepage warmup failed: {e}")
+    return session
+
+
 def fetch_bse_fo_data():
     """Fetch BSE F&O daily data via 3-step ASP.NET postback drill-down."""
     try:
-        from curl_cffi import requests as cffi_requests
+        from curl_cffi import requests as cffi_requests  # noqa: F401
     except ImportError:
         print("ERROR: curl_cffi not installed. Run: pip install curl_cffi")
         sys.exit(1)
 
-    session = cffi_requests.Session()
+    session = _make_bse_session()
     url = "https://www.bseindia.com/markets/keystatics/Keystat_turnover_deri.aspx"
     print(f"Fetching BSE F&O page: {url}")
 
     # Step 1: GET the yearly summary page
-    resp = session.get(url, impersonate="chrome")
+    resp = session.get(url, impersonate="chrome", timeout=30)
     if resp.status_code != 200:
         print(f"ERROR: BSE F&O page returned {resp.status_code}")
         return []
+    print(f"  F&O page size: {len(resp.text)} chars")
+
+    # Diagnose: show what year/month postback targets are available
+    all_year_targets = _find_postback_targets(resp.text, r'[^&]*gvReport_total[^&]*Linkbtn[^&]*')
+    print(f"  Year targets found: {all_year_targets}")
 
     # Step 2: Click a FY year link to get monthly data.
-    # At the start of a new financial year, year_targets[0] is the new FY with no months
-    # yet published. Fall back to year_targets[1] (previous FY) in that case.
-    year_targets = _find_postback_targets(resp.text, r'[^&]*gvReport_total[^&]*Linkbtn[^&]*')
+    year_targets = all_year_targets
     if not year_targets:
-        print("ERROR: No year links found on BSE F&O page")
+        print("ERROR: No year links found on BSE F&O page — page structure may have changed")
+        print("  Snippet:", resp.text[2000:3000])
         return []
 
     base_html = resp.text  # save original page state; needed to postback different years
@@ -104,12 +120,13 @@ def fetch_bse_fo_data():
     all_rows = []
     found_months = False
 
-    for year_idx, year_target in enumerate(year_targets[:2]):
+    for year_idx, year_target in enumerate(year_targets[:3]):
         html_months = _postback(session, url, base_html, year_target)
         if not html_months:
             continue
 
         month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise_T[^&]*lnkMonth_T[^&]*')
+        print(f"  Year idx {year_idx} ({year_target}): {len(month_targets)} month(s) found")
         if not month_targets:
             print(f"  No months in FY year index {year_idx}, trying next year")
             continue
@@ -132,6 +149,9 @@ def fetch_bse_fo_data():
                 continue
 
             rows = _parse_fo_daily_table(html_daily, ctx_year, ctx_month)
+            if not rows:
+                print(f"  WARNING: 0 rows parsed for {ctx_year}-{ctx_month:02d} — possible class change")
+                print(f"    Daily page snippet: {html_daily[2000:3000]}")
             all_rows.extend(rows)
             print(f"  F&O month {ctx_year}-{ctx_month:02d}: {len(rows)} daily rows")
             current_html = html_daily  # use latest page state for next postback
@@ -147,38 +167,45 @@ def fetch_bse_fo_data():
 
 
 def _parse_fo_daily_table(html, ctx_year, ctx_month):
-    """Parse the daily F&O table (gvdaliy_T_new) from BSE HTML."""
+    """Parse the daily F&O table from BSE HTML. Tries multiple class names for robustness."""
     rows = []
     # Table: Date | Total Contracts | Total Turnover | OI Contracts | OI Value |
     #        Futures Turnover | Options Notional | Options Premium
-    pattern = re.compile(
-        r'<td[^>]*class="TTRow"[^>]*>\s*([A-Za-z]{3}\s+\d{1,2})\s*</td>'
-        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # contracts
-        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # total turnover
-        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # OI contracts
-        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # OI value
-        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # futures turnover
-        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>'   # options notional
-        r'\s*<td[^>]*class="TTRow"[^>]*>\s*([\d,.-]+)\s*</td>',  # options premium
-        re.DOTALL | re.IGNORECASE
-    )
+    # BSE has changed CSS class names over time; try each in turn.
+    for td_class in ('TTRow', 'TTrow', 'tdRow', 'tdrow', 'gridrow', ''):
+        if td_class:
+            td_pat = rf'<td[^>]*class="[^"]*{td_class}[^"]*"[^>]*>'
+        else:
+            td_pat = r'<td[^>]*>'
+        pattern = re.compile(
+            td_pat + r'\s*([A-Za-z]{3}\s+\d{1,2})\s*</td>'
+            r'(?:\s*' + td_pat + r'\s*[\d,.-]+\s*</td>){1}'   # contracts
+            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>'         # total turnover
+            r'(?:\s*' + td_pat + r'\s*[\d,.-]+\s*</td>){2}'   # OI contracts, OI value
+            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>'         # futures turnover
+            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>'         # options notional
+            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>',        # options premium
+            re.DOTALL | re.IGNORECASE
+        )
+        for m in pattern.finditer(html):
+            try:
+                date_label = m.group(1).strip()  # e.g., "Mar 02"
+                dt = datetime.strptime(f"{date_label} {ctx_year}", "%b %d %Y")
+                rows.append({
+                    "date": f"{dt.day:02d}/{dt.month:02d}/{dt.year}",
+                    "total_contracts":          clean_number(m.group(2)),
+                    "total_turnover":           clean_number(m.group(3)),
+                    "futures_turnover":         clean_number(m.group(4)),
+                    "options_notional_turnover": clean_number(m.group(5)),
+                    "options_premium_turnover": clean_number(m.group(6)),
+                })
+            except (ValueError, IndexError) as e:
+                continue
 
-    for m in pattern.finditer(html):
-        try:
-            date_label = m.group(1).strip()  # e.g., "Mar 02"
-            # Parse with context year: "Mar 02" -> "Mar 02 2026"
-            dt = datetime.strptime(f"{date_label} {ctx_year}", "%b %d %Y")
-            rows.append({
-                "date": f"{dt.day:02d}/{dt.month:02d}/{dt.year}",
-                "total_contracts": clean_number(m.group(2)),
-                "total_turnover": clean_number(m.group(3)),
-                "futures_turnover": clean_number(m.group(6)),
-                "options_notional_turnover": clean_number(m.group(7)),
-                "options_premium_turnover": clean_number(m.group(8)),
-            })
-        except (ValueError, IndexError) as e:
-            print(f"  Warning: skipping F&O row: {e}")
-            continue
+        if rows:
+            if td_class:
+                print(f"  F&O parsed {len(rows)} rows using class='{td_class}'")
+            break
 
     return rows
 
@@ -191,20 +218,23 @@ def fetch_bse_cash_data():
         print("ERROR: curl_cffi not installed. Run: pip install curl_cffi")
         sys.exit(1)
 
-    session = cffi_requests.Session()
+    session = _make_bse_session()
     url = "https://www.bseindia.com/markets/Equity/EQReports/Historical_EquitySegment.aspx"
     print(f"Fetching BSE Cash page: {url}")
 
     # Step 1: GET yearly summary
-    resp = session.get(url, impersonate="chrome")
+    resp = session.get(url, impersonate="chrome", timeout=30)
     if resp.status_code != 200:
         print(f"ERROR: BSE Cash page returned {resp.status_code}")
         return []
+    print(f"  Cash page size: {len(resp.text)} chars")
 
     # Step 2: Click current year to get monthly view
     year_targets = _find_postback_targets(resp.text, r'[^&]*gvReport[^&]*lnkyear[^&]*')
+    print(f"  Cash year targets: {year_targets}")
     if not year_targets:
-        print("ERROR: No year links found on BSE Cash page")
+        print("ERROR: No year links found on BSE Cash page — page structure may have changed")
+        print("  Snippet:", resp.text[2000:3000])
         return []
 
     html_months = _postback(session, url, resp.text, year_targets[0])
@@ -236,32 +266,40 @@ def fetch_bse_cash_data():
 
 
 def _parse_cash_daily_table(html):
-    """Parse the daily Cash table (grddaily) from BSE HTML."""
+    """Parse the daily Cash table from BSE HTML. Tries multiple class names."""
     rows = []
     # Table: Date | No. of Company Trades | Total No. of Trades | No. of Shares (Cr) | Net Turnover
-    pattern = re.compile(
-        r'<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\s*</td>'
-        r'\s*<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*([\d,.-]+)\s*</td>'   # companies traded
-        r'\s*<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*([\d,.-]+)\s*</td>'   # total trades
-        r'\s*<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*([\d,.-]+)\s*</td>'   # shares
-        r'\s*<td[^>]*class="tdcolumn[^"]*"[^>]*>\s*([\d,.-]+)\s*</td>',  # net turnover
-        re.DOTALL | re.IGNORECASE
-    )
+    for td_class in ('tdcolumn', 'TTRow', 'TTrow', 'tdRow', ''):
+        if td_class:
+            td_pat = rf'<td[^>]*class="[^"]*{td_class}[^"]*"[^>]*>'
+        else:
+            td_pat = r'<td[^>]*>'
+        pattern = re.compile(
+            td_pat + r'\s*(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\s*</td>'
+            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>'   # companies traded
+            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>'   # total trades
+            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>'   # shares
+            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>',  # net turnover
+            re.DOTALL | re.IGNORECASE
+        )
+        for m in pattern.finditer(html):
+            try:
+                date_str = m.group(1).strip()  # "02 Mar 2026"
+                dt = datetime.strptime(date_str, "%d %b %Y")
+                rows.append({
+                    "date": f"{dt.day:02d}/{dt.month:02d}/{dt.year}",
+                    "securities_traded": clean_number(m.group(2)),
+                    "no_of_trades":      clean_number(m.group(3)),
+                    "traded_quantity":   clean_number(m.group(4)),
+                    "traded_value":      clean_number(m.group(5)),
+                })
+            except (ValueError, IndexError):
+                continue
 
-    for m in pattern.finditer(html):
-        try:
-            date_str = m.group(1).strip()  # "02 Mar 2026"
-            dt = datetime.strptime(date_str, "%d %b %Y")
-            rows.append({
-                "date": f"{dt.day:02d}/{dt.month:02d}/{dt.year}",
-                "securities_traded": clean_number(m.group(2)),
-                "no_of_trades": clean_number(m.group(3)),
-                "traded_quantity": clean_number(m.group(4)),
-                "traded_value": clean_number(m.group(5)),
-            })
-        except (ValueError, IndexError) as e:
-            print(f"  Warning: skipping cash row: {e}")
-            continue
+        if rows:
+            if td_class:
+                print(f"  Cash parsed {len(rows)} rows using class='{td_class}'")
+            break
 
     return rows
 

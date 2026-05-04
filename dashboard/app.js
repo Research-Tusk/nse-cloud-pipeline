@@ -296,13 +296,13 @@ document.addEventListener('click', function(e) {
   if (!btn) return;
   const st = btn.dataset.subtab;
   if (!st) return;
-  const tabContent = btn.closest('.tab-content') || btn.closest('[id^="nse"]') || btn.closest('[id^="bse"]') || btn.parentElement.parentElement;
-  const container = btn.closest('.tab-content') || document.getElementById('tab-segment');
+  const container = btn.closest('.tab-content');
   // Deactivate siblings
   btn.parentElement.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   // Find the correct scope for sub-content toggling
-  const scope = btn.closest('#nseSegmentContent') || btn.closest('#bseSegmentContent') || container;
+  const scope = container;
+  if (!scope) return;
   scope.querySelectorAll('.sub-content').forEach(c => c.classList.remove('active'));
   const target = document.getElementById('subtab-' + st);
   if (target) target.classList.add('active');
@@ -3208,20 +3208,32 @@ async function downloadWeeklyReport() {
           ? last.predicted_eod : null;
       }
 
-      function chip(label, rev, pred, color) {
-        if (!rev) return '';
-        const predStr = pred ? ` <span style="color:var(--color-text-muted)">→ ${_cr(pred)}</span>` : '';
-        return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:3px;border:1px solid var(--color-border);background:var(--color-surface-solid)">
-          <span style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--color-text-muted);letter-spacing:.06em">${label}</span>
-          <span style="font-weight:700;color:${color};font-variant-numeric:tabular-nums">${_cr(rev)}</span>${predStr}
-        </span>`;
-      }
-
       const nseRev  = nseData && nseData.revenue && nseData.revenue.has_data ? nseData.revenue.total_revenue : null;
       const bseRev  = bseData && bseData.revenue && bseData.revenue.has_data ? bseData.revenue.total_revenue : null;
 
-      el.innerHTML = chip('NSE', nseRev, lastPred(nseHourly), 'var(--color-text)')
-                   + chip('BSE', bseRev, lastPred(bseHourly), 'var(--color-text)');
+      // Fallback index prices shown when market is closed / no revenue data
+      const niftyMs  = (nseData && nseData.market_status && nseData.market_status.marketState || [])
+                         .find(m => m.market === 'Capital Market') || {};
+      const sensexMs = (bseData && bseData.sensex) || {};
+
+      function chip(label, rev, pred, idxPrice, idxPct, color) {
+        const wrap = inner => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:3px;border:1px solid var(--color-border);background:var(--color-surface-solid)">${inner}</span>`;
+        const lbl  = `<span style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--color-text-muted);letter-spacing:.06em">${label}</span>`;
+        if (rev != null) {
+          const predStr = pred ? ` <span style="color:var(--color-text-muted)">→ ${_cr(pred)}</span>` : '';
+          return wrap(`${lbl} <span style="font-weight:700;color:${color};font-variant-numeric:tabular-nums">${_cr(rev)}</span>${predStr}`);
+        }
+        if (idxPrice != null) {
+          const up  = +idxPct >= 0;
+          const clr = up ? '#30d158' : '#ff453a';
+          const pct = idxPct != null ? ` <span style="color:${clr};font-size:10px">${up ? '▲' : '▼'}${Math.abs(+idxPct).toFixed(1)}%</span>` : '';
+          return wrap(`${lbl} <span style="font-weight:700;font-variant-numeric:tabular-nums;color:${color}">${(+idxPrice).toLocaleString('en-IN',{maximumFractionDigits:0})}</span>${pct}`);
+        }
+        return '';
+      }
+
+      el.innerHTML = chip('NSE', nseRev, lastPred(nseHourly), niftyMs.last, niftyMs.percentChange, 'var(--color-text)')
+                   + chip('BSE', bseRev, lastPred(bseHourly), sensexMs.last, sensexMs.pct_change,   'var(--color-text)');
 
       // Update "Last Updated" span with live data timestamp
       const updatedAt = (nseData && nseData.updated_at) || (bseData && bseData.updated_at);
