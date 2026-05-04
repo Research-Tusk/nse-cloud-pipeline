@@ -41,36 +41,10 @@ TR_CASH = 7.5e-05     # Cash: on traded value
 
 
 # ═══════════════════════════════════════════════════════════════
+# SECTION 1: BSE DATA FETCHER (curl_cffi + REST JSON API)
+# BSE migrated from ASP.NET WebForms to Angular SPA ~May 2026.
+# All data now served from api.bseindia.com REST endpoints.
 # ═══════════════════════════════════════════════════════════════
-# SECTION 1: BSE DATA FETCHER (curl_cffi + ASP.NET postback)
-# ═══════════════════════════════════════════════════════════════
-
-def _get_form_data(html):
-    """Extract all hidden input fields from ASP.NET page."""
-    fields = re.findall(r'<input[^>]*name="([^"]*)"[^>]*value="([^"]*)"', html)
-    return {name: value for name, value in fields}
-
-
-def _postback(session, url, html, event_target):
-    """Perform an ASP.NET __doPostBack and return the response HTML."""
-    form = _get_form_data(html)
-    form['__EVENTTARGET'] = event_target
-    form['__EVENTARGUMENT'] = ''
-    form.pop('ctl00$ContentPlaceHolder1$btnSubmit', None)
-    resp = session.post(
-        url, data=form, impersonate="chrome",
-        headers={'Referer': url, 'Origin': 'https://www.bseindia.com'}
-    )
-    if resp.status_code != 200:
-        print(f"  ERROR: postback returned {resp.status_code} for {event_target}")
-        return None
-    return resp.text
-
-
-def _find_postback_targets(html, pattern):
-    """Find __doPostBack targets matching a pattern (HTML-encoded quotes)."""
-    return re.findall(r"__doPostBack\(&#39;(" + pattern + r")&#39;", html)
-
 
 def _make_bse_session():
     """Create a curl_cffi session pre-warmed with BSE homepage cookies."""
@@ -192,97 +166,93 @@ def fetch_bse_fo_data():
 
 
 def fetch_bse_cash_data():
-    """Fetch BSE Cash market daily data via 3-step ASP.NET postback."""
-    try:
-        from curl_cffi import requests as cffi_requests
-    except ImportError:
-        print("ERROR: curl_cffi not installed. Run: pip install curl_cffi")
-        sys.exit(1)
-
+    """Fetch BSE Cash/Equity market daily data via REST JSON API."""
     session = _make_bse_session()
-    url = "https://www.bseindia.com/markets/Equity/EQReports/Historical_EquitySegment.aspx"
-    print(f"Fetching BSE Cash page: {url}")
 
-    # Step 1: GET yearly summary
-    resp = session.get(url, impersonate="chrome", timeout=30)
-    if resp.status_code != 200:
-        print(f"ERROR: BSE Cash page returned {resp.status_code}")
-        return []
-    print(f"  Cash page size: {len(resp.text)} chars")
+    # Warm up with the equity page for correct origin cookies
+    try:
+        session.get(
+            "https://www.bseindia.com/markets/Equity/EQReports/Historical_EquitySegment.aspx",
+            impersonate="chrome", timeout=15,
+        )
+        print("BSE Cash page warmup OK")
+    except Exception as e:
+        print(f"WARNING: Cash page warmup failed: {e}")
 
-    # Step 2: Click current year to get monthly view
-    year_targets = _find_postback_targets(resp.text, r'[^&]*gvReport[^&]*lnkyear[^&]*')
-    print(f"  Cash year targets: {year_targets}")
-    if not year_targets:
-        print("ERROR: No year links found on BSE Cash page — page structure may have changed")
-        print("  Snippet:", resp.text[2000:3000])
-        return []
+    api_url = "https://api.bseindia.com/BseIndiaAPI/api/histoequitymonthdisplay/w"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://www.bseindia.com/markets/Equity/EQReports/Historical_EquitySegment.aspx",
+        "Origin": "https://www.bseindia.com",
+    }
 
-    html_months = _postback(session, url, resp.text, year_targets[0])
-    if not html_months:
-        return []
-
-    # Step 3: Click each recent month to get daily data
-    month_targets = _find_postback_targets(html_months, r'[^&]*gvYearwise[^&]*Linkbtn[^&]*')
-    if not month_targets:
-        print("ERROR: No month links found on BSE Cash page")
-        return []
+    # Build the set of (fy_year, month) tuples covering the last 45 calendar days
+    end_dt   = datetime.now()
+    start_dt = end_dt - timedelta(days=45)
+    months_to_fetch = set()
+    cur = start_dt
+    while cur <= end_dt:
+        # BSE fiscal year param: April onwards = current calendar year; Jan–Mar = year - 1
+        fy = cur.year if cur.month >= 4 else cur.year - 1
+        months_to_fetch.add((fy, cur.month))
+        cur += timedelta(days=28)
+    fy = end_dt.year if end_dt.month >= 4 else end_dt.year - 1
+    months_to_fetch.add((fy, end_dt.month))
 
     all_rows = []
-    months_to_fetch = month_targets[:2]
-    current_html = html_months
+    for fy_year, month in sorted(months_to_fetch):
+        try:
+            resp = session.get(
+                api_url,
+                params={"year": fy_year, "month": f"{month:02d}"},
+                headers=headers,
+                impersonate="chrome",
+                timeout=20,
+            )
+            if resp.status_code != 200 or not resp.text.strip():
+                print(f"  Cash API: no data for {fy_year}/{month:02d} (status={resp.status_code})")
+                continue
 
-    for target in months_to_fetch:
-        html_daily = _postback(session, url, current_html, target)
-        if not html_daily:
-            continue
+            data  = resp.json()
+            table = data.get("Table") or data.get("table") or []
+            if not table:
+                print(f"  Cash API: empty table for {fy_year}/{month:02d}")
+                continue
 
-        rows = _parse_cash_daily_table(html_daily)
-        all_rows.extend(rows)
-        print(f"  Cash month: {len(rows)} daily rows")
-        current_html = html_daily
+            month_rows = 0
+            for row in table:
+                date_str = str(row.get("QEDATE", "")).strip()
+                if not date_str:
+                    continue
+                try:
+                    dt = datetime.strptime(date_str, "%d %b %Y")
+
+                    def _n(key):
+                        v = row.get(key, 0)
+                        try:
+                            return float(str(v).replace(",", ""))
+                        except (ValueError, TypeError):
+                            return 0.0
+
+                    all_rows.append({
+                        "date":             dt.strftime("%d/%m/%Y"),
+                        "securities_traded": _n("NO_COMPNAY_TRADED"),
+                        "no_of_trades":      _n("NO_TRADES"),
+                        "traded_quantity":   _n("NO_OF_SHRS"),
+                        "traded_value":      _n("NET_TURNOV"),
+                    })
+                    month_rows += 1
+                except (ValueError, TypeError) as e:
+                    print(f"  Cash API: skipping row with QEDATE={date_str!r}: {e}")
+
+            print(f"  Cash month {fy_year}/{month:02d}: {month_rows} rows")
+
+        except Exception as e:
+            print(f"  Cash API error for {fy_year}/{month:02d}: {e}")
 
     print(f"BSE Cash rows extracted: {len(all_rows)}")
     return all_rows
-
-
-def _parse_cash_daily_table(html):
-    """Parse the daily Cash table from BSE HTML. Tries multiple class names."""
-    rows = []
-    # Table: Date | No. of Company Trades | Total No. of Trades | No. of Shares (Cr) | Net Turnover
-    for td_class in ('tdcolumn', 'TTRow', 'TTrow', 'tdRow', ''):
-        if td_class:
-            td_pat = rf'<td[^>]*class="[^"]*{td_class}[^"]*"[^>]*>'
-        else:
-            td_pat = r'<td[^>]*>'
-        pattern = re.compile(
-            td_pat + r'\s*(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})\s*</td>'
-            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>'   # companies traded
-            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>'   # total trades
-            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>'   # shares
-            r'\s*' + td_pat + r'\s*([\d,.-]+)\s*</td>',  # net turnover
-            re.DOTALL | re.IGNORECASE
-        )
-        for m in pattern.finditer(html):
-            try:
-                date_str = m.group(1).strip()  # "02 Mar 2026"
-                dt = datetime.strptime(date_str, "%d %b %Y")
-                rows.append({
-                    "date": f"{dt.day:02d}/{dt.month:02d}/{dt.year}",
-                    "securities_traded": clean_number(m.group(2)),
-                    "no_of_trades":      clean_number(m.group(3)),
-                    "traded_quantity":   clean_number(m.group(4)),
-                    "traded_value":      clean_number(m.group(5)),
-                })
-            except (ValueError, IndexError):
-                continue
-
-        if rows:
-            if td_class:
-                print(f"  Cash parsed {len(rows)} rows using class='{td_class}'")
-            break
-
-    return rows
 
 
 
