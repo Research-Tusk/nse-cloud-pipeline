@@ -12,7 +12,6 @@ Environment variables (set as GitHub Secrets):
 import json
 import os
 import sys
-import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from collections import OrderedDict
@@ -95,8 +94,7 @@ def fetch_bse_fo_data():
         dttime = current.strftime("%m/%d/%Y")  # MktSummary uses MM/DD/YYYY
         try:
             resp = session.get(
-                api_url,
-                params={"dttime": dttime},
+                f"{api_url}?dttime={dttime}",
                 headers=headers,
                 impersonate="chrome",
                 timeout=20,
@@ -204,8 +202,7 @@ def fetch_bse_cash_data():
     for fy_year, month in sorted(months_to_fetch):
         try:
             resp = session.get(
-                api_url,
-                params={"year": fy_year, "month": f"{month:02d}"},
+                f"{api_url}?year={fy_year}&month={month:02d}",
                 headers=headers,
                 impersonate="chrome",
                 timeout=20,
