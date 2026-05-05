@@ -1,89 +1,33 @@
 {
-  "updated_at": "2026-05-04T16:54:38",
+  "updated_at": "2026-05-05T01:37:58",
   "ticker": "BSE.NS",
   "ma_window": 50,
-  "n_days": 70,
+  "n_days": 69,
   "regression": {
-    "slope": 53.8652,
-    "intercept": 1971.23,
-    "r_squared": 0.3205,
-    "pearson_r": 0.5662,
-    "equation": "Price = 53.87 \u00d7 Rev_MA50 + 1971.23",
+    "slope": 78.9536,
+    "intercept": 1551.2,
+    "r_squared": 0.3567,
+    "pearson_r": 0.5972,
+    "equation": "Price = 78.95 \u00d7 Rev_MA50 + 1551.20",
     "fit": "weak"
   },
   "latest": {
-    "date": "2026-04-24",
-    "revenue_cr": 6.7583,
-    "rev_ma50": 20.5868,
-    "price_actual": 3446.0,
-    "price_pred": 3080.14,
-    "price_ma50": 2976.8,
-    "error_pct": 10.6
+    "date": "2026-05-04",
+    "revenue_cr": 1.2808,
+    "rev_ma50": 19.8622,
+    "price_actual": 3711.3,
+    "price_pred": 3119.39,
+    "price_ma50": 3046.384,
+    "error_pct": 15.9
   },
   "series": [
-    {
-      "date": "2026-01-08",
-      "revenue_cr": 30.5568,
-      "rev_ma50": 13.5406,
-      "price": 2694.0,
-      "price_ma50": 2709.45,
-      "price_pred": 2700.6
-    },
-    {
-      "date": "2026-01-09",
-      "revenue_cr": 9.0688,
-      "rev_ma50": 13.3557,
-      "price": 2669.5,
-      "price_ma50": 2713.894,
-      "price_pred": 2690.64
-    },
-    {
-      "date": "2026-01-12",
-      "revenue_cr": 10.9762,
-      "rev_ma50": 12.9894,
-      "price": 2790.6,
-      "price_ma50": 2720.85,
-      "price_pred": 2670.91
-    },
-    {
-      "date": "2026-01-13",
-      "revenue_cr": 11.9037,
-      "rev_ma50": 13.0856,
-      "price": 2832.0,
-      "price_ma50": 2727.91,
-      "price_pred": 2676.09
-    },
-    {
-      "date": "2026-01-14",
-      "revenue_cr": 38.5579,
-      "rev_ma50": 13.7132,
-      "price": 2836.8,
-      "price_ma50": 2733.68,
-      "price_pred": 2709.89
-    },
-    {
-      "date": "2026-01-16",
-      "revenue_cr": 9.7925,
-      "rev_ma50": 13.7785,
-      "price": 2808.7,
-      "price_ma50": 2747.548,
-      "price_pred": 2713.41
-    },
-    {
-      "date": "2026-01-19",
-      "revenue_cr": 9.0773,
-      "rev_ma50": 13.3854,
-      "price": 2726.7,
-      "price_ma50": 2748.516,
-      "price_pred": 2692.24
-    },
     {
       "date": "2026-01-20",
       "revenue_cr": 8.8371,
       "rev_ma50": 13.413,
       "price": 2653.4,
       "price_ma50": 2749.078,
-      "price_pred": 2693.72
+      "price_pred": 2610.21
     },
     {
       "date": "2026-01-21",
@@ -91,7 +35,7 @@
       "rev_ma50": 14.0311,
       "price": 2628.8,
       "price_ma50": 2748.77,
-      "price_pred": 2727.02
+      "price_pred": 2659.01
     },
     {
       "date": "2026-01-22",
@@ -99,7 +43,7 @@
       "rev_ma50": 14.8839,
       "price": 2708.6,
       "price_ma50": 2747.434,
-      "price_pred": 2772.95
+      "price_pred": 2726.34
     },
     {
       "date": "2026-01-23",
@@ -107,7 +51,7 @@
       "rev_ma50": 14.7797,
       "price": 2685.4,
       "price_ma50": 2745.938,
-      "price_pred": 2767.34
+      "price_pred": 2718.11
     },
     {
       "date": "2026-01-27",
@@ -115,7 +59,7 @@
       "rev_ma50": 14.3595,
       "price": 2761.2,
       "price_ma50": 2744.61,
-      "price_pred": 2744.71
+      "price_pred": 2684.94
     },
     {
       "date": "2026-01-28",
@@ -123,7 +67,7 @@
       "rev_ma50": 14.8238,
       "price": 2821.5,
       "price_ma50": 2744.802,
-      "price_pred": 2769.72
+      "price_pred": 2721.59
     },
     {
       "date": "2026-01-29",
@@ -131,7 +75,7 @@
       "rev_ma50": 15.6118,
       "price": 2861.6,
       "price_ma50": 2745.352,
-      "price_pred": 2812.16
+      "price_pred": 2783.81
     },
     {
       "date": "2026-01-30",
@@ -139,7 +83,7 @@
       "rev_ma50": 15.6717,
       "price": 2797.0,
       "price_ma50": 2743.326,
-      "price_pred": 2815.39
+      "price_pred": 2788.54
     },
     {
       "date": "2026-02-02",
@@ -147,7 +91,7 @@
       "rev_ma50": 15.4047,
       "price": 2701.6,
       "price_ma50": 2739.448,
-      "price_pred": 2801.01
+      "price_pred": 2767.46
     },
     {
       "date": "2026-02-03",
@@ -155,7 +99,7 @@
       "rev_ma50": 15.5509,
       "price": 2860.8,
       "price_ma50": 2739.498,
-      "price_pred": 2808.88
+      "price_pred": 2779.0
     },
     {
       "date": "2026-02-04",
@@ -163,7 +107,7 @@
       "rev_ma50": 15.9376,
       "price": 2896.3,
       "price_ma50": 2741.38,
-      "price_pred": 2829.71
+      "price_pred": 2809.53
     },
     {
       "date": "2026-02-05",
@@ -171,7 +115,7 @@
       "rev_ma50": 16.4973,
       "price": 2892.2,
       "price_ma50": 2742.412,
-      "price_pred": 2859.86
+      "price_pred": 2853.72
     },
     {
       "date": "2026-02-06",
@@ -179,7 +123,7 @@
       "rev_ma50": 16.3417,
       "price": 2897.0,
       "price_ma50": 2742.618,
-      "price_pred": 2851.48
+      "price_pred": 2841.44
     },
     {
       "date": "2026-02-09",
@@ -187,7 +131,7 @@
       "rev_ma50": 15.8058,
       "price": 2985.1,
       "price_ma50": 2743.738,
-      "price_pred": 2822.61
+      "price_pred": 2799.13
     },
     {
       "date": "2026-02-10",
@@ -195,7 +139,7 @@
       "rev_ma50": 15.8174,
       "price": 3174.2,
       "price_ma50": 2749.174,
-      "price_pred": 2823.24
+      "price_pred": 2800.04
     },
     {
       "date": "2026-02-11",
@@ -203,7 +147,7 @@
       "rev_ma50": 16.027,
       "price": 3177.1,
       "price_ma50": 2754.984,
-      "price_pred": 2834.53
+      "price_pred": 2816.59
     },
     {
       "date": "2026-02-12",
@@ -211,7 +155,7 @@
       "rev_ma50": 16.4814,
       "price": 3143.2,
       "price_ma50": 2760.984,
-      "price_pred": 2859.0
+      "price_pred": 2852.47
     },
     {
       "date": "2026-02-13",
@@ -219,7 +163,7 @@
       "rev_ma50": 16.28,
       "price": 3025.3,
       "price_ma50": 2766.468,
-      "price_pred": 2848.16
+      "price_pred": 2836.57
     },
     {
       "date": "2026-02-16",
@@ -227,7 +171,7 @@
       "rev_ma50": 15.8102,
       "price": 2804.6,
       "price_ma50": 2767.26,
-      "price_pred": 2822.85
+      "price_pred": 2799.47
     },
     {
       "date": "2026-02-17",
@@ -235,7 +179,7 @@
       "rev_ma50": 15.8226,
       "price": 2742.3,
       "price_ma50": 2765.788,
-      "price_pred": 2823.52
+      "price_pred": 2800.45
     },
     {
       "date": "2026-02-18",
@@ -243,7 +187,7 @@
       "rev_ma50": 16.0918,
       "price": 2824.0,
       "price_ma50": 2766.292,
-      "price_pred": 2838.02
+      "price_pred": 2821.71
     },
     {
       "date": "2026-02-19",
@@ -251,7 +195,7 @@
       "rev_ma50": 16.7131,
       "price": 2741.4,
       "price_ma50": 2766.804,
-      "price_pred": 2871.49
+      "price_pred": 2870.76
     },
     {
       "date": "2026-02-20",
@@ -259,7 +203,7 @@
       "rev_ma50": 16.4668,
       "price": 2739.5,
       "price_ma50": 2769.96,
-      "price_pred": 2858.22
+      "price_pred": 2851.32
     },
     {
       "date": "2026-02-23",
@@ -267,7 +211,7 @@
       "rev_ma50": 15.9227,
       "price": 2725.3,
       "price_ma50": 2770.49,
-      "price_pred": 2828.91
+      "price_pred": 2808.36
     },
     {
       "date": "2026-02-24",
@@ -275,7 +219,7 @@
       "rev_ma50": 15.9578,
       "price": 2751.1,
       "price_ma50": 2770.812,
-      "price_pred": 2830.8
+      "price_pred": 2811.13
     },
     {
       "date": "2026-02-25",
@@ -283,7 +227,7 @@
       "rev_ma50": 16.3727,
       "price": 2772.7,
       "price_ma50": 2773.288,
-      "price_pred": 2853.15
+      "price_pred": 2843.89
     },
     {
       "date": "2026-02-26",
@@ -291,7 +235,7 @@
       "rev_ma50": 17.1217,
       "price": 2800.9,
       "price_ma50": 2777.188,
-      "price_pred": 2893.49
+      "price_pred": 2903.02
     },
     {
       "date": "2026-02-27",
@@ -299,7 +243,7 @@
       "rev_ma50": 16.9484,
       "price": 2707.1,
       "price_ma50": 2778.72,
-      "price_pred": 2884.16
+      "price_pred": 2889.34
     },
     {
       "date": "2026-03-02",
@@ -307,7 +251,7 @@
       "rev_ma50": 16.6069,
       "price": 2643.6,
       "price_ma50": 2777.934,
-      "price_pred": 2865.76
+      "price_pred": 2862.38
     },
     {
       "date": "2026-03-04",
@@ -315,7 +259,7 @@
       "rev_ma50": 17.1843,
       "price": 2626.9,
       "price_ma50": 2776.776,
-      "price_pred": 2896.87
+      "price_pred": 2907.96
     },
     {
       "date": "2026-03-05",
@@ -323,7 +267,7 @@
       "rev_ma50": 18.1753,
       "price": 2761.4,
       "price_ma50": 2776.494,
-      "price_pred": 2950.25
+      "price_pred": 2986.21
     },
     {
       "date": "2026-03-06",
@@ -331,7 +275,7 @@
       "rev_ma50": 18.2472,
       "price": 2751.6,
       "price_ma50": 2776.776,
-      "price_pred": 2954.12
+      "price_pred": 2991.88
     },
     {
       "date": "2026-03-09",
@@ -339,7 +283,7 @@
       "rev_ma50": 18.0398,
       "price": 2768.9,
       "price_ma50": 2778.736,
-      "price_pred": 2942.95
+      "price_pred": 2975.51
     },
     {
       "date": "2026-03-10",
@@ -347,7 +291,7 @@
       "rev_ma50": 18.1328,
       "price": 2860.6,
       "price_ma50": 2782.968,
-      "price_pred": 2947.96
+      "price_pred": 2982.85
     },
     {
       "date": "2026-03-11",
@@ -355,7 +299,7 @@
       "rev_ma50": 18.663,
       "price": 2837.4,
       "price_ma50": 2787.15,
-      "price_pred": 2976.52
+      "price_pred": 3024.71
     },
     {
       "date": "2026-03-12",
@@ -363,7 +307,7 @@
       "rev_ma50": 19.5741,
       "price": 2850.6,
       "price_ma50": 2792.542,
-      "price_pred": 3025.59
+      "price_pred": 3096.65
     },
     {
       "date": "2026-03-13",
@@ -371,7 +315,7 @@
       "rev_ma50": 19.4246,
       "price": 2797.0,
       "price_ma50": 2795.838,
-      "price_pred": 3017.54
+      "price_pred": 3084.84
     },
     {
       "date": "2026-03-16",
@@ -379,7 +323,7 @@
       "rev_ma50": 19.1824,
       "price": 2862.6,
       "price_ma50": 2800.53,
-      "price_pred": 3004.49
+      "price_pred": 3065.72
     },
     {
       "date": "2026-03-17",
@@ -387,7 +331,7 @@
       "rev_ma50": 19.2915,
       "price": 2973.6,
       "price_ma50": 2806.672,
-      "price_pred": 3010.37
+      "price_pred": 3074.34
     },
     {
       "date": "2026-03-18",
@@ -395,7 +339,7 @@
       "rev_ma50": 19.6914,
       "price": 2995.6,
       "price_ma50": 2813.106,
-      "price_pred": 3031.91
+      "price_pred": 3105.91
     },
     {
       "date": "2026-03-19",
@@ -403,7 +347,7 @@
       "rev_ma50": 20.4578,
       "price": 2895.0,
       "price_ma50": 2816.88,
-      "price_pred": 3073.19
+      "price_pred": 3166.42
     },
     {
       "date": "2026-03-20",
@@ -411,7 +355,7 @@
       "rev_ma50": 20.2903,
       "price": 2806.1,
       "price_ma50": 2818.104,
-      "price_pred": 3064.17
+      "price_pred": 3153.19
     },
     {
       "date": "2026-03-23",
@@ -419,7 +363,7 @@
       "rev_ma50": 19.8973,
       "price": 2714.4,
       "price_ma50": 2818.512,
-      "price_pred": 3043.0
+      "price_pred": 3122.17
     },
     {
       "date": "2026-03-24",
@@ -427,7 +371,7 @@
       "rev_ma50": 20.0125,
       "price": 2805.9,
       "price_ma50": 2821.24,
-      "price_pred": 3049.21
+      "price_pred": 3131.26
     },
     {
       "date": "2026-03-25",
@@ -435,7 +379,7 @@
       "rev_ma50": 20.7498,
       "price": 2890.2,
       "price_ma50": 2823.232,
-      "price_pred": 3088.92
+      "price_pred": 3189.47
     },
     {
       "date": "2026-03-27",
@@ -443,7 +387,7 @@
       "rev_ma50": 20.6612,
       "price": 2779.8,
       "price_ma50": 2822.188,
-      "price_pred": 3084.15
+      "price_pred": 3182.48
     },
     {
       "date": "2026-03-30",
@@ -451,7 +395,7 @@
       "rev_ma50": 20.072,
       "price": 2683.5,
       "price_ma50": 2819.122,
-      "price_pred": 3052.41
+      "price_pred": 3135.96
     },
     {
       "date": "2026-04-01",
@@ -459,7 +403,7 @@
       "rev_ma50": 20.4545,
       "price": 2867.6,
       "price_ma50": 2819.738,
-      "price_pred": 3073.02
+      "price_pred": 3166.16
     },
     {
       "date": "2026-04-02",
@@ -467,119 +411,167 @@
       "rev_ma50": 21.3935,
       "price": 2851.4,
       "price_ma50": 2820.592,
-      "price_pred": 3123.6
+      "price_pred": 3240.3
     },
     {
       "date": "2026-04-06",
       "revenue_cr": 11.2572,
-      "rev_ma50": 21.4419,
+      "rev_ma50": 21.3889,
       "price": 2982.3,
       "price_ma50": 2825.704,
-      "price_pred": 3126.2
+      "price_pred": 3239.93
     },
     {
       "date": "2026-04-07",
       "revenue_cr": 9.7197,
-      "rev_ma50": 20.8965,
+      "rev_ma50": 20.5822,
       "price": 2950.8,
       "price_ma50": 2831.652,
-      "price_pred": 3096.82
+      "price_pred": 3176.24
     },
     {
       "date": "2026-04-08",
       "revenue_cr": 28.0874,
-      "rev_ma50": 20.4571,
+      "rev_ma50": 20.9413,
       "price": 3163.6,
       "price_ma50": 2842.348,
-      "price_pred": 3073.16
+      "price_pred": 3204.59
     },
     {
       "date": "2026-04-09",
       "revenue_cr": 51.3219,
-      "rev_ma50": 21.281,
+      "rev_ma50": 21.7386,
       "price": 3257.4,
       "price_ma50": 2853.324,
-      "price_pred": 3117.54
+      "price_pred": 3267.54
     },
     {
       "date": "2026-04-10",
       "revenue_cr": 7.2029,
-      "rev_ma50": 21.1959,
+      "rev_ma50": 21.2585,
       "price": 3281.2,
       "price_ma50": 2865.24,
-      "price_pred": 3112.95
+      "price_pred": 3229.64
     },
     {
       "date": "2026-04-13",
       "revenue_cr": 8.4329,
-      "rev_ma50": 20.7404,
+      "rev_ma50": 20.5221,
       "price": 3303.6,
       "price_ma50": 2876.088,
-      "price_pred": 3088.42
+      "price_pred": 3171.5
     },
     {
       "date": "2026-04-15",
       "revenue_cr": 23.3067,
-      "rev_ma50": 20.3015,
+      "rev_ma50": 20.7915,
       "price": 3390.7,
       "price_ma50": 2887.472,
-      "price_pred": 3064.78
+      "price_pred": 3192.77
     },
     {
       "date": "2026-04-16",
       "revenue_cr": 46.1854,
-      "rev_ma50": 21.0285,
+      "rev_ma50": 21.3789,
       "price": 3446.7,
       "price_ma50": 2899.174,
-      "price_pred": 3103.94
+      "price_pred": 3239.14
     },
     {
       "date": "2026-04-17",
       "revenue_cr": 6.6673,
-      "rev_ma50": 20.8255,
+      "rev_ma50": 21.272,
       "price": 3531.5,
       "price_ma50": 2913.864,
-      "price_pred": 3093.0
+      "price_pred": 3230.7
     },
     {
       "date": "2026-04-20",
       "revenue_cr": 8.3315,
-      "rev_ma50": 20.7518,
+      "rev_ma50": 21.1646,
       "price": 3470.7,
       "price_ma50": 2929.246,
-      "price_pred": 3089.03
+      "price_pred": 3222.22
     },
     {
       "date": "2026-04-21",
       "revenue_cr": 6.4325,
-      "rev_ma50": 20.6065,
+      "rev_ma50": 20.7914,
       "price": 3515.8,
       "price_ma50": 2942.346,
-      "price_pred": 3081.2
+      "price_pred": 3192.76
     },
     {
       "date": "2026-04-22",
       "revenue_cr": 22.3644,
-      "rev_ma50": 20.552,
+      "rev_ma50": 20.5556,
       "price": 3499.2,
       "price_ma50": 2954.404,
-      "price_pred": 3078.27
+      "price_pred": 3174.14
     },
     {
       "date": "2026-04-23",
       "revenue_cr": 37.9601,
-      "rev_ma50": 20.628,
+      "rev_ma50": 21.1384,
       "price": 3463.0,
       "price_ma50": 2965.82,
-      "price_pred": 3082.36
+      "price_pred": 3220.16
     },
     {
       "date": "2026-04-24",
       "revenue_cr": 6.7583,
-      "rev_ma50": 20.5868,
+      "rev_ma50": 21.1487,
       "price": 3446.0,
       "price_ma50": 2976.8,
-      "price_pred": 3080.14
+      "price_pred": 3220.97
+    },
+    {
+      "date": "2026-04-27",
+      "revenue_cr": 0.6745,
+      "rev_ma50": 21.034,
+      "price": 3534.6,
+      "price_ma50": 2987.79,
+      "price_pred": 3211.91
+    },
+    {
+      "date": "2026-04-28",
+      "revenue_cr": 0.604,
+      "rev_ma50": 20.6942,
+      "price": 3626.1,
+      "price_ma50": 2996.828,
+      "price_pred": 3185.08
+    },
+    {
+      "date": "2026-04-29",
+      "revenue_cr": 0.6861,
+      "rev_ma50": 20.1356,
+      "price": 3635.7,
+      "price_ma50": 3006.0,
+      "price_pred": 3140.98
+    },
+    {
+      "date": "2026-04-30",
+      "revenue_cr": 0.7834,
+      "rev_ma50": 20.0015,
+      "price": 3640.5,
+      "price_ma50": 3015.946,
+      "price_pred": 3130.39
+    },
+    {
+      "date": "2026-05-01",
+      "revenue_cr": 7.5339,
+      "rev_ma50": 19.9929,
+      "price": 3640.5,
+      "price_ma50": 3028.25,
+      "price_pred": 3129.71
+    },
+    {
+      "date": "2026-05-04",
+      "revenue_cr": 1.2808,
+      "rev_ma50": 19.8622,
+      "price": 3711.3,
+      "price_ma50": 3046.384,
+      "price_pred": 3119.39
     }
   ]
 }
