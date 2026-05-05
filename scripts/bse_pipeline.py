@@ -58,10 +58,9 @@ def _make_bse_session():
 
 
 def fetch_bse_fo_data():
-    """Fetch BSE F&O daily data via REST JSON API (BSE migrated from ASP.NET to Angular SPA ~May 2026)."""
+    """Fetch BSE F&O daily data via REST JSON API — single date-range call to SearchProduct."""
     session = _make_bse_session()
 
-    # Warm up the new F&O page so api.bseindia.com receives the right origin cookies
     try:
         session.get(
             "https://www.bseindia.com/markets/derivatives/derireports/deriarchivesum",
@@ -71,7 +70,14 @@ def fetch_bse_fo_data():
     except Exception as e:
         print(f"WARNING: F&O page warmup failed: {e}")
 
-    api_url = "https://api.bseindia.com/BseIndiaAPI/api/Mkt_Deri_ArchiveSum_MktSummary_beta/w"
+    # SearchProduct returns all trading days in one call — avoids per-day session expiry.
+    # Date format for this endpoint is DD/MM/YYYY.
+    end_dt   = datetime.now()
+    start_dt = end_dt - timedelta(days=45)
+    dttime    = start_dt.strftime("%d/%m/%Y")
+    dttimeTo  = end_dt.strftime("%d/%m/%Y")
+
+    api_url = "https://api.bseindia.com/BseIndiaAPI/api/Mkt_Deri_ArchiveSum_SearchProduct_beta/w"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
@@ -79,88 +85,64 @@ def fetch_bse_fo_data():
         "Origin": "https://www.bseindia.com",
     }
 
-    # Fetch last 45 calendar days (~30 trading days) to catch up on any gaps
-    end_dt   = datetime.now()
-    start_dt = end_dt - timedelta(days=45)
+    try:
+        resp = session.get(
+            f"{api_url}?product_type=ALL&dttime={dttime}&dttimeTo={dttimeTo}",
+            headers=headers,
+            impersonate="chrome",
+            timeout=30,
+        )
+        if resp.status_code != 200 or not resp.text.strip():
+            print(f"ERROR: BSE F&O SearchProduct returned {resp.status_code}")
+            return []
 
-    all_rows = []
-    current  = start_dt
+        data  = resp.json()
+        table = data.get("table") or data.get("Table") or []
+        print(f"BSE F&O SearchProduct: {len(table)} rows for {dttime}–{dttimeTo}")
 
-    while current <= end_dt:
-        if current.weekday() >= 5:          # skip weekends
-            current += timedelta(days=1)
-            continue
+        def _n(row, key):
+            v = row.get(key)
+            if v is None or v == "" or v == "-":
+                return 0.0
+            try:
+                return float(str(v).replace(",", ""))
+            except (ValueError, TypeError):
+                return 0.0
 
-        dttime = current.strftime("%m/%d/%Y")  # MktSummary uses MM/DD/YYYY
-        try:
-            resp = session.get(
-                f"{api_url}?dttime={dttime}",
-                headers=headers,
-                impersonate="chrome",
-                timeout=20,
-            )
-            if resp.status_code != 200 or not resp.text.strip():
-                current += timedelta(days=1)
-                continue
+        all_rows = []
+        for row in table:
+            try:
+                date_str = str(row.get("dt_tm", "")).strip()
+                if not date_str:
+                    continue
+                dt = datetime.strptime(date_str, "%d %b %Y")
 
-            data  = resp.json()
-            table = data.get("table1") or data.get("Table1") or []
-            if not table:
-                current += timedelta(days=1)
-                continue
+                fut_to       = _n(row, "turnover")
+                opt_notional = _n(row, "NotionalTurnover")
+                opt_prem     = _n(row, "PremTurnover")
+                contracts    = int(_n(row, "no_of_contracts"))
 
-            # Find the ALL/TOTAL summary row
-            total_row = None
-            for row in table:
-                if str(row.get("PRODUCT_TYPE", "")).strip().upper() == "ALL":
-                    total_row = row
-                    break
-            if not total_row:
-                for row in table:
-                    if "TOTAL" in str(row.get("TypeofInstrument", "")).upper():
-                        total_row = row
-                        break
+                if fut_to == 0 and opt_prem == 0:
+                    continue
 
-            if not total_row:
-                current += timedelta(days=1)
-                continue
+                all_rows.append({
+                    "date":                      dt.strftime("%d/%m/%Y"),
+                    "total_contracts":           contracts,
+                    "total_turnover":            round(fut_to + opt_notional, 2),
+                    "futures_turnover":          fut_to,
+                    "options_notional_turnover": opt_notional,
+                    "options_premium_turnover":  opt_prem,
+                })
+                print(f"  F&O {dt.strftime('%Y-%m-%d')}: fut={fut_to:.0f} Cr  opt_prem={opt_prem:.0f} Cr")
+            except Exception as e:
+                print(f"  F&O row parse error: {e} — row: {row}")
 
-            def _num(key):
-                v = total_row.get(key)
-                if v is None or v == "" or v == "-":
-                    return 0.0
-                try:
-                    return float(str(v).replace(",", ""))
-                except (ValueError, TypeError):
-                    return 0.0
+        print(f"BSE F&O rows extracted: {len(all_rows)}")
+        return all_rows
 
-            fut_to       = _num("Turnover")
-            opt_notional = _num("NotionalTurnover")
-            opt_prem     = _num("PREMTURNOVER")
-            contracts    = int(_num("no_of_contracts"))
-
-            # Skip holidays — BSE returns empty / zero data for non-trading days
-            if fut_to == 0 and opt_prem == 0:
-                current += timedelta(days=1)
-                continue
-
-            all_rows.append({
-                "date":                      current.strftime("%d/%m/%Y"),
-                "total_contracts":           contracts,
-                "total_turnover":            round(fut_to + opt_notional, 2),
-                "futures_turnover":          fut_to,
-                "options_notional_turnover": opt_notional,
-                "options_premium_turnover":  opt_prem,
-            })
-            print(f"  F&O {current.strftime('%Y-%m-%d')}: fut={fut_to:.0f} Cr  opt_prem={opt_prem:.0f} Cr")
-
-        except Exception as e:
-            print(f"  F&O API error for {current.strftime('%Y-%m-%d')}: {e}")
-
-        current += timedelta(days=1)
-
-    print(f"BSE F&O rows extracted: {len(all_rows)}")
-    return all_rows
+    except Exception as e:
+        print(f"ERROR: BSE F&O SearchProduct failed: {e}")
+        return []
 
 
 def fetch_bse_cash_data():
