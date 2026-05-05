@@ -694,6 +694,12 @@ def main():
 
     print(f"Parsed {len(new_parsed)} records from BSE")
 
+    # Known BSE trading holidays whose data must never enter the DB.
+    # Apr 3 = Eid al-Fitr 2026 (BSE API returned Mar 4 data by mistake).
+    # May 1 = Maharashtra Day 2026 (BSE API returned artifact F&O data).
+    BSE_HOLIDAY_EXCLUSIONS = {"2026-04-03", "2026-05-01"}
+    new_parsed = [r for r in new_parsed if r["date"] not in BSE_HOLIDAY_EXCLUSIONS]
+
     # Step 3: Supabase operations
     to_insert = new_parsed  # default
     if not SUPABASE_URL or not SUPABASE_KEY:
@@ -701,6 +707,13 @@ def main():
         supabase = None
     else:
         supabase = get_supabase_client()
+
+        # One-time cleanup: remove any previously inserted holiday records
+        for bad_date in BSE_HOLIDAY_EXCLUSIONS:
+            result = supabase.table("bse_daily").delete().eq("date", bad_date).execute()
+            if result.data:
+                print(f"Removed holiday record: {bad_date}")
+
         existing_dates = get_existing_dates(supabase)
         zero_fo_dates = fetch_zero_fo_dates(supabase)
         to_insert = [r for r in new_parsed
