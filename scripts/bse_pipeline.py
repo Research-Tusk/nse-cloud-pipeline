@@ -702,6 +702,7 @@ def main():
 
     # Step 3: Supabase operations
     to_insert = new_parsed  # default
+    holidays_deleted = 0
     if not SUPABASE_URL or not SUPABASE_KEY:
         print("WARNING: Supabase credentials not set. Writing local files only.")
         supabase = None
@@ -713,6 +714,7 @@ def main():
             result = supabase.table("bse_daily").delete().eq("date", bad_date).execute()
             if result.data:
                 print(f"Removed holiday record: {bad_date}")
+                holidays_deleted += 1
 
         existing_dates = get_existing_dates(supabase)
         zero_fo_dates = fetch_zero_fo_dates(supabase)
@@ -788,8 +790,8 @@ def main():
     print(f"Wrote {dash_data_dir / 'bse_dashboard_data.json'}")
     print(f"Wrote {dash_data_dir / 'bse_enriched_data.json'}")
 
-    # Summary
-    new_count_final = len(to_insert) if supabase else len(new_parsed)
+    # Summary — include holiday deletions so the workflow commits the cleaned JSON
+    new_count_final = (len(to_insert) if supabase else len(new_parsed)) + holidays_deleted
     print("\n" + "=" * 60)
     print(f"Pipeline complete.")
     print(f"  Latest date: {summary_obj.get('last_date', 'N/A')}")
