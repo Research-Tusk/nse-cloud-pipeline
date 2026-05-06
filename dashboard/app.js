@@ -2924,8 +2924,8 @@ async function downloadWeeklyReport() {
 // Self-contained IIFE — reads nse_live.json or bse_live.json depending on
 // currentExchange. Does NOT touch any existing variables/DOM outside #tab-live.
 (function() {
-  function liveJsonPath()   { return `/api/live?exchange=${currentExchange}&file=live`; }
-  function hourlyJsonPath() { return `/api/live?exchange=${currentExchange}&file=hourly`; }
+  function liveJsonPath()   { return `/data/${currentExchange}_live.json`; }
+  function hourlyJsonPath() { return `/data/${currentExchange}_live_hourly.json`; }
   const POLL_MS     = 5 * 60 * 1000;
   let   liveTimer   = null;
   let   liveChart   = null;
@@ -3187,15 +3187,15 @@ async function downloadWeeklyReport() {
     try {
       const bust = Date.now();
       const [nseRes, bseRes] = await Promise.all([
-        fetch(`/api/live?exchange=nse&file=live&t=${bust}`).catch(() => null),
-        fetch(`/api/live?exchange=bse&file=live&t=${bust}`).catch(() => null),
+        fetch(`/data/nse_live.json?t=${bust}`).catch(() => null),
+        fetch(`/data/bse_live.json?t=${bust}`).catch(() => null),
       ]);
       const nseData = (nseRes && nseRes.ok) ? await nseRes.json() : null;
       const bseData = (bseRes && bseRes.ok) ? await bseRes.json() : null;
 
       const [nseHourlyRes, bseHourlyRes] = await Promise.all([
-        fetch(`/api/live?exchange=nse&file=hourly&t=${bust}`).catch(() => null),
-        fetch(`/api/live?exchange=bse&file=hourly&t=${bust}`).catch(() => null),
+        fetch(`/data/nse_live_hourly.json?t=${bust}`).catch(() => null),
+        fetch(`/data/bse_live_hourly.json?t=${bust}`).catch(() => null),
       ]);
       const nseHourly = (nseHourlyRes && nseHourlyRes.ok) ? await nseHourlyRes.json() : null;
       const bseHourly = (bseHourlyRes && bseHourlyRes.ok) ? await bseHourlyRes.json() : null;

@@ -14,9 +14,15 @@
       ]
     },
     {
-      "source": "/data/nse_live.json",
+      "source": "/data/(nse|bse)_live.json",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=60, s-maxage=60, stale-while-revalidate=60" }
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/data/(nse|bse)_live_hourly.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
     },
     {
