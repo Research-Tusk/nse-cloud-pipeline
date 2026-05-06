@@ -8,6 +8,12 @@
   ],
   "headers": [
     {
+      "source": "/api/revenue",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=30, stale-while-revalidate=60" }
+      ]
+    },
+    {
       "source": "/api/live",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=30, stale-while-revalidate=60" }

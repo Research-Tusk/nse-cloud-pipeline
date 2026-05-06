@@ -179,7 +179,7 @@ function updateChartsForTheme() {
   }
 }
 
-initThemeToggle();
+// Theme toggle removed — light mode only
 
 // ========================
 // LOADING OVERLAY
@@ -431,6 +431,96 @@ function updateHeaderInfo() {
   if (cqSpan && DATA.summary) {
     cqSpan.textContent = DATA.summary.current_quarter;
   }
+}
+
+// ========================
+// LATEST REVENUE BANNER
+// ========================
+
+async function updateLatestRevBanner() {
+  const el = document.getElementById('latestRevBanner');
+  if (!el) return;
+
+  const bust = Date.now();
+  let nse = null, bse = null;
+
+  // 1. Try /api/revenue — fetches directly from NSE & BSE websites on demand
+  try {
+    const res = await fetch('/api/revenue?t=' + bust);
+    if (res.ok) {
+      const data = await res.json();
+      nse = data.nse;
+      bse = data.bse;
+    }
+  } catch(e) { /* fall through */ }
+
+  // 2. Fall back to /api/live (GitHub-hosted live JSON, updated every 5 min by Actions)
+  const needNse = !nse || !nse.has_data;
+  const needBse = !bse || !bse.has_data;
+  if (needNse || needBse) {
+    const [nseRes, bseRes] = await Promise.all([
+      needNse ? fetch('/api/live?exchange=nse&file=live&t=' + bust).catch(() => null) : null,
+      needBse ? fetch('/api/live?exchange=bse&file=live&t=' + bust).catch(() => null) : null,
+    ]);
+    if (needNse && nseRes && nseRes.ok) {
+      const d = await nseRes.json().catch(() => null);
+      if (d && d.revenue) nse = Object.assign({}, d.revenue, { source: d.revenue.source || 'github' });
+    }
+    if (needBse && bseRes && bseRes.ok) {
+      const d = await bseRes.json().catch(() => null);
+      if (d && d.revenue) bse = Object.assign({}, d.revenue, { source: d.revenue.source || 'github' });
+    }
+  }
+
+  // 3. Final fallback — latest completed day from historical dashboard JSON
+  const needNse2 = !nse || !nse.has_data;
+  const needBse2 = !bse || !bse.has_data;
+  if (needNse2 || needBse2) {
+    const [nseDash, bseDash] = await Promise.all([
+      needNse2 ? fetch('./data/nse_dashboard_data.json').then(r => r.json()).catch(() => null) : null,
+      needBse2 ? fetch('./data/bse_dashboard_data.json').then(r => r.json()).catch(() => null) : null,
+    ]);
+    function lastFromDash(data) {
+      if (!data) return null;
+      const daily = data.daily_all || data.daily;
+      if (!daily || !daily.length) return null;
+      const last = daily[daily.length - 1];
+      return { total_revenue: last.total_rev, trade_date: last.date, has_data: true, source: 'historical' };
+    }
+    if (needNse2) nse = lastFromDash(nseDash);
+    if (needBse2) bse = lastFromDash(bseDash);
+  }
+
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    let d;
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+      d = new Date(dateStr.slice(0, 10) + 'T00:00:00');
+    } else if (/^\d{2}\/\d{2}\/\d{2}$/.test(dateStr)) {
+      const parts = dateStr.split('/');
+      d = new Date('20' + parts[2] + '-' + parts[1] + '-' + parts[0] + 'T00:00:00');
+    } else { return dateStr; }
+    if (isNaN(d.getTime())) return dateStr;
+    return days[d.getDay()] + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function chip(label, info) {
+    if (!info) return '';
+    const isLive = info.source !== 'historical';
+    const liveTag = isLive ? '<span class="rev-banner-live">LIVE</span>' : '';
+    return '<span class="rev-banner-chip">' +
+      '<span class="rev-banner-label">' + label + '</span>' +
+      liveTag +
+      '<span class="rev-banner-value">₹ ' + Number(info.total_revenue).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Cr</span>' +
+      '<span class="rev-banner-date">' + formatDate(info.trade_date) + '</span>' +
+      '</span>';
+  }
+
+  const hasLive = (nse && nse.source !== 'historical') || (bse && bse.source !== 'historical');
+  const title = hasLive ? "Today's Revenue" : 'Latest Full Day Revenue';
+  el.innerHTML = '<span class="rev-banner-title">' + title + '</span>' + chip('NSE', nse) + chip('BSE', bse);
 }
 
 // ========================
@@ -2707,6 +2797,8 @@ async function init() {
   updateHeaderInfo();
   rebuildAll();
   hideLoading();
+  updateLatestRevBanner();
+  setInterval(updateLatestRevBanner, 5 * 60 * 1000);
   // Activate first tab
   const firstNavItem = document.querySelector('.nav-item[data-tab]');
   if (firstNavItem) firstNavItem.click();
