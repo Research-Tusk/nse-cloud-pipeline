@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-05-07T10:33:11",
+  "updated_at": "2026-05-07T12:18:40",
   "sensex": {
     "last": 77844.52,
     "change": -114.0,
@@ -8,27 +8,27 @@
     "open": 78339.24,
     "high": 78384.7,
     "low": 77713.21,
-    "datetime": "07 May 26 | 15:59",
+    "datetime": "07 May 26 | 16:00",
     "status": "Closed"
   },
   "market_stat": {
-    "market_cap_cr": 47502340.61,
+    "market_cap_cr": 47497885.46,
     "market_cap_usd_t": 5.01,
-    "turnover_cr": 11644.73,
+    "turnover_cr": 11649.41,
     "listed_companies": 5119,
-    "advances": 2735,
-    "declines": 1521,
-    "unchanged": 167
+    "advances": 2704,
+    "declines": 1572,
+    "unchanged": 147
   },
   "revenue": {
     "trade_date": "07/05/26",
-    "equity_turnover": 11770.53,
+    "equity_turnover": 11775.3,
     "derivatives_notional": 90878586.95,
     "options_premium": 76281.9,
-    "cash_revenue": 0.8828,
+    "cash_revenue": 0.8831,
     "options_revenue": 49.5832,
     "futures_revenue": 0.0,
-    "total_revenue": 50.466,
+    "total_revenue": 50.4664,
     "has_data": true,
     "source": "live"
   }
