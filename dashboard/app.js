@@ -3180,67 +3180,41 @@ async function downloadWeeklyReport() {
     }
   }
 
-  // ── Header revenue ticker (always visible, polls both exchanges) ──
-  async function updateHeaderTicker() {
+  // ── Header: previous day revenue (static, loaded once) ──
+  async function updateHeaderPrevDay() {
     const el = document.getElementById('header-live-rev');
     if (!el) return;
     try {
-      const bust = Date.now();
       const [nseRes, bseRes] = await Promise.all([
-        fetch(`/data/nse_live.json?t=${bust}`).catch(() => null),
-        fetch(`/data/bse_live.json?t=${bust}`).catch(() => null),
+        fetch('./data/nse_dashboard_data.json').catch(() => null),
+        fetch('./data/bse_dashboard_data.json').catch(() => null),
       ]);
-      const nseData = (nseRes && nseRes.ok) ? await nseRes.json() : null;
-      const bseData = (bseRes && bseRes.ok) ? await bseRes.json() : null;
+      const nseDash = (nseRes && nseRes.ok) ? await nseRes.json() : null;
+      const bseDash = (bseRes && bseRes.ok) ? await bseRes.json() : null;
 
-      const [nseHourlyRes, bseHourlyRes] = await Promise.all([
-        fetch(`/data/nse_live_hourly.json?t=${bust}`).catch(() => null),
-        fetch(`/data/bse_live_hourly.json?t=${bust}`).catch(() => null),
-      ]);
-      const nseHourly = (nseHourlyRes && nseHourlyRes.ok) ? await nseHourlyRes.json() : null;
-      const bseHourly = (bseHourlyRes && bseHourlyRes.ok) ? await bseHourlyRes.json() : null;
-
-      function lastPred(hourly) {
-        const snaps = hourly && hourly.snapshots;
-        if (!snaps || !snaps.length) return null;
-        const last = snaps[snaps.length - 1];
-        return (last.predicted_eod && Math.abs(last.predicted_eod - last.total_revenue) > 0.05)
-          ? last.predicted_eod : null;
+      function lastDay(dash) {
+        const daily = dash && (dash.daily || dash.daily_all);
+        return daily && daily.length ? daily[daily.length - 1] : null;
+      }
+      function fmtDate(s) {
+        if (!s) return '';
+        const d = new Date(s + 'T00:00:00');
+        return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+      }
+      function chip(label, day) {
+        if (!day || day.total_rev == null) return '';
+        const wrap = inner => `<span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:3px;border:1px solid var(--color-border);background:var(--color-surface-solid)">${inner}</span>`;
+        const lbl = `<span style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--color-text-muted);letter-spacing:.06em">${label}</span>`;
+        const val = `<span style="font-weight:700;color:var(--color-text);font-variant-numeric:tabular-nums">${_cr(day.total_rev)}</span>`;
+        const dt  = `<span style="font-size:9px;color:var(--color-text-faint)">${fmtDate(day.date)}</span>`;
+        return wrap(`${lbl} ${val} ${dt}`);
       }
 
-      const nseRev  = nseData && nseData.revenue && nseData.revenue.has_data ? nseData.revenue.total_revenue : null;
-      const bseRev  = bseData && bseData.revenue && bseData.revenue.has_data ? bseData.revenue.total_revenue : null;
-
-      function chip(label, rev, pred) {
-        if (rev == null) return '';
-        const wrap = inner => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:3px;border:1px solid var(--color-border);background:var(--color-surface-solid)">${inner}</span>`;
-        const lbl  = `<span style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--color-text-muted);letter-spacing:.06em">${label}</span>`;
-        const predStr = pred ? ` <span style="color:var(--color-text-muted)">→ ${_cr(pred)}</span>` : '';
-        return wrap(`${lbl} <span style="font-weight:700;color:var(--color-text);font-variant-numeric:tabular-nums">${_cr(rev)}</span>${predStr}`);
-      }
-
-      el.innerHTML = chip('NSE', nseRev, lastPred(nseHourly))
-                   + chip('BSE', bseRev, lastPred(bseHourly));
-
-      // Update "Last Updated" span with live data timestamp
-      const updatedAt = (nseData && nseData.updated_at) || (bseData && bseData.updated_at);
-      if (updatedAt) {
-        const span = document.getElementById('lastUpdatedSpan');
-        if (span) {
-          const d = new Date(updatedAt + 'Z'); // UTC
-          const IST = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
-          const hh  = String(IST.getUTCHours()).padStart(2, '0');
-          const mm  = String(IST.getUTCMinutes()).padStart(2, '0');
-          const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-          span.textContent = `Live as of ${IST.getUTCDate()} ${months[IST.getUTCMonth()]} ${hh}:${mm} IST`;
-        }
-      }
+      el.innerHTML = chip('NSE', lastDay(nseDash)) + chip('BSE', lastDay(bseDash));
     } catch(e) { /* silent */ }
   }
 
-  // Kick off ticker immediately and refresh every 5 min
-  updateHeaderTicker();
-  setInterval(updateHeaderTicker, 5 * 60 * 1000);
+  updateHeaderPrevDay();
 
   // ── Event delegation: start/stop polling when live tab is activated ──
   document.addEventListener('click', function(e) {
