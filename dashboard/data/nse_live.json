@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-05-14T11:23:52",
+  "updated_at": "2026-05-14T12:21:30",
   "market_status": {
     "marketState": [
       {
@@ -14,13 +14,13 @@
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "14-May-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -34,27 +34,27 @@
       },
       {
         "market": "Debt",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "14-May-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "14-May-2026",
         "index": "",
-        "last": "95.7250",
+        "last": "95.7825",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "26-May-2026",
         "underlying": "USDINR",
-        "updated_time": "14-May-2026 16:52",
-        "tradeDateFormatted": "14-May-2026 16:52",
+        "updated_time": "14-May-2026 17:00",
+        "tradeDateFormatted": "14-May-2026 17:00",
         "slickclass": "slick-item"
       }
     ],
@@ -87,11 +87,11 @@
       "EXPIRYDATE": "26-May-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 23720,
-      "DAYCHANGE": -9,
-      "PERCHANGE": -0.04,
-      "CONTRACTSTRADED": 62952,
-      "TIMESTMP": "14-May-2026 16:51"
+      "LASTPRICE": 23729,
+      "DAYCHANGE": 0,
+      "PERCHANGE": 0,
+      "CONTRACTSTRADED": 63246,
+      "TIMESTMP": "14-May-2026 17:49"
     }
   },
   "revenue": {
