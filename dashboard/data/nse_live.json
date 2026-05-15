@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-05-15T11:35:23",
+  "updated_at": "2026-05-15T12:27:42",
   "market_status": {
     "marketState": [
       {
@@ -34,13 +34,13 @@
       },
       {
         "market": "Debt",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "15-May-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "currencyfuture",
@@ -87,11 +87,11 @@
       "EXPIRYDATE": "26-May-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 23718.5,
-      "DAYCHANGE": 56.5,
-      "PERCHANGE": 0.24,
-      "CONTRACTSTRADED": 58062,
-      "TIMESTMP": "15-May-2026 17:02"
+      "LASTPRICE": 23678.5,
+      "DAYCHANGE": 16.5,
+      "PERCHANGE": 0.07,
+      "CONTRACTSTRADED": 58484,
+      "TIMESTMP": "15-May-2026 17:55"
     }
   },
   "revenue": {
