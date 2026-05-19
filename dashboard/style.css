@@ -1388,194 +1388,6 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 }
 
 /* =========================
-   TERMINAL GRID — REVENUE SUMMARY
-   ========================= */
-
-#revTerminalView {
-  padding: var(--space-2) var(--space-3) var(--space-5);
-  overflow-x: auto;
-}
-
-.xt-table {
-  border-collapse: collapse;
-  font-size: 12px;
-  width: 100%;
-  min-width: 560px;
-  table-layout: fixed;
-  border: 1px solid var(--color-border);
-}
-
-/* 20% period + 4 × (11% val + 9% chg) = 100% */
-.xt-c-period { width: 20%; }
-.xt-c-val    { width: 11%; }
-.xt-c-chg    { width:  9%; }
-
-/* Segment column headers */
-.xt-header-row th {
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 7px 10px 6px;
-  text-align: center;
-  border-right: 1px solid rgba(255,255,255,0.12);
-}
-
-.xt-header-row th:last-child { border-right: none; }
-
-.xt-th-period { text-align: left !important; }
-
-/* Separator before Options, Futures, Cash headers */
-.xt-header-row th:nth-child(n+3) {
-  border-left: 2px solid rgba(255,255,255,0.22);
-  border-right: none;
-}
-
-.xt-unit {
-  display: block;
-  font-size: 9px;
-  font-weight: 400;
-  opacity: 0.7;
-  letter-spacing: 0.01em;
-  margin-top: 2px;
-  text-transform: none;
-}
-
-/* Sub-header row */
-.xt-subhdr-row th {
-  background: #f0f2f5;
-  color: var(--color-text-faint);
-  font-size: 10px;
-  font-weight: 600;
-  padding: 3px 8px;
-  text-align: right;
-  border-bottom: 2px solid var(--color-border);
-  white-space: nowrap;
-}
-
-/* Left border before Options ₹, Futures ₹, Cash ₹ */
-.xt-subhdr-row th:nth-child(2n+1):not(:first-child) {
-  border-left: 2px solid var(--color-border);
-}
-
-/* Section header rows */
-.xt-sec-hdr td {
-  background: #e9ecf0;
-  color: var(--color-text-secondary);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.xt-sec-note {
-  font-size: 9.5px;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  opacity: 0.6;
-  text-transform: none;
-  margin-left: 8px;
-}
-
-/* Data rows */
-.xt-table td {
-  padding: 4px 8px;
-  border-bottom: 1px solid #eef0f3;
-  white-space: nowrap;
-  vertical-align: middle;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--color-text);
-}
-
-.xt-table td:first-child {
-  color: var(--color-text-secondary);
-  font-size: 11.5px;
-}
-
-/* Right-align all value / change columns */
-.xt-table td:nth-child(n+2) {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Segment separators on data rows (before Options, Futures, Cash value cols) */
-.xt-table tbody td:nth-child(4),
-.xt-table tbody td:nth-child(6),
-.xt-table tbody td:nth-child(8) {
-  border-left: 2px solid var(--color-border);
-}
-
-/* Current period row */
-.xt-table tr.xt-cur {
-  background: rgba(37, 99, 235, 0.04);
-}
-
-.xt-table tr.xt-cur td:first-child {
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-/* Avg 6M row */
-.xt-avg-row td:first-child {
-  color: var(--color-text-faint) !important;
-  font-style: italic;
-  font-size: 11px !important;
-}
-
-/* Faint labels (Prev 5 Days, Last 50 Days) */
-.xt-label-sec {
-  color: var(--color-text-faint) !important;
-}
-
-/* Day name */
-.xt-table td.xt-day {
-  font-weight: 600;
-  color: var(--color-text) !important;
-}
-
-/* Per-row select */
-.xt-sel {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--color-text);
-  background: transparent;
-  border: none;
-  padding: 0 14px 0 0;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%23aaa' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 1px center;
-  background-size: 8px 5px;
-  cursor: pointer;
-  width: 100%;
-  max-width: 100%;
-  outline: none;
-}
-
-.xt-sel:hover { color: var(--color-primary); }
-.xt-cur .xt-sel { font-weight: 600; }
-
-/* Cell-level % change highlight */
-.xt-table td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
-.xt-table td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
-
-/* Hover rows — preserve change cell colors */
-.xt-table tbody tr:hover:not(.xt-sec-hdr) td { background: var(--color-bg-elevated); }
-.xt-table tbody tr:hover td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
-.xt-table tbody tr:hover td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
-
-/* Dark mode */
-[data-theme="dark"] .xt-subhdr-row th { background: var(--color-bg-elevated); }
-[data-theme="dark"] .xt-sec-hdr td   { background: var(--color-bg-elevated); }
-
-/* =========================
    REVENUE SUMMARY (legacy — kept for reference)
    ========================= */
 
@@ -2459,16 +2271,19 @@ span.pr-neg {
     font-size: 14px !important;
   }
 
-  /* ── Terminal Grid Revenue Summary: compact on mobile ── */
-  #revTerminalView {
-    padding: var(--space-1) var(--space-1) var(--space-4);
+  /* ── Excel-style Revenue Summary: two-panel scrolls on mobile ── */
+  #revExcelView {
+    padding: var(--space-2) var(--space-2) var(--space-5);
+    gap: 12px;
   }
 
-  .xt-table {
-    font-size: 11px;
+  .xl-period-bar {
+    flex-direction: column;
+    gap: var(--space-2);
   }
 
-  .xt-c-period { width: 120px; }
-  .xt-c-val    { width: 58px; }
-  .xt-c-chg    { width: 48px; }
+  .xl-main-row {
+    overflow-x: scroll;
+    -webkit-overflow-scrolling: touch;
+  }
 }
