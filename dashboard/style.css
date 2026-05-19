@@ -1264,8 +1264,8 @@ span.neutral {
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 402px;
+  min-width: 402px;
 }
 
 /* Section header rows (e.g. "Financial Year", "Quarter") */
