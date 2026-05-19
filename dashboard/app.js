@@ -674,253 +674,176 @@ function getM6mAvg(mIdx, segKey) {
   return cnt > 0 ? sum / cnt : null;
 }
 
-// ── Per-row render functions ──────────────────────────────────────────────────
-// % change shown on each comparison row = (row0 - rowN) / rowN
-// i.e. "current period is X% vs this row"
+// ── Terminal Grid Revenue Summary ─────────────────────────────────────────────
 
-function renderFYRow(rowNum, fyStr, segKey) {
-  const cur   = getFYAvg(fyStr, segKey);
-  const valEl = document.getElementById('xlFYVal' + rowNum + '-' + segKey);
-  const chgEl = document.getElementById('xlFYChg' + rowNum + '-' + segKey);
-  if (valEl) valEl.innerHTML = xlVal(cur?.value);
-  if (chgEl) {
-    if (rowNum === 0) { chgEl.innerHTML = ''; return; }
-    const ref = getFYAvg(document.getElementById('xlFY0-' + segKey)?.value, segKey);
-    chgEl.innerHTML = xlChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
-  }
-}
+let XT_SEG_DATA = {};
+const XT_SEGS = ['total', 'options', 'futures', 'cash'];
+const XT_SEG_LABELS = { total: 'Total', options: 'Options', futures: 'Futures', cash: 'Cash' };
 
-function renderQRow(rowNum, qIdx, segKey) {
-  const cur   = getQAvg(qIdx, segKey);
-  const valEl = document.getElementById('xlQVal' + rowNum + '-' + segKey);
-  const chgEl = document.getElementById('xlQChg' + rowNum + '-' + segKey);
-  if (valEl) valEl.innerHTML = xlVal(cur?.value);
-  if (chgEl) {
-    if (rowNum === 0) { chgEl.innerHTML = ''; return; }
-    const ref = getQAvg(parseInt(document.getElementById('xlQ0-' + segKey)?.value), segKey);
-    chgEl.innerHTML = xlChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
-  }
-}
+function xtRenderCells(section, rowKey, segKey) {
+  const valEl = document.getElementById(`xt-${section}-val-${rowKey}-${segKey}`);
+  const chgEl = document.getElementById(`xt-${section}-chg-${rowKey}-${segKey}`);
+  if (!valEl) return;
 
-function renderMRow(rowNum, mIdx, segKey) {
-  const cur   = getMAvg(mIdx, segKey);
-  const valEl = document.getElementById('xlMVal' + rowNum + '-' + segKey);
-  const chgEl = document.getElementById('xlMChg' + rowNum + '-' + segKey);
-  if (valEl) valEl.innerHTML = xlVal(cur?.value);
-  if (chgEl) {
-    if (rowNum === 0) {
-      chgEl.innerHTML = '';
-      // Recompute Avg 6M (always anchored to row 0's month)
-      const avg = getM6mAvg(mIdx, segKey);
-      const avgValEl = document.getElementById('xlMAvgVal-' + segKey);
-      const avgChgEl = document.getElementById('xlMAvgChg-' + segKey);
-      if (avgValEl) avgValEl.innerHTML = xlVal(avg);
-      if (avgChgEl) avgChgEl.innerHTML = xlChg(avg && cur ? (cur.value - avg) / avg : null);
-      return;
+  let val = null, chg = null;
+
+  if (section === 'fy') {
+    const sel0 = document.getElementById('xt-fy-sel-0');
+    const selN = document.getElementById('xt-fy-sel-' + rowKey);
+    const cur  = getFYAvg(selN?.value, segKey);
+    const ref  = rowKey === 0 ? null : getFYAvg(sel0?.value, segKey);
+    val = cur?.value;
+    chg = ref && cur ? (ref.value - cur.value) / cur.value : null;
+
+  } else if (section === 'q') {
+    const sel0 = document.getElementById('xt-q-sel-0');
+    const selN = document.getElementById('xt-q-sel-' + rowKey);
+    const cur  = getQAvg(parseInt(selN?.value), segKey);
+    const ref  = rowKey === 0 ? null : getQAvg(parseInt(sel0?.value), segKey);
+    val = cur?.value;
+    chg = ref && cur ? (ref.value - cur.value) / cur.value : null;
+
+  } else if (section === 'm') {
+    if (rowKey === 'avg') {
+      const mIdx0 = parseInt(document.getElementById('xt-m-sel-0')?.value);
+      const cur   = getMAvg(mIdx0, segKey);
+      const avg   = getM6mAvg(mIdx0, segKey);
+      val = avg;
+      chg = cur && avg ? (cur.value - avg) / avg : null;
+    } else {
+      const sel0 = document.getElementById('xt-m-sel-0');
+      const selN = document.getElementById('xt-m-sel-' + rowKey);
+      const cur  = getMAvg(parseInt(selN?.value), segKey);
+      const ref  = rowKey === 0 ? null : getMAvg(parseInt(sel0?.value), segKey);
+      val = cur?.value;
+      chg = ref && cur ? (ref.value - cur.value) / cur.value : null;
     }
-    const ref = getMAvg(parseInt(document.getElementById('xlM0-' + segKey)?.value), segKey);
-    chgEl.innerHTML = xlChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
+
+  } else if (section === 'w') {
+    const sd = XT_SEG_DATA[segKey];
+    if (!sd?.weekly) { valEl.innerHTML = xlVal(null); if (chgEl) chgEl.innerHTML = ''; return; }
+    const wArr = [sd.weekly.last5, sd.weekly.prev5, sd.weekly.last50];
+    val = wArr[rowKey]?.value;
+    chg = rowKey === 0 ? null : rowKey === 1 ? sd.weekly.last5.wow : sd.weekly.last5.wo10w;
+
+  } else if (section === 'dow') {
+    const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const sd = XT_SEG_DATA[segKey];
+    if (!sd?.day_of_week) { valEl.innerHTML = xlVal(null); if (chgEl) chgEl.innerHTML = ''; return; }
+    const dd = sd.day_of_week[dayFull[rowKey]] || {};
+    val = dd.latest;
+    chg = dd.do3d;
   }
+
+  valEl.innerHTML = xlVal(val);
+  if (chgEl) chgEl.innerHTML = chg != null ? xlChg(chg) : '';
 }
 
-// ── Cross-segment sync functions ──────────────────────────────────────────────
-const XL_SEGS = ['total', 'options', 'futures', 'cash'];
-
-function syncXLFY(rowNum, fyStr) {
-  XL_SEGS.forEach(sk => {
-    const sel = document.getElementById('xlFY' + rowNum + '-' + sk);
-    if (sel && sel.value !== fyStr) sel.value = fyStr;
-    renderFYRow(rowNum, fyStr, sk);
-    if (rowNum === 0) renderFYRow(1, document.getElementById('xlFY1-' + sk)?.value, sk);
-  });
-}
-
-function syncXLQ(rowNum, qIdx) {
-  XL_SEGS.forEach(sk => {
-    const sel = document.getElementById('xlQ' + rowNum + '-' + sk);
-    if (sel && parseInt(sel.value) !== qIdx) sel.value = qIdx;
-    renderQRow(rowNum, qIdx, sk);
-    if (rowNum === 0) {
-      [1, 2, 3].forEach(r => {
-        const ri = parseInt(document.getElementById('xlQ' + r + '-' + sk)?.value);
-        if (!isNaN(ri)) renderQRow(r, ri, sk);
-      });
-    }
-  });
-}
-
-function syncXLM(rowNum, mIdx) {
-  XL_SEGS.forEach(sk => {
-    const sel = document.getElementById('xlM' + rowNum + '-' + sk);
-    if (sel && parseInt(sel.value) !== mIdx) sel.value = mIdx;
-    renderMRow(rowNum, mIdx, sk);
-    if (rowNum === 0) {
-      const r1 = parseInt(document.getElementById('xlM1-' + sk)?.value);
-      if (!isNaN(r1)) renderMRow(1, r1, sk);
-    }
-  });
-}
-
-// ── Segment block template ────────────────────────────────────────────────────
-function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
-  const s   = segData;
-  const wl5 = s.weekly.last5;
-  const wp5 = s.weekly.prev5;
-  const w50 = s.weekly.last50;
-  const dow = s.day_of_week;
-  const pw  = s.previous_week || {};
-  const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
-  const wRows = [
-    `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>`,
-    `<tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td></td><td></td></tr>`,
-    `<tr><td>Last 50 Days</td><td>${xlVal(w50.value)}</td><td></td><td></td></tr>`,
-  ].join('');
-
-  const dowRows = dayFull.map((d) => {
-    const dd = dow[d] || {};
-    const pwVal = pw[d];
-    return `<tr>
-      <td class="xl-day">${d}</td>
-      <td>${xlVal(dd.latest)}</td>
-      <td>${xlVal(dd.avg_3d)}</td>
-      <td>${xlChg(dd.do3d)}</td>
-      <td>${xlVal(dd.avg_10d)}</td>
-      <td>${xlChg(dd.do10d)}</td>
-      <td class="xl-prev-wk">${pwVal != null ? xlVal(pwVal) : '<span class="xl-num">—</span>'}</td>
-    </tr>`;
-  }).join('');
-
-  const mkSel = (id, opts) => `<select class="xl-row-sel" id="${id}">${opts}</select>`;
-
-  // FY: 2 independently selectable rows
-  const fyRows = [0, 1].map(r => `
-    <tr${r === 0 ? ' class="xl-r-cur"' : ''}>
-      <td>${mkSel('xlFY' + r + '-' + segKey, fyOpts)}</td>
-      <td id="xlFYVal${r}-${segKey}"></td>
-      <td id="xlFYChg${r}-${segKey}"></td>
-      <td></td>
-    </tr>`).join('');
-
-  // Quarter: 4 independently selectable rows (current, prev1, prev2, same-Q last year)
-  const qRows = [0, 1, 2, 3].map(r => `
-    <tr${r === 0 ? ' class="xl-r-cur"' : ''}>
-      <td>${mkSel('xlQ' + r + '-' + segKey, qOpts)}</td>
-      <td id="xlQVal${r}-${segKey}"></td>
-      <td id="xlQChg${r}-${segKey}"></td>
-      <td></td>
-    </tr>`).join('');
-
-  // Month: 2 selectable rows + 1 static Avg 6M row
-  const mRows = [0, 1].map(r => `
-    <tr${r === 0 ? ' class="xl-r-cur"' : ''}>
-      <td>${mkSel('xlM' + r + '-' + segKey, mOpts)}</td>
-      <td id="xlMVal${r}-${segKey}"></td>
-      <td id="xlMChg${r}-${segKey}"></td>
-      <td></td>
-    </tr>`).join('') + `
-    <tr>
-      <td style="color:var(--color-text-secondary);font-size:11.5px">Avg 6 Months</td>
-      <td id="xlMAvgVal-${segKey}"></td>
-      <td id="xlMAvgChg-${segKey}"></td>
-      <td></td>
-    </tr>`;
-
-  return `
-    <div class="xl-segment">
-      <div class="xl-seg-header">${label} <span class="xl-seg-unit">₹ Cr · daily avg</span></div>
-      <div class="xl-main-row">
-
-        <table class="xl-period-table">
-          <colgroup>
-            <col class="xl-col-period">
-            <col class="xl-col-val">
-            <col class="xl-col-chg1">
-            <col class="xl-col-chg2">
-          </colgroup>
-
-          <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Financial Year</td></tr>
-            <tr class="xl-col-hdr"><td>Year</td><td>Value</td><td>% chg</td><td></td></tr>
-            ${fyRows}
-          </tbody>
-
-          <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Quarter</td></tr>
-            <tr class="xl-col-hdr"><td>Quarter</td><td>Value</td><td>% chg</td><td></td></tr>
-            ${qRows}
-          </tbody>
-
-          <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Month</td></tr>
-            <tr class="xl-col-hdr"><td>Month</td><td>Value</td><td>% chg</td><td></td></tr>
-            ${mRows}
-          </tbody>
-
-          <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Week</td></tr>
-            <tr class="xl-col-hdr"><td>Period</td><td>Value</td><td>WoW</td><td>Wo10W</td></tr>
-            ${wRows}
-          </tbody>
-        </table>
-
-        <table class="xl-dow-table">
-          <thead>
-            <tr class="xl-sec-hdr"><td colspan="7">Day of Week</td></tr>
-            <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td></tr>
-          </thead>
-          <tbody>${dowRows}</tbody>
-        </table>
-
-      </div>
-    </div>`;
+function xtRefreshSection(section, changedRow) {
+  const allRows = { fy: [0, 1], q: [0, 1, 2, 3], m: [0, 1, 'avg'] };
+  const rows    = allRows[section] || [];
+  (changedRow === 0 ? rows : [changedRow]).forEach(r =>
+    XT_SEGS.forEach(sk => xtRenderCells(section, r, sk))
+  );
 }
 
 function buildRevenueSummary() {
   const ed = ENRICHED_DATA;
   if (!ed || !ed.summary_total) return;
 
-  // Build option lists (no pre-selected — set via JS after render)
+  XT_SEG_DATA = {
+    total:   ed.summary_total,
+    options: ed.seg_options   || {},
+    futures: ed.seg_futures   || {},
+    cash:    ed.seg_cash      || {},
+  };
+
   const fySet = [];
   DATA.quarterly.forEach(q => {
     const m = q.quarter.match(/FY \d{4}/);
     if (m && !fySet.includes(m[0])) fySet.push(m[0]);
   });
-  fySet.reverse(); // newest first
+  fySet.reverse();
   const fyOpts = fySet.map(fy => `<option value="${fy}">${fy}</option>`).join('');
 
   const allQ  = DATA.quarterly;
   const nQ    = allQ.length;
-  const qOpts = [...allQ].reverse().map((q, ri) => {
-    const idx = nQ - 1 - ri;
-    return `<option value="${idx}">${q.quarter}</option>`;
-  }).join('');
+  const qOpts = [...allQ].reverse().map((q, ri) =>
+    `<option value="${nQ - 1 - ri}">${q.quarter}</option>`
+  ).join('');
 
   const allM  = DATA.monthly;
   const nM    = allM.length;
-  const mOpts = [...allM].reverse().map((m, ri) => {
-    const idx = nM - 1 - ri;
-    return `<option value="${idx}">${m.month}</option>`;
-  }).join('');
+  const mOpts = [...allM].reverse().map((m, ri) =>
+    `<option value="${nM - 1 - ri}">${m.month}</option>`
+  ).join('');
 
-  // Render each segment into its own sub-tab container
-  [
-    { key: 'total',   data: ed.summary_total, label: 'Total Revenue' },
-    { key: 'options', data: ed.seg_options,   label: 'Options Revenue' },
-    { key: 'futures', data: ed.seg_futures,   label: 'Futures Revenue' },
-    { key: 'cash',    data: ed.seg_cash,      label: 'Cash Revenue' },
-  ].forEach(({ key, data, label }) => {
-    const el = document.getElementById('subtab-rev-' + key);
-    if (el) el.innerHTML = xlSegmentBlock(data, label, key, fyOpts, qOpts, mOpts);
-  });
+  const mkSel    = (id, opts) => `<select class="xt-sel" id="${id}">${opts}</select>`;
+  const segCells = (sec, rk)  => XT_SEGS.map(sk =>
+    `<td id="xt-${sec}-val-${rk}-${sk}"></td><td id="xt-${sec}-chg-${rk}-${sk}"></td>`
+  ).join('');
 
-  // Default row values
+  const fyHtml = [0, 1].map(r => `
+    <tr${r === 0 ? ' class="xt-cur"' : ''}>
+      <td>${mkSel('xt-fy-sel-' + r, fyOpts)}</td>${segCells('fy', r)}</tr>`).join('');
+
+  const qHtml = [0, 1, 2, 3].map(r => `
+    <tr${r === 0 ? ' class="xt-cur"' : ''}>
+      <td>${mkSel('xt-q-sel-' + r, qOpts)}</td>${segCells('q', r)}</tr>`).join('');
+
+  const mHtml = [0, 1].map(r => `
+    <tr${r === 0 ? ' class="xt-cur"' : ''}>
+      <td>${mkSel('xt-m-sel-' + r, mOpts)}</td>${segCells('m', r)}</tr>`).join('')
+    + `<tr class="xt-avg-row"><td class="xt-label-sec">Avg 6 Months</td>${segCells('m', 'avg')}</tr>`;
+
+  const wLabels = ['Last 5 Days', 'Prev 5 Days', 'Last 50 Days'];
+  const wHtml = [0, 1, 2].map(r => `
+    <tr${r === 0 ? ' class="xt-cur"' : ''}>
+      <td${r > 0 ? ' class="xt-label-sec"' : ''}>${wLabels[r]}</td>${segCells('w', r)}</tr>`).join('');
+
+  const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const dowHtml = dayFull.map((d, i) => `
+    <tr><td class="xt-day">${d}</td>${segCells('dow', i)}</tr>`).join('');
+
+  const hdrCols = XT_SEGS.map(sk => `<th colspan="2">${XT_SEG_LABELS[sk]}</th>`).join('');
+  const subCols = XT_SEGS.map(() => `<th>₹ Cr/day</th><th>%</th>`).join('');
+
+  const container = document.getElementById('revTerminalView');
+  if (!container) return;
+
+  container.innerHTML = `
+    <table class="xt-table">
+      <colgroup>
+        <col class="xt-c-period">
+        ${XT_SEGS.map(() => '<col class="xt-c-val"><col class="xt-c-chg">').join('')}
+      </colgroup>
+      <thead>
+        <tr class="xt-header-row">
+          <th rowspan="2" class="xt-th-period">Period<span class="xt-unit">₹ Cr · daily avg</span></th>
+          ${hdrCols}
+        </tr>
+        <tr class="xt-subhdr-row">${subCols}</tr>
+      </thead>
+      <tbody>
+        <tr class="xt-sec-hdr"><td colspan="9">ANNUAL</td></tr>
+        ${fyHtml}
+        <tr class="xt-sec-hdr"><td colspan="9">QUARTERLY</td></tr>
+        ${qHtml}
+        <tr class="xt-sec-hdr"><td colspan="9">MONTHLY</td></tr>
+        ${mHtml}
+        <tr class="xt-sec-hdr"><td colspan="9">WEEKLY</td></tr>
+        ${wHtml}
+        <tr class="xt-sec-hdr"><td colspan="9">DAY OF WEEK <span class="xt-sec-note">latest · Do3D</span></td></tr>
+        ${dowHtml}
+      </tbody>
+    </table>`;
+
+  // Default selections
   const defFY0 = fySet[0] || 'FY 2027';
   const defFY1 = fySet[1] || 'FY 2026';
   const defQ0  = nQ - 1;
   const defQ1  = Math.max(0, nQ - 2);
   const defQ2  = Math.max(0, nQ - 3);
-  // Same Q number as current, one year earlier
   const curQNum = (allQ[defQ0]?.quarter || '').match(/^Q(\d)/)?.[1];
   let defQ3 = Math.max(0, nQ - 5);
   if (curQNum) {
@@ -931,38 +854,34 @@ function buildRevenueSummary() {
   const defM0 = nM - 1;
   const defM1 = Math.max(0, nM - 2);
 
-  // Set select values then render data
-  XL_SEGS.forEach(sk => {
-    document.getElementById('xlFY0-' + sk).value = defFY0;
-    document.getElementById('xlFY1-' + sk).value = defFY1;
-    document.getElementById('xlQ0-'  + sk).value = defQ0;
-    document.getElementById('xlQ1-'  + sk).value = defQ1;
-    document.getElementById('xlQ2-'  + sk).value = defQ2;
-    document.getElementById('xlQ3-'  + sk).value = defQ3;
-    document.getElementById('xlM0-'  + sk).value = defM0;
-    document.getElementById('xlM1-'  + sk).value = defM1;
-
-    renderFYRow(0, defFY0, sk); renderFYRow(1, defFY1, sk);
-    [defQ0, defQ1, defQ2, defQ3].forEach((qi, r) => renderQRow(r, qi, sk));
-    renderMRow(0, defM0, sk); renderMRow(1, defM1, sk);
-
-    // Wire event listeners
-    [0, 1].forEach(r => {
-      document.getElementById('xlFY' + r + '-' + sk).addEventListener('change', function() {
-        syncXLFY(r, this.value);
-      });
-    });
-    [0, 1, 2, 3].forEach(r => {
-      document.getElementById('xlQ' + r + '-' + sk).addEventListener('change', function() {
-        syncXLQ(r, parseInt(this.value));
-      });
-    });
-    [0, 1].forEach(r => {
-      document.getElementById('xlM' + r + '-' + sk).addEventListener('change', function() {
-        syncXLM(r, parseInt(this.value));
-      });
-    });
+  document.getElementById('xt-fy-sel-0').value = defFY0;
+  document.getElementById('xt-fy-sel-1').value = defFY1;
+  [defQ0, defQ1, defQ2, defQ3].forEach((qi, r) => {
+    document.getElementById('xt-q-sel-' + r).value = qi;
   });
+  document.getElementById('xt-m-sel-0').value = defM0;
+  document.getElementById('xt-m-sel-1').value = defM1;
+
+  // Render all cells
+  [0, 1].forEach(r         => XT_SEGS.forEach(sk => xtRenderCells('fy',  r,  sk)));
+  [0, 1, 2, 3].forEach(r   => XT_SEGS.forEach(sk => xtRenderCells('q',   r,  sk)));
+  [0, 1, 'avg'].forEach(r  => XT_SEGS.forEach(sk => xtRenderCells('m',   r,  sk)));
+  [0, 1, 2].forEach(r      => XT_SEGS.forEach(sk => xtRenderCells('w',   r,  sk)));
+  [0, 1, 2, 3, 4].forEach(r => XT_SEGS.forEach(sk => xtRenderCells('dow', r, sk)));
+
+  // Event listeners
+  [0, 1].forEach(r =>
+    document.getElementById('xt-fy-sel-' + r)
+      .addEventListener('change', () => xtRefreshSection('fy', r))
+  );
+  [0, 1, 2, 3].forEach(r =>
+    document.getElementById('xt-q-sel-' + r)
+      .addEventListener('change', () => xtRefreshSection('q', r))
+  );
+  [0, 1].forEach(r =>
+    document.getElementById('xt-m-sel-' + r)
+      .addEventListener('change', () => xtRefreshSection('m', r))
+  );
 }
 
 
