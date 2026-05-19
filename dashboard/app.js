@@ -15,13 +15,13 @@ const charts = {};
 // UTILITIES
 // ========================
 
-function fmt(num, decimals = 2) {
+function fmt(num, decimals = 1) {
   if (num == null || isNaN(num)) return '—';
   const n = Number(num);
   return '₹ ' + n.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' Cr';
 }
 
-function fmtNum(num, decimals = 2) {
+function fmtNum(num, decimals = 1) {
   if (num == null || isNaN(num)) return '—';
   return Number(num).toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
@@ -29,20 +29,20 @@ function fmtNum(num, decimals = 2) {
 function fmtPct(num) {
   if (num == null || isNaN(num)) return '—';
   const pct = (Number(num) * 100).toFixed(1);
-  return pct + '%';
+  return pct + ' %';
 }
 
 function fmtPctRaw(num) {
   if (num == null || isNaN(num)) return '—';
-  return Number(num).toFixed(1) + '%';
+  return Number(num).toFixed(1) + ' %';
 }
 
 function fmtPctSigned(val) {
   if (val == null || isNaN(val)) return '<span class="neutral">—</span>';
-  const pct = (Number(val) * 100).toFixed(1);
-  const sign = val > 0 ? '+' : '';
+  const abs = Math.abs(Number(val) * 100).toFixed(1);
+  const sign = val > 0.001 ? '+' : val < -0.001 ? '−' : '';
   const cls = val > 0.001 ? 'positive' : val < -0.001 ? 'negative' : 'neutral';
-  return `<span class="${cls}">${sign}${pct}%</span>`;
+  return `<span class="${cls}">${sign}${abs} %</span>`;
 }
 
 function deltaClass(val) {
@@ -53,9 +53,9 @@ function deltaClass(val) {
 
 function deltaStr(val) {
   if (val == null || isNaN(val)) return '';
-  const pct = (val * 100).toFixed(1);
+  const abs = Math.abs(val * 100).toFixed(1);
   const arrow = val > 0 ? '▲' : val < 0 ? '▼' : '—';
-  return arrow + ' ' + Math.abs(pct) + '%';
+  return abs + ' % ' + arrow;
 }
 
 function fmtPrice(num) {
@@ -64,10 +64,21 @@ function fmtPrice(num) {
 }
 
 // ========================
-// CHART COLORS — Apple Palette
+// CHART COLORS — from CSS tokens
 // ========================
 
-const CHART_COLORS = ['#2997ff', '#ff6b6b', '#30d158', '#bf5af2', '#ff9f0a', '#64d2ff'];
+function getChartColors() {
+  const s = getComputedStyle(document.documentElement);
+  return [
+    s.getPropertyValue('--chart-1').trim(),
+    s.getPropertyValue('--chart-2').trim(),
+    s.getPropertyValue('--chart-3').trim(),
+    s.getPropertyValue('--chart-4').trim(),
+    s.getPropertyValue('--chart-5').trim(),
+    s.getPropertyValue('--chart-6').trim(),
+  ];
+}
+const CHART_COLORS = ['#2563EB', '#C0392B', '#16A34A', '#7C3AED', '#D97706', '#0891B2'];
 const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', system-ui, sans-serif";
 
 function getTheme() {
@@ -2992,7 +3003,7 @@ async function downloadWeeklyReport() {
             <tr><td>Bull (${bullPE}x)</td><td>${pt(nseEPS, bullPE)}</td><td>${pt(bseEPS, bullPE)}</td></tr>
           </tbody>
         </table>
-        <p class="pr-summary" style="font-size:8px;color:#888;margin-top:4px">EPS annualised from latest predicted quarter. PE multiples are indicative estimates.</p>
+        <p class="pr-summary" style="font-size:8px;color:var(--color-text-muted);margin-top:4px">EPS annualised from latest predicted quarter. PE multiples are indicative estimates.</p>
       </div>
     </div>`;
   }
@@ -3095,8 +3106,8 @@ async function downloadWeeklyReport() {
 
     // pill helper
     const pill = open =>
-      open ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(48,209,88,.12);color:#30d158;border:1px solid rgba(48,209,88,.25)"><span style="width:5px;height:5px;border-radius:50%;background:#30d158;display:inline-block;animation:pulse 1.5s infinite"></span>OPEN</span>'
-           : '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(120,120,120,.08);color:#666;border:1px solid rgba(120,120,120,.2)"><span style="width:5px;height:5px;border-radius:50%;background:#555;display:inline-block"></span>CLOSED</span>';
+      open ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:var(--color-positive-bg);color:var(--color-positive);border:1px solid var(--color-positive)"><span style="width:5px;height:5px;border-radius:50%;background:var(--color-positive);display:inline-block;animation:pulse 1.5s infinite"></span>OPEN</span>'
+           : '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:var(--color-bg-elevated);color:var(--color-text-muted);border:1px solid var(--color-border)"><span style="width:5px;height:5px;border-radius:50%;background:var(--color-text-faint);display:inline-block"></span>CLOSED</span>';
 
     // revenue segment card
     const segCard = (label, revVal, color) => `
@@ -3113,9 +3124,9 @@ async function downloadWeeklyReport() {
       return `<tr style="${isLast ? 'font-weight:600' : ''}">
         <td style="padding:4px 8px;font-variant-numeric:tabular-nums">${s.hour_label}</td>
         <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums">${s.has_data ? _cr(s.total_revenue) : '—'}</td>
-        <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#60a5fa">${s.has_data ? _cr(s.futures_revenue) : '—'}</td>
-        <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#a78bfa">${s.has_data ? _cr(s.options_revenue) : '—'}</td>
-        <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#34d399">${s.has_data ? _cr(s.cash_revenue) : '—'}</td>
+        <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:var(--chart-1)">${s.has_data ? _cr(s.futures_revenue) : '—'}</td>
+        <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:var(--chart-4)">${s.has_data ? _cr(s.options_revenue) : '—'}</td>
+        <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:var(--chart-3)">${s.has_data ? _cr(s.cash_revenue) : '—'}</td>
         <td style="padding:4px 8px;text-align:right;font-variant-numeric:tabular-nums;color:var(--color-text-muted)">${showPred ? _cr(s.predicted_eod) : '—'}</td>
       </tr>`;
     }).join('');
@@ -3146,17 +3157,17 @@ async function downloadWeeklyReport() {
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           ${isBSE ? `
             ${sensex.last ? `<span style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">${_num(sensex.last, 1)}</span>` : ''}
-            ${sensex.pct_change != null ? `<span style="font-size:12px;font-weight:600;color:${sensexUp ? '#30d158' : '#ff453a'}">${sensexUp ? '▲' : '▼'}${Math.abs(sensex.pct_change).toFixed(1)}%</span>` : ''}
+            ${sensex.pct_change != null ? `<span style="font-size:12px;font-weight:600;color:${sensexUp ? 'var(--color-positive)' : 'var(--color-negative)'}">${sensexUp ? '▲' : '▼'}${Math.abs(sensex.pct_change).toFixed(1)} %</span>` : ''}
             ${sensex.status ? pill(sensex.status === 'Open') : ''}
             ${stat.market_cap_cr ? `<span style="font-size:11px;color:var(--color-text-muted)">Mkt Cap ₹${(+stat.market_cap_cr / 1e5).toFixed(1)} L Cr · $${stat.market_cap_usd_t}T</span>` : ''}
-            ${stat.advances != null ? `<span style="font-size:11px;color:var(--color-text-muted)"><span style="color:#30d158">${stat.advances}▲</span> <span style="color:#ff453a">${stat.declines}▼</span></span>` : ''}
+            ${stat.advances != null ? `<span style="font-size:11px;color:var(--color-text-muted)"><span style="color:var(--color-positive)">${stat.advances} ▲</span> <span style="color:var(--color-negative)">${stat.declines} ▼</span></span>` : ''}
           ` : `
             ${nifty.last != null ? `
               <span style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">${_num(nifty.last, 1)}</span>
-              <span style="font-size:12px;font-weight:600;color:${niftyUp ? '#30d158' : '#ff453a'}">${niftyUp ? '▲' : '▼'}${Math.abs(+nifty.percentChange).toFixed(1)}%</span>
+              <span style="font-size:12px;font-weight:600;color:${niftyUp ? 'var(--color-positive)' : 'var(--color-negative)'}">${niftyUp ? '▲' : '▼'}${Math.abs(+nifty.percentChange).toFixed(1)} %</span>
               ${pill(String(nifty.marketStatus).toLowerCase() === 'open')}
             ` : ''}
-            ${gift.LASTPRICE ? `<span style="font-size:11px;color:var(--color-text-muted)">GIFT ${_num(gift.LASTPRICE, 0)} <span style="color:${giftUp ? '#30d158' : '#ff453a'}">${giftUp ? '▲' : '▼'}${Math.abs(+gift.PERCHANGE).toFixed(1)}%</span></span>` : ''}
+            ${gift.LASTPRICE ? `<span style="font-size:11px;color:var(--color-text-muted)">GIFT ${_num(gift.LASTPRICE, 0)} <span style="color:${giftUp ? 'var(--color-positive)' : 'var(--color-negative)'}">${giftUp ? '▲' : '▼'}${Math.abs(+gift.PERCHANGE).toFixed(1)} %</span></span>` : ''}
             ${mktcap.marketCapinLACCRRupeesFormatted ? `<span style="font-size:11px;color:var(--color-text-muted)">Mkt Cap ₹${mktcap.marketCapinLACCRRupeesFormatted} L Cr</span>` : ''}
           `}
         </div>
@@ -3199,9 +3210,9 @@ async function downloadWeeklyReport() {
               <thead><tr>
                 <th style="text-align:left">Hour (IST)</th>
                 <th style="text-align:right">Revenue</th>
-                <th style="text-align:right;color:#60a5fa">Futures</th>
-                <th style="text-align:right;color:#a78bfa">Options</th>
-                <th style="text-align:right;color:#34d399">Cash</th>
+                <th style="text-align:right;color:var(--chart-1)">Futures</th>
+                <th style="text-align:right;color:var(--chart-4)">Options</th>
+                <th style="text-align:right;color:var(--chart-3)">Cash</th>
                 <th style="text-align:right;color:var(--text-secondary)">Pred. EOD</th>
               </tr></thead>
               <tbody>${hourlyRows}</tbody>
