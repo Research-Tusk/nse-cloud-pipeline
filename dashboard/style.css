@@ -1249,35 +1249,36 @@ span.neutral {
 /* LEFT: all time-period sections stacked in one table */
 .xl-period-table {
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
   table-layout: fixed;
-  flex-shrink: 0;
+  width: 324px;          /* must match sum of col widths: 130+64+56+74 */
+  flex: 0 0 324px;       /* never grow or shrink */
   border-right: 2px solid var(--color-border);
 }
 
-.xl-col-period { width: 140px; }
-.xl-col-val    { width: 66px; }
+.xl-col-period { width: 130px; }
+.xl-col-val    { width: 64px; }
 .xl-col-chg1   { width: 56px; }
-.xl-col-chg2   { width: 62px; }
+.xl-col-chg2   { width: 74px; }
 
 /* RIGHT: day-of-week table */
 .xl-dow-table {
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
   table-layout: fixed;
-  flex: 1 1 374px;
-  min-width: 374px;
+  width: 374px;          /* must match sum of col widths */
+  flex: 0 0 374px;       /* fixed — don't grow/shrink */
 }
 
 /* Section header rows (e.g. "Financial Year", "Quarter") */
 .xl-sec-hdr td {
   background: #e8eaed;
   color: var(--color-text-muted);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  padding: 5px 9px 4px;
+  padding: 4px 8px 3px;
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
 }
@@ -1290,9 +1291,9 @@ span.neutral {
 .xl-col-hdr td {
   background: #f4f5f7;
   color: var(--color-text-faint);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  padding: 3px 9px;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
@@ -1303,7 +1304,7 @@ span.neutral {
 /* Data rows */
 .xl-period-table td,
 .xl-dow-table td {
-  padding: 5px 9px;
+  padding: 4px 8px;
   white-space: nowrap;
   vertical-align: middle;
   color: var(--color-text);
