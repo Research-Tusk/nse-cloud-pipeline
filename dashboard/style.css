@@ -142,6 +142,18 @@
   --color-error:          #C0392B;
   --color-warning:        #D97706;
 
+  /* Guideline aliases (§3.1 semantic tokens) */
+  --color-positive:       #1B7D2E;
+  --color-positive-bg:    rgba(27, 125, 46, 0.08);
+  --color-negative:       #C0392B;
+  --color-negative-bg:    rgba(192, 57, 43, 0.06);
+  --color-warning-bg:     rgba(217, 119, 6, 0.08);
+  --color-info:           #2563EB;
+  --color-info-bg:        rgba(37, 99, 235, 0.06);
+  --color-bg-elevated:    #F0F2F5;
+  --color-bg-card:        #FFFFFF;
+  --color-text-secondary: #555555;
+
   /* Section header tokens */
   --color-header-bg:      #8B1C1C;
   --color-header-text:    #FFFFFF;
