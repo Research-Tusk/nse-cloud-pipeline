@@ -769,7 +769,6 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const w50 = s.weekly.last50;
   const dow = s.day_of_week;
   const pw  = s.previous_week || {};
-  const dayAbbr = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
   const wRows = [
@@ -778,11 +777,11 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
     `<tr><td>Last 50 Days</td><td>${xlVal(w50.value)}</td><td></td><td></td></tr>`,
   ].join('');
 
-  const dowRows = dayFull.map((d, i) => {
+  const dowRows = dayFull.map((d) => {
     const dd = dow[d] || {};
     const pwVal = pw[d];
     return `<tr>
-      <td class="xl-day">${dayAbbr[i]}</td>
+      <td class="xl-day">${d}</td>
       <td>${xlVal(dd.latest)}</td>
       <td>${xlVal(dd.avg_3d)}</td>
       <td>${xlChg(dd.do3d)}</td>
@@ -866,15 +865,6 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
         </table>
 
         <table class="xl-dow-table">
-          <colgroup>
-            <col style="width:42px">
-            <col style="width:64px">
-            <col style="width:64px">
-            <col style="width:60px">
-            <col style="width:64px">
-            <col style="width:60px">
-            <col style="width:64px">
-          </colgroup>
           <thead>
             <tr class="xl-sec-hdr"><td colspan="7">Day of Week</td></tr>
             <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td></tr>

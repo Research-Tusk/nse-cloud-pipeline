@@ -1240,28 +1240,29 @@ span.neutral {
   overflow-x: auto;
 }
 
-/* LEFT: all time-period sections stacked in one table */
+/* LEFT: period sections — fixed 37% of content width */
 .xl-period-table {
   border-collapse: collapse;
   font-size: 12px;
   table-layout: fixed;
-  width: 352px;          /* 155+70+62+65 */
-  flex: 0 0 352px;
+  width: 37%;           /* % of flex container; fixed via flex-basis */
+  flex: 0 0 37%;
   border-right: 2px solid var(--color-border);
 }
 
-.xl-col-period { width: 155px; }
-.xl-col-val    { width: 70px; }
-.xl-col-chg1   { width: 62px; }
-.xl-col-chg2   { width: 65px; }
+/* Colgroup widths as % of the period table */
+.xl-col-period { width: 44%; }
+.xl-col-val    { width: 20%; }
+.xl-col-chg1   { width: 18%; }
+.xl-col-chg2   { width: 18%; }
 
-/* RIGHT: day-of-week table */
+/* RIGHT: DoW — fills remaining 63%, auto column widths from content */
 .xl-dow-table {
   border-collapse: collapse;
   font-size: 12px;
-  table-layout: fixed;
-  width: 418px;          /* 42+64+64+60+64+60+64 */
-  flex: 0 0 418px;
+  table-layout: auto;   /* columns size to content, then expand to fill */
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* Section header rows (e.g. "Financial Year", "Quarter") */
@@ -1327,10 +1328,12 @@ span.neutral {
   font-variant-numeric: tabular-nums;
 }
 
-/* Day abbrev in DoW table */
+/* Full day name in DoW table */
 td.xl-day {
   font-weight: 600;
   color: var(--color-text) !important;
+  white-space: nowrap;
+  min-width: 86px; /* fits "Wednesday" at 12px */
 }
 
 /* Prev-week column separator */
