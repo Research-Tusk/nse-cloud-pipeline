@@ -772,13 +772,13 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
 
         <table class="xl-dow-table">
           <colgroup>
-            <col style="width:38px">
-            <col style="width:62px">
-            <col style="width:62px">
+            <col style="width:34px">
             <col style="width:58px">
-            <col style="width:62px">
             <col style="width:58px">
-            <col style="width:62px">
+            <col style="width:54px">
+            <col style="width:58px">
+            <col style="width:54px">
+            <col style="width:58px">
           </colgroup>
           <thead>
             <tr class="xl-sec-hdr"><td colspan="7">Day of Week</td></tr>
@@ -824,12 +824,7 @@ function updateXLM(mIdx) {
 
 function buildRevenueSummary() {
   const ed = ENRICHED_DATA;
-  const container = document.getElementById('revExcelView');
-  if (!container) return;
-  if (!ed || !ed.summary_total) {
-    container.innerHTML = '<p style="padding:20px;color:var(--color-text-muted)">Loading…</p>';
-    return;
-  }
+  if (!ed || !ed.summary_total) return;
 
   // Build FY option list
   const fySet = [];
@@ -855,21 +850,25 @@ function buildRevenueSummary() {
     return `<option value="${idx}"${idx === defaultMIdx ? ' selected' : ''}>${m.month}</option>`;
   }).join('');
 
-  container.innerHTML = [
-    xlSegmentBlock(ed.summary_total, 'Total Revenue',   'total',   fyOpts, qOpts, mOpts),
-    xlSegmentBlock(ed.seg_options,   'Options Revenue', 'options', fyOpts, qOpts, mOpts),
-    xlSegmentBlock(ed.seg_futures,   'Futures Revenue', 'futures', fyOpts, qOpts, mOpts),
-    xlSegmentBlock(ed.seg_cash,      'Cash Revenue',    'cash',    fyOpts, qOpts, mOpts),
-  ].join('');
+  // Render each segment into its own sub-tab container
+  const segments = [
+    { key: 'total',   data: ed.summary_total, label: 'Total Revenue' },
+    { key: 'options', data: ed.seg_options,   label: 'Options Revenue' },
+    { key: 'futures', data: ed.seg_futures,   label: 'Futures Revenue' },
+    { key: 'cash',    data: ed.seg_cash,      label: 'Cash Revenue' },
+  ];
+  segments.forEach(({ key, data, label }) => {
+    const el = document.getElementById('subtab-rev-' + key);
+    if (el) el.innerHTML = xlSegmentBlock(data, label, key, fyOpts, qOpts, mOpts);
+  });
 
   // Initial data population
   updateXLFY(defaultFY);
   updateXLQ(defaultQIdx);
   updateXLM(defaultMIdx);
 
-  // Wire up all selects — each independently controls its section across all segments
-  const segs = ['total', 'options', 'futures', 'cash'];
-  segs.forEach(sk => {
+  // Wire up all selects — each type syncs across all 4 segment blocks
+  ['total', 'options', 'futures', 'cash'].forEach(sk => {
     document.getElementById('xlSelFY-' + sk).addEventListener('change', function() {
       updateXLFY(this.value);
     });

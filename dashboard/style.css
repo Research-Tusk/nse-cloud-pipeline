@@ -1175,11 +1175,12 @@ span.neutral {
    EXCEL-STYLE REVENUE SUMMARY
    ========================= */
 
-#revExcelView {
-  padding: var(--space-3) var(--space-3) var(--space-6);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+/* Each sub-tab holds one segment block */
+#subtab-rev-total,
+#subtab-rev-options,
+#subtab-rev-futures,
+#subtab-rev-cash {
+  padding: var(--space-3) var(--space-2) var(--space-6);
 }
 
 /* Inline period select — right-side cell in section header row */
@@ -1254,18 +1255,18 @@ span.neutral {
   border-right: 2px solid var(--color-border);
 }
 
-.xl-col-period { width: 148px; }
-.xl-col-val    { width: 70px; }
-.xl-col-chg1   { width: 62px; }
-.xl-col-chg2   { width: 72px; }
+.xl-col-period { width: 140px; }
+.xl-col-val    { width: 66px; }
+.xl-col-chg1   { width: 56px; }
+.xl-col-chg2   { width: 62px; }
 
 /* RIGHT: day-of-week table */
 .xl-dow-table {
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
-  flex: 1 1 402px;
-  min-width: 402px;
+  flex: 1 1 374px;
+  min-width: 374px;
 }
 
 /* Section header rows (e.g. "Financial Year", "Quarter") */
