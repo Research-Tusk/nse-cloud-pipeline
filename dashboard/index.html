@@ -64,8 +64,6 @@
       <h1 class="header-title" id="headerTitle">Revenue Summary</h1>
     </div>
     <div class="header-right">
-      <button class="btn-download-pdf" id="downloadPdfBtn" onclick="downloadWeeklyReport()">&#11015; Download Report</button>
-      <div id="header-live-rev" style="display:flex;align-items:center;gap:12px;font-size:11px;font-family:var(--font-body)"></div>
       <div class="header-meta">
         <span id="currentQuarterSpan">Q4 FY 2026</span>
         <span style="color:var(--color-text-faint)">|</span>
@@ -271,82 +269,6 @@
       </div>
     </section>
 
-    <!-- ===================== TAB 3: EXECUTIVE SUMMARY ===================== -->
-    <section class="tab-content" id="tab-executive">
-      <div class="kpi-grid" id="kpiGrid"></div>
-      <div class="chart-grid chart-grid-2">
-        <div class="chart-panel">
-          <div class="chart-title">Revenue by Segment <span class="chart-badge" id="donutQuarterLabel">Q4 FY 2026</span></div>
-          <div class="chart-wrapper" style="max-width:280px;margin:0 auto">
-            <canvas id="chartDonut"></canvas>
-          </div>
-        </div>
-        <div class="chart-panel">
-          <div class="chart-title" id="execChartTitle2">Quarterly Revenue Trend</div>
-          <div class="chart-wrapper"><canvas id="chartExecQuarterlyRev"></canvas></div>
-        </div>
-      </div>
-      <!-- NSE exec extras -->
-      <div id="nseExecExtras">
-        <div class="chart-grid" style="grid-template-columns:1fr">
-          <div class="chart-panel">
-            <div class="chart-title">Weekly Revenue <span class="chart-badge">Last 15 weeks</span></div>
-            <div class="chart-wrapper"><canvas id="chartWeeklyRev"></canvas></div>
-          </div>
-        </div>
-      </div>
-      <!-- BSE exec extras -->
-      <div id="bseExecExtras" style="display:none">
-        <div class="chart-grid" style="grid-template-columns:1fr">
-          <div class="chart-panel">
-            <div class="chart-title">Daily Revenue with 10-day MA</div>
-            <div class="chart-wrapper"><canvas id="chartExecDailyMA"></canvas></div>
-          </div>
-        </div>
-        <div class="chart-panel" style="margin-top:var(--space-4)">
-          <div class="chart-title">Summary</div>
-          <div style="overflow-x:auto">
-            <table class="data-table" id="tableExecSummary"></table>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- BSE-only tabs that share tab-content sections via display toggling -->
-    <!-- TAB: Weekly Analysis (BSE) — uses tab-executive area or a separate hidden section -->
-    <section class="tab-content" id="tab-weekly">
-      <div class="chart-grid chart-grid-2">
-        <div class="chart-panel">
-          <div class="chart-title">Weekly Revenue <span class="chart-badge">Last 20 Weeks</span></div>
-          <div class="chart-wrapper"><canvas id="chartBseWeeklyRev"></canvas></div>
-        </div>
-        <div class="chart-panel">
-          <div class="chart-title">Day-of-Week Revenue</div>
-          <div class="chart-wrapper"><canvas id="chartBseDOW"></canvas></div>
-        </div>
-      </div>
-      <div class="chart-grid chart-grid-2" style="margin-top:var(--space-4)">
-        <div class="chart-panel">
-          <div class="chart-title">Weekly Averages</div>
-          <div style="overflow-x:auto">
-            <table class="data-table" id="tableBseWeeklyAvg"></table>
-          </div>
-        </div>
-        <div class="chart-panel">
-          <div class="chart-title">Day-of-Week Analysis</div>
-          <div style="overflow-x:auto">
-            <table class="data-table" id="tableBseDOW"></table>
-          </div>
-        </div>
-      </div>
-      <div class="chart-panel" style="margin-top:var(--space-4)">
-        <div class="chart-title">Previous Week Breakdown</div>
-        <div style="overflow-x:auto">
-          <table class="data-table" id="tableBsePrevWeek"></table>
-        </div>
-      </div>
-    </section>
-
     <!-- TAB: Share Analytics (BSE only) -->
     <section class="tab-content" id="tab-share">
       <div id="bse-share-inner" style="padding:4px 0">
@@ -356,19 +278,9 @@
       </div>
     </section>
 
-    <section class="tab-content" id="tab-live">
-      <div id="live-inner" style="padding:4px 0">
-        <div class="chart-panel" style="text-align:center;padding:40px;color:var(--text-secondary)">
-          <div style="font-size:14px;font-weight:600;margin-bottom:8px">Loading live data…</div>
-          <div style="font-size:12px;opacity:.6">Fetching nse_live.json</div>
-        </div>
-      </div>
-    </section>
-
   </main>
 </div>
 
-<div id="print-report" style="display:none"></div>
 <script src="./app.js"></script>
 </body>
 </html>
