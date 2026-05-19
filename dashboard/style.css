@@ -1254,134 +1254,128 @@ span.neutral {
   font-size: 10px;
 }
 
-.xl-tables-row {
+/* ── Two-panel row: period table LEFT | DoW table RIGHT ── */
+.xl-main-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: flex-start;
   overflow-x: auto;
 }
 
-/* Each mini-table */
-.xl-table {
+/* LEFT: all time-period sections stacked in one table */
+.xl-period-table {
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 0;
+  table-layout: fixed;
   flex-shrink: 0;
-  border-right: 1px solid var(--color-border);
+  border-right: 2px solid var(--color-border);
 }
 
-.xl-table:last-child {
-  border-right: none;
+.xl-col-period { width: 162px; }
+.xl-col-val    { width: 80px; }
+.xl-col-chg1   { width: 76px; }
+.xl-col-chg2   { width: 90px; }
+
+/* RIGHT: day-of-week table */
+.xl-dow-table {
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
   flex: 1;
-  min-width: 300px;
+  min-width: 400px;
 }
 
-/* Fixed widths per table type — ensures columns align across all 4 segments */
-.xl-table-fy  { width: 272px; }
-.xl-table-q   { width: 272px; }
-.xl-table-m   { width: 272px; }
-.xl-table-w   { width: 272px; }
-.xl-table-dow { width: auto; flex: 1; min-width: 380px; }
-
-/* Section label row (e.g. "Financial Year") */
-.xl-table thead tr:first-child th {
-  background: #f0f2f5;
+/* Section header rows (e.g. "Financial Year", "Quarter") */
+.xl-sec-hdr td {
+  background: #e8eaed;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  padding: 6px 12px 5px;
-  text-align: left;
+  padding: 5px 12px 4px;
+  border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
 }
 
-/* Column headers row */
-.xl-table thead .xl-col-hdr th {
-  background: #f7f8fa;
+.xl-sec:first-child .xl-sec-hdr td {
+  border-top: none;
+}
+
+/* Column header rows (Period | Value | QoQ ...) */
+.xl-col-hdr td {
+  background: #f4f5f7;
   color: var(--color-text-faint);
   font-size: 11px;
   font-weight: 600;
-  padding: 4px 12px;
+  padding: 3px 12px;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
-  text-align: left;
 }
 
-/* Right-align numeric column headers to match cell alignment */
-.xl-table thead .xl-col-hdr th:nth-child(2),
-.xl-table thead .xl-col-hdr th:nth-child(3),
-.xl-table thead .xl-col-hdr th:nth-child(4),
-.xl-table thead .xl-col-hdr th:nth-child(5),
-.xl-table thead .xl-col-hdr th:nth-child(6),
-.xl-table thead .xl-col-hdr th:nth-child(7) {
-  text-align: right;
-}
+/* Right-align all numeric column headers */
+.xl-col-hdr td:nth-child(n+2) { text-align: right; }
 
-.xl-table tbody tr {
-  border-bottom: 1px solid #eef0f3;
-}
-
-.xl-table tbody tr:last-child {
-  border-bottom: none;
-}
-
-.xl-table tbody tr.xl-r-cur {
-  background: rgba(37, 99, 235, 0.03);
-}
-
-.xl-table tbody tr.xl-r-cur td {
-  font-weight: 600;
-}
-
-.xl-table td {
-  padding: 6px 12px;
+/* Data rows */
+.xl-period-table td,
+.xl-dow-table td {
+  padding: 5px 12px;
   white-space: nowrap;
   vertical-align: middle;
   color: var(--color-text);
+  border-bottom: 1px solid #eef0f3;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.xl-table td:first-child {
+/* Last row in each data tbody: no bottom border */
+.xl-sec-data tr:last-child td,
+.xl-dow-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Period label column */
+.xl-period-table td:first-child,
+.xl-dow-table td:first-child {
   color: var(--color-text-secondary);
   font-size: 12px;
-  min-width: 130px;
 }
 
-.xl-table td:nth-child(2) {
+/* Value / change columns — right-aligned */
+.xl-period-table td:nth-child(n+2),
+.xl-dow-table td:nth-child(n+2) {
   text-align: right;
-  min-width: 68px;
   font-variant-numeric: tabular-nums;
 }
 
-.xl-table td:nth-child(3),
-.xl-table td:nth-child(4),
-.xl-table td:nth-child(5),
-.xl-table td:nth-child(6),
-.xl-table td:nth-child(7) {
-  text-align: right;
-  min-width: 60px;
-}
-
-/* Cell-level background highlight for direct % change cells */
-.xl-table td:has(> .xl-chg.xl-pos) {
-  background: var(--color-positive-bg);
-}
-.xl-table td:has(> .xl-chg.xl-neg) {
-  background: var(--color-negative-bg);
-}
-
-/* Day-of-week table specifics */
-.xl-table-dow td.xl-day {
+/* Day abbrev in DoW table */
+td.xl-day {
   font-weight: 600;
-  color: var(--color-text);
-  min-width: 34px;
+  color: var(--color-text) !important;
 }
 
-.xl-table-dow td.xl-prev-wk {
+/* Prev-week column separator */
+td.xl-prev-wk {
   border-left: 1px solid var(--color-border);
   color: var(--color-text-faint);
 }
+
+/* Current period row */
+tr.xl-r-cur td { font-weight: 600; }
+tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
+
+/* Cell-level background for direct % change cells */
+.xl-period-table td:has(> .xl-chg.xl-pos),
+.xl-dow-table   td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
+.xl-period-table td:has(> .xl-chg.xl-neg),
+.xl-dow-table   td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
+
+/* Hover */
+.xl-period-table tbody tr:hover td,
+.xl-dow-table tbody tr:hover td { background: var(--color-bg-elevated); }
+.xl-period-table tbody tr:hover td:has(> .xl-chg.xl-pos),
+.xl-dow-table   tbody tr:hover td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
+.xl-period-table tbody tr:hover td:has(> .xl-chg.xl-neg),
+.xl-dow-table   tbody tr:hover td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
 
 /* Number spans */
 .xl-num {
@@ -1389,19 +1383,18 @@ span.neutral {
   letter-spacing: -0.01em;
 }
 
-/* Change text inside highlighted cells */
+/* Change badge */
 .xl-chg {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
 }
-
 .xl-chg.xl-pos { color: var(--color-positive); }
 .xl-chg.xl-neg { color: var(--color-negative); }
 .xl-chg.xl-neu { color: var(--color-text-faint); }
 
-/* Inline secondary tag (e.g. "YoY +5 %") — no cell highlight, just text */
+/* Secondary context tag — no cell highlight */
 .xl-tag {
   display: inline-flex;
   align-items: center;
@@ -1409,18 +1402,6 @@ span.neutral {
   font-size: 11px;
   color: var(--color-text-faint);
   font-weight: 500;
-}
-
-/* Hover row highlight */
-.xl-table tbody tr:hover {
-  background: var(--color-bg-elevated);
-}
-/* Preserve cell bg over hover for change cells */
-.xl-table tbody tr:hover td:has(> .xl-chg.xl-pos) {
-  background: var(--color-positive-bg);
-}
-.xl-table tbody tr:hover td:has(> .xl-chg.xl-neg) {
-  background: var(--color-negative-bg);
 }
 
 /* =========================
@@ -2307,24 +2288,19 @@ span.pr-neg {
     font-size: 14px !important;
   }
 
-  /* ── Excel-style Revenue Summary: stack segment tables on mobile ── */
+  /* ── Excel-style Revenue Summary: two-panel scrolls on mobile ── */
   #revExcelView {
     padding: var(--space-2) var(--space-2) var(--space-5);
     gap: 12px;
   }
 
-  .xl-tables-row {
+  .xl-period-bar {
     flex-direction: column;
+    gap: var(--space-2);
   }
 
-  .xl-table {
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
-    width: 100%;
-  }
-
-  .xl-table:last-child {
-    border-bottom: none;
-    min-width: unset;
+  .xl-main-row {
+    overflow-x: scroll;
+    -webkit-overflow-scrolling: touch;
   }
 }
