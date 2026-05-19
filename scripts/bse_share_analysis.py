@@ -30,6 +30,7 @@ OUTPUT_FILE     = REPO_ROOT / "dashboard" / "data" / "bse_share_analysis.json"
 REGRESSION_START = "2024-11-01"
 MA_WINDOWS       = [20, 30, 45, 50, 60, 90]
 PREFERRED_MA     = 45
+FIXED_MA         = 45   # always use this window regardless of R²
 
 
 # ---------------------------------------------------------------------------
@@ -197,14 +198,10 @@ def main():
         marker = " ← preferred" if window == PREFERRED_MA else ""
         print(f"  MA{window:2d}: R²={r2:.4f}  r={pearson_r:.4f}  n={len(reg)}{marker}")
 
-    # Pick best R²
-    best_window = max(window_results, key=lambda w: window_results[w]["r2"])
+    # Use fixed 45-day MA
+    best_window = FIXED_MA
     best        = window_results[best_window]
-    print(
-        f"\nSelected MA{best_window} (R²={best['r2']:.4f}"
-        + (f", preferred=MA{PREFERRED_MA}" if best_window != PREFERRED_MA else ", = preferred MA")
-        + ")"
-    )
+    print(f"\nUsing MA{best_window} (R²={best['r2']:.4f})")
 
     # ── Build full series with best window ──
     mas = rolling_ma(revenues, best_window)
