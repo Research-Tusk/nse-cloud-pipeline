@@ -1880,131 +1880,48 @@ function buildBSEMonthlyAnalysis() {
 // BSE SHARE ANALYTICS
 // ========================
 
-function buildBSEShareAnalysis() {
-  const el = document.getElementById('bse-share-inner');
-  if (!el) return;
-
-  if (!SHARE_DATA) {
-    el.innerHTML = `<div class="chart-panel" style="text-align:center;padding:48px;color:var(--color-text-muted)">
-      <div style="font-size:14px;font-weight:600;margin-bottom:8px">Share analytics data not available</div>
-      <div style="font-size:12px">Run scripts/bse_share_analysis.py to generate bse_share_analysis.json</div>
-    </div>`;
-    return;
+function filterShareSeries(ser, range, regStart) {
+  const last = new Date(ser[ser.length - 1].date);
+  let cutoff;
+  const d = new Date(last);
+  switch (range) {
+    case '1m':      d.setMonth(d.getMonth() - 1);      cutoff = d.toISOString().slice(0, 10); break;
+    case '3m':      d.setMonth(d.getMonth() - 3);      cutoff = d.toISOString().slice(0, 10); break;
+    case '6m':      d.setMonth(d.getMonth() - 6);      cutoff = d.toISOString().slice(0, 10); break;
+    case '1y':      d.setFullYear(d.getFullYear() - 1); cutoff = d.toISOString().slice(0, 10); break;
+    case '2y':      d.setFullYear(d.getFullYear() - 2); cutoff = d.toISOString().slice(0, 10); break;
+    case 'nov2024':
+    default:        cutoff = regStart;
   }
+  return ser.filter(r => r.date >= cutoff);
+}
 
-  const reg  = SHARE_DATA.regression;
-  const lat  = SHARE_DATA.latest;
-  const ser  = SHARE_DATA.series || [];
-  const r2pct = Math.round(reg.r_squared * 100);
-  const errSign = lat.price_pred > lat.price_actual ? '+' : '';
-  const errDiff = lat.price_pred - lat.price_actual;
+function buildBSECharts(viewSer, reg, maWin) {
+  ['bseSharePrice', 'bseRevMA50', 'bseRevMaVsPrice', 'bseRatioSD', 'bseShareScatter'].forEach(k => {
+    if (charts[k]) { charts[k].destroy(); charts[k] = null; }
+  });
+  if (!viewSer.length) return;
 
-  // ── KPI row ──
-  const kpiHTML = `
-  <div class="share-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
-    ${kpi('Model R²', r2pct + '%', reg.fit + ' fit', r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
-    ${kpi('Pearson r', reg.pearson_r.toFixed(2), 'revenue ↔ price', '')}
-    ${kpi('Predicted Price', '₹' + fmtNum(lat.price_pred, 0), 'model estimate', '')}
-    ${kpi('Actual Price', '₹' + fmtNum(lat.price_actual, 0), errSign + fmtNum(errDiff, 0) + ' vs model', errDiff > 0 ? 'positive' : 'negative')}
-  </div>`;
-
-  // ── Regression equation card ──
-  const eqHTML = `
-  <div class="chart-panel" style="margin-bottom:var(--space-4);padding:20px 24px">
-    <div class="chart-title">Regression Equation</div>
-    <div style="font-size:20px;font-weight:700;color:var(--color-text);margin:12px 0 8px;font-family:var(--font-mono,monospace)">
-      ${reg.equation}
-    </div>
-    <div style="font-size:12px;color:var(--color-text-muted);display:flex;gap:24px;flex-wrap:wrap">
-      <span>R² = ${reg.r_squared.toFixed(3)} &nbsp;|&nbsp; r = ${reg.pearson_r.toFixed(3)} &nbsp;|&nbsp; n = ${SHARE_DATA.n_days} trading days</span>
-      <span>MA window: ${SHARE_DATA.ma_window} days (best fit) &nbsp;|&nbsp; Regression from: ${SHARE_DATA.regression_start || 'N/A'} &nbsp;|&nbsp; Ticker: ${SHARE_DATA.ticker}</span>
-      <span>Prediction error: ${lat.error_pct}% &nbsp;|&nbsp; As of: ${lat.date}</span>
-    </div>
-  </div>`;
-
-  // ── Charts placeholders ──
-  const regStart   = SHARE_DATA.regression_start || '2024-11-01';
-  const maWinLabel = SHARE_DATA.ma_window + '-Day MA';
-  const chartsHTML = `
-  <div style="margin-top:var(--space-5)">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted);margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--color-border)">Charts</div>
-
-    <div class="chart-grid chart-grid-2" style="margin-bottom:var(--space-4)">
-      <div class="chart-panel">
-        <div class="chart-title">BSE Share Price: Actual vs Model <span class="chart-badge">Last ${ser.length} days</span></div>
-        <div class="chart-wrapper"><canvas id="chartBseSharePrice"></canvas></div>
-      </div>
-      <div class="chart-panel">
-        <div class="chart-title">${maWinLabel} Revenue (₹ Cr)</div>
-        <div class="chart-wrapper"><canvas id="chartBseRevMA50"></canvas></div>
-      </div>
-    </div>
-
-    <div class="chart-panel" style="margin-bottom:var(--space-4)">
-      <div class="chart-title">${maWinLabel} Revenue vs BSE Share Price <span class="chart-badge">From ${regStart}</span></div>
-      <div class="chart-wrapper"><canvas id="chartBseRevMaVsPrice"></canvas></div>
-    </div>
-
-    <div class="chart-panel" style="margin-bottom:var(--space-4)">
-      <div class="chart-title">Price ÷ Rev MA${SHARE_DATA.ma_window} Ratio — Mean ± SD <span class="chart-badge">From ${regStart}</span></div>
-      <div class="chart-wrapper"><canvas id="chartBseRatioSD"></canvas></div>
-    </div>
-
-    <div class="chart-panel">
-      <div class="chart-title">Revenue → Price Scatter</div>
-      <div class="chart-wrapper" style="max-height:300px"><canvas id="chartBseShareScatter"></canvas></div>
-    </div>
-  </div>`;
-
-  el.innerHTML = kpiHTML + eqHTML + chartsHTML;
+  const labels  = viewSer.map(r => r.date.slice(5));
+  const actuals = viewSer.map(r => r.price);
+  const preds   = viewSer.map(r => r.price_pred);
+  const revMA   = viewSer.map(r => r.rev_ma);
+  const revRaw  = viewSer.map(r => r.revenue_cr);
 
   // ── Chart 1: Price actual vs predicted ──
-  const labels   = ser.map(r => r.date.slice(5));   // MM-DD
-  const actuals  = ser.map(r => r.price);
-  const preds    = ser.map(r => r.price_pred);
-  const ma50s    = ser.map(r => r.price_ma50);
-
   setCanvasHeight('chartBseSharePrice', 280);
   charts.bseSharePrice = new Chart(document.getElementById('chartBseSharePrice'), {
     type: 'line',
     data: {
       labels,
       datasets: [
-        {
-          label: 'Actual Price',
-          data: actuals,
-          borderColor: CHART_COLORS[0],
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.2,
-        },
-        {
-          label: 'Model Prediction',
-          data: preds,
-          borderColor: CHART_COLORS[2],
-          backgroundColor: 'transparent',
-          borderWidth: 1.5,
-          borderDash: [5, 3],
-          pointRadius: 0,
-          tension: 0.2,
-        },
-        {
-          label: '50-Day MA Price',
-          data: ma50s,
-          borderColor: CHART_COLORS[4],
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderDash: [2, 2],
-          pointRadius: 0,
-          tension: 0.2,
-        },
+        { label: 'Actual Price',    data: actuals, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2,   pointRadius: 0, tension: 0.2 },
+        { label: 'Model Prediction', data: preds,  borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, borderDash: [5, 3] },
       ]
     },
     options: {
-      plugins: {
-        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 0) } }
-      },
+      interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 0) } } },
       scales: {
         x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
         y: { ticks: { callback: v => '₹' + fmtNum(v, 0) } }
@@ -2012,40 +1929,20 @@ function buildBSEShareAnalysis() {
     }
   });
 
-  // ── Chart 2: Revenue MA ──
-  const revMA  = ser.map(r => r.rev_ma);
-  const revRaw = ser.map(r => r.revenue_cr);
-  const maWin  = SHARE_DATA.ma_window;
+  // ── Chart 2: Revenue — daily + MA ──
   setCanvasHeight('chartBseRevMA50', 280);
   charts.bseRevMA50 = new Chart(document.getElementById('chartBseRevMA50'), {
     type: 'line',
     data: {
       labels,
       datasets: [
-        {
-          label: 'Daily Revenue',
-          data: revRaw,
-          borderColor: CHART_COLORS[3],
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          pointRadius: 0,
-          tension: 0.2,
-        },
-        {
-          label: maWin + '-Day MA',
-          data: revMA,
-          borderColor: CHART_COLORS[0],
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.2,
-        },
+        { label: 'Daily Revenue', data: revRaw, borderColor: CHART_COLORS[3], backgroundColor: 'transparent', borderWidth: 1, pointRadius: 0, tension: 0.2 },
+        { label: maWin + '-Day MA', data: revMA, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
       ]
     },
     options: {
-      plugins: {
-        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 2) + ' Cr' } }
-      },
+      interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 2) + ' Cr' } } },
       scales: {
         x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
         y: { ticks: { callback: v => '₹' + fmtNum(v, 1) + ' Cr' } }
@@ -2053,38 +1950,15 @@ function buildBSEShareAnalysis() {
     }
   });
 
-  // ── Chart 3: Dual-axis — Rev MA45 vs Share Price (regression window only) ──
-  const regSer = ser.filter(r => r.date >= (SHARE_DATA.regression_start || '2024-11-01'));
-  const regLabels = regSer.map(r => r.date.slice(5));
-  const regRevMA  = regSer.map(r => r.rev_ma);
-  const regPrice  = regSer.map(r => r.price);
-
+  // ── Chart 3: Dual-axis — Rev MA vs Share Price ──
   setCanvasHeight('chartBseRevMaVsPrice', 300);
   charts.bseRevMaVsPrice = new Chart(document.getElementById('chartBseRevMaVsPrice'), {
     type: 'line',
     data: {
-      labels: regLabels,
+      labels,
       datasets: [
-        {
-          label: SHARE_DATA.ma_window + '-Day MA Revenue (₹ Cr)',
-          data: regRevMA,
-          borderColor: CHART_COLORS[4],
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          yAxisID: 'yRev',
-        },
-        {
-          label: 'BSE Share Price (₹)',
-          data: regPrice,
-          borderColor: CHART_COLORS[0],
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          yAxisID: 'yPrice',
-        },
+        { label: maWin + '-Day MA Revenue (₹ Cr)', data: revMA,   borderColor: CHART_COLORS[4], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'yRev' },
+        { label: 'BSE Share Price (₹)',             data: actuals, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'yPrice' },
       ]
     },
     options: {
@@ -2102,7 +1976,7 @@ function buildBSEShareAnalysis() {
         x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
         yRev: {
           type: 'linear', position: 'left',
-          title: { display: true, text: SHARE_DATA.ma_window + '-Day MA Rev (₹ Cr)', font: { size: 10 } },
+          title: { display: true, text: maWin + '-Day MA Rev (₹ Cr)', font: { size: 10 } },
           ticks: { callback: v => '₹' + fmtNum(v, 1) + ' Cr', font: { size: 10 } },
         },
         yPrice: {
@@ -2115,12 +1989,12 @@ function buildBSEShareAnalysis() {
     }
   });
 
-  // ── Chart 4: Price ÷ RevMA Ratio — Mean ± SD bands ──
-  const ratios = regSer.map(r => r.price / r.rev_ma);
+  // ── Chart 4: Price ÷ RevMA Ratio — Mean ± SD (recalculated for this range) ──
+  const ratios = viewSer.map(r => r.price / r.rev_ma);
   const n      = ratios.length;
   const mean   = ratios.reduce((a, b) => a + b, 0) / n;
   const std    = Math.sqrt(ratios.reduce((a, b) => a + (b - mean) ** 2, 0) / n);
-  const flat   = val => regSer.map(() => val);
+  const flat   = val => viewSer.map(() => val);
 
   const sdBandOuter = CHART_COLORS[0] + '18';
   const sdBandInner = CHART_COLORS[0] + '30';
@@ -2131,14 +2005,13 @@ function buildBSEShareAnalysis() {
   charts.bseRatioSD = new Chart(document.getElementById('chartBseRatioSD'), {
     type: 'line',
     data: {
-      labels: regLabels,
+      labels,
       datasets: [
-        // Dataset order 0–5; fill uses absolute target indices
-        { label: '+2σ', data: flat(mean + 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 4 }, backgroundColor: sdBandOuter },
-        { label: '+1σ', data: flat(mean + std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 3 }, backgroundColor: sdBandInner },
-        { label: 'Mean', data: flat(mean),           borderColor: CHART_COLORS[4], borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
-        { label: '−1σ', data: flat(mean - std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
-        { label: '−2σ', data: flat(mean - 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+        { label: '+2σ',          data: flat(mean + 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 4 }, backgroundColor: sdBandOuter },
+        { label: '+1σ',          data: flat(mean + std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 3 }, backgroundColor: sdBandInner },
+        { label: 'Mean',         data: flat(mean),           borderColor: CHART_COLORS[4], borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+        { label: '−1σ',          data: flat(mean - std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+        { label: '−2σ',          data: flat(mean - 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
         { label: 'Price / Rev MA', data: ratios, borderColor: CHART_COLORS[1], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
       ]
     },
@@ -2148,33 +2021,31 @@ function buildBSEShareAnalysis() {
         tooltip: {
           callbacks: {
             label: ctx => {
-              const v = ctx.raw.toFixed(2);
+              const v = ctx.raw.toFixed(1);
               if (ctx.dataset.label === 'Price / Rev MA') {
                 const zVal = (ctx.raw - mean) / std;
-                const z = zVal.toFixed(1);
-                return `Ratio: ${v}  (${zVal >= 0 ? '+' : ''}${z}σ)`;
+                return `Ratio: ${v}  (${zVal >= 0 ? '+' : ''}${zVal.toFixed(1)}σ)`;
               }
               return ctx.dataset.label + ': ' + v;
             }
           }
-        },
-        annotation: undefined,
+        }
       },
       scales: {
         x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
         y: {
           ticks: { font: { size: 10 }, callback: v => v.toFixed(0) },
-          title: { display: true, text: 'Price ÷ Rev MA45', font: { size: 10 } },
+          title: { display: true, text: 'Price ÷ Rev MA' + maWin, font: { size: 10 } },
         }
       }
     }
   });
 
   // ── Chart 5: Scatter (Revenue MA → Price) ──
-  const scatterData = ser.map(r => ({ x: r.rev_ma, y: r.price }));
-  // Regression line points
-  const xMin = Math.min(...ser.map(r => r.rev_ma));
-  const xMax = Math.max(...ser.map(r => r.rev_ma));
+  const scatterData = viewSer.map(r => ({ x: r.rev_ma, y: r.price }));
+  const xVals = viewSer.map(r => r.rev_ma);
+  const xMin  = Math.min(...xVals);
+  const xMax  = Math.max(...xVals);
   const regLine = [
     { x: xMin, y: reg.slope * xMin + reg.intercept },
     { x: xMax, y: reg.slope * xMax + reg.intercept },
@@ -2185,37 +2056,121 @@ function buildBSEShareAnalysis() {
     type: 'scatter',
     data: {
       datasets: [
-        {
-          label: 'Trading Days',
-          data: scatterData,
-          backgroundColor: CHART_COLORS[0] + '88',
-          pointRadius: 4,
-        },
-        {
-          label: 'Regression Line',
-          data: regLine,
-          type: 'line',
-          borderColor: CHART_COLORS[2],
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          borderDash: [5, 3],
-          pointRadius: 0,
-        }
+        { label: 'Trading Days',  data: scatterData, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3 },
+        { label: 'Regression Line', data: regLine, type: 'line', borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 3], pointRadius: 0 },
       ]
     },
     options: {
       plugins: {
-        tooltip: {
-          callbacks: {
-            label: ctx => `Rev MA${maWin}: ₹${fmtNum(ctx.parsed.x, 1)} Cr | Price: ₹${fmtNum(ctx.parsed.y, 0)}`
-          }
-        }
+        tooltip: { callbacks: { label: ctx => `Rev MA${maWin}: ₹${fmtNum(ctx.parsed.x, 1)} Cr | Price: ₹${fmtNum(ctx.parsed.y, 0)}` } }
       },
       scales: {
-        x: { title: { display: true, text: maWin + '-Day MA Revenue (₹ Cr)' }, ticks: { callback: v => '₹' + fmtNum(v, 0) } },
-        y: { title: { display: true, text: 'BSE Share Price (₹)' }, ticks: { callback: v => '₹' + fmtNum(v, 0) } }
+        x: { title: { display: true, text: maWin + '-Day MA Revenue (₹ Cr)' }, ticks: { callback: v => '₹' + fmtNum(v, 1) } },
+        y: { title: { display: true, text: 'BSE Share Price (₹)' },            ticks: { callback: v => '₹' + fmtNum(v, 0) } }
       }
     }
+  });
+}
+
+function buildBSEShareAnalysis() {
+  const el = document.getElementById('bse-share-inner');
+  if (!el) return;
+
+  if (!SHARE_DATA) {
+    el.innerHTML = `<div class="chart-panel" style="text-align:center;padding:48px;color:var(--color-text-muted)">
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px">Share analytics data not available</div>
+      <div style="font-size:12px">Run scripts/bse_share_analysis.py to generate bse_share_analysis.json</div>
+    </div>`;
+    return;
+  }
+
+  const reg      = SHARE_DATA.regression;
+  const lat      = SHARE_DATA.latest;
+  const ser      = SHARE_DATA.series || [];
+  const maWin    = SHARE_DATA.ma_window;
+  const regStart = SHARE_DATA.regression_start || '2024-11-01';
+  const r2pct    = Math.round(reg.r_squared * 100);
+  const errDiff  = lat.price_pred - lat.price_actual;
+
+  const kpiHTML = `
+  <div class="share-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
+    ${kpi('Model R²',        r2pct + '%',                        reg.fit + ' fit',                           r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
+    ${kpi('Pearson r',       reg.pearson_r.toFixed(2),           'revenue ↔ price',                          '')}
+    ${kpi('Predicted Price', '₹' + fmtNum(lat.price_pred, 0),   'model estimate',                           '')}
+    ${kpi('Actual Price',    '₹' + fmtNum(lat.price_actual, 0), (errDiff >= 0 ? '+' : '') + fmtNum(errDiff, 0) + ' vs model', errDiff >= 0 ? 'positive' : 'negative')}
+  </div>`;
+
+  const eqHTML = `
+  <div class="chart-panel" style="margin-bottom:var(--space-4);padding:20px 24px">
+    <div class="chart-title">Regression Equation</div>
+    <div style="font-size:20px;font-weight:700;color:var(--color-text);margin:12px 0 8px;font-family:var(--font-mono,monospace)">${reg.equation}</div>
+    <div style="font-size:12px;color:var(--color-text-muted);display:flex;gap:24px;flex-wrap:wrap">
+      <span>R² = ${reg.r_squared.toFixed(3)} &nbsp;|&nbsp; r = ${reg.pearson_r.toFixed(3)} &nbsp;|&nbsp; n = ${SHARE_DATA.n_days} trading days</span>
+      <span>MA window: ${maWin} days &nbsp;|&nbsp; Regression from: ${regStart} &nbsp;|&nbsp; Ticker: ${SHARE_DATA.ticker}</span>
+      <span>Prediction error: ${lat.error_pct} % &nbsp;|&nbsp; As of: ${lat.date}</span>
+    </div>
+  </div>`;
+
+  const ranges = [
+    { key: '1m',      label: '1M' },
+    { key: '3m',      label: '3M' },
+    { key: '6m',      label: '6M' },
+    { key: 'nov2024', label: 'Nov 2024+' },
+    { key: '1y',      label: '1Y' },
+    { key: '2y',      label: '2Y' },
+  ];
+  const toggleHTML = `
+  <div class="share-range-toggle">
+    ${ranges.map(r => `<button class="share-range-btn${r.key === 'nov2024' ? ' active' : ''}" data-range="${r.key}">${r.label}</button>`).join('')}
+  </div>`;
+
+  const chartsHTML = `
+  <div style="margin-top:var(--space-4)">
+    <div class="chart-grid chart-grid-2" style="margin-bottom:var(--space-4)">
+      <div class="chart-panel">
+        <div class="chart-title">BSE Share Price: Actual vs Model</div>
+        <div class="chart-wrapper"><canvas id="chartBseSharePrice"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-title">${maWin}-Day MA Revenue (₹ Cr)</div>
+        <div class="chart-wrapper"><canvas id="chartBseRevMA50"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-panel" style="margin-bottom:var(--space-4)">
+      <div class="chart-title">${maWin}-Day MA Revenue vs BSE Share Price</div>
+      <div class="chart-wrapper"><canvas id="chartBseRevMaVsPrice"></canvas></div>
+    </div>
+    <div class="chart-panel" style="margin-bottom:var(--space-4)">
+      <div class="chart-title">Price ÷ Rev MA${maWin} Ratio — Mean ± SD</div>
+      <div class="chart-wrapper"><canvas id="chartBseRatioSD"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">Revenue → Price Scatter</div>
+      <div class="chart-wrapper" style="max-height:300px"><canvas id="chartBseShareScatter"></canvas></div>
+    </div>
+  </div>`;
+
+  const sectionHTML = `
+  <div style="margin-top:var(--space-5)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--color-border)">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)">Charts</span>
+      ${toggleHTML}
+    </div>
+    ${chartsHTML}
+  </div>`;
+
+  el.innerHTML = kpiHTML + eqHTML + sectionHTML;
+
+  // Initial render
+  buildBSECharts(filterShareSeries(ser, 'nov2024', regStart), reg, maWin);
+
+  // Toggle listeners
+  el.querySelectorAll('.share-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.share-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      buildBSECharts(filterShareSeries(ser, btn.dataset.range, regStart), reg, maWin);
+    });
   });
 }
 
