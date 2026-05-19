@@ -1183,33 +1183,27 @@ span.neutral {
   padding: var(--space-3) var(--space-2) var(--space-6);
 }
 
-/* Inline period select — right-side cell in section header row */
-.xl-sec-hdr-ctrl {
-  text-align: right;
-  padding-right: 8px !important;
-}
-
-.xl-sec-sel {
-  font-size: 11px;
+/* Per-row period select — sits inside the period cell, looks like a clickable label */
+.xl-row-sel {
+  font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-muted);
-  background: rgba(255,255,255,0.55);
-  border: 1px solid #c8ccd4;
-  border-radius: 3px;
-  padding: 2px 18px 2px 6px;
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  padding: 0 16px 0 0;
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%23888' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%23aaa' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 5px center;
+  background-position: right 2px center;
   cursor: pointer;
-  max-width: 160px;
-  text-overflow: ellipsis;
-  transition: border-color 0.15s;
+  width: 100%;
+  max-width: 100%;
+  outline: none;
 }
 
-.xl-sec-sel:hover { border-color: var(--color-primary); }
-.xl-sec-sel:focus { outline: none; border-color: var(--color-primary); }
+.xl-row-sel:hover { color: var(--color-primary); }
+.xl-r-cur .xl-row-sel { font-weight: 600; }
 
 .xl-segment {
   border: 1px solid var(--color-border);
@@ -1251,23 +1245,23 @@ span.neutral {
   border-collapse: collapse;
   font-size: 12px;
   table-layout: fixed;
-  width: 324px;          /* must match sum of col widths: 130+64+56+74 */
-  flex: 0 0 324px;       /* never grow or shrink */
+  width: 352px;          /* 155+70+62+65 */
+  flex: 0 0 352px;
   border-right: 2px solid var(--color-border);
 }
 
-.xl-col-period { width: 130px; }
-.xl-col-val    { width: 64px; }
-.xl-col-chg1   { width: 56px; }
-.xl-col-chg2   { width: 74px; }
+.xl-col-period { width: 155px; }
+.xl-col-val    { width: 70px; }
+.xl-col-chg1   { width: 62px; }
+.xl-col-chg2   { width: 65px; }
 
 /* RIGHT: day-of-week table */
 .xl-dow-table {
   border-collapse: collapse;
   font-size: 12px;
   table-layout: fixed;
-  width: 374px;          /* must match sum of col widths */
-  flex: 0 0 374px;       /* fixed — don't grow/shrink */
+  width: 418px;          /* 42+64+64+60+64+60+64 */
+  flex: 0 0 418px;
 }
 
 /* Section header rows (e.g. "Financial Year", "Quarter") */

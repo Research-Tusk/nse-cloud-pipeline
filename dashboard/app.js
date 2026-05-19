@@ -636,63 +636,132 @@ function xlVal(v) {
   return `<span class="xl-num">${fmt(v)}</span>`;
 }
 
-// Compute FY daily-avg metrics for a given "FY YYYY" string and segment key
-function computeFYMetrics(fyStr, segKey) {
+// ── Simple avg getters (no derived comparisons) ───────────────────────────────
+function getFYAvg(fyStr, segKey) {
   const rf = getRevFieldObj(segKey);
   const quarters = DATA.quarterly.filter(q => q.quarter.endsWith(fyStr));
   if (!quarters.length) return null;
-  const totalRev  = quarters.reduce((s, q) => s + (q[rf.qField] || 0), 0);
-  const totalDays = quarters.reduce((s, q) => s + (q.days || q.trading_days || 1), 0);
-  const avg = totalRev / totalDays;
-  const fyYear   = parseInt(fyStr.replace('FY ', ''));
-  const prevFY   = 'FY ' + (fyYear - 1);
-  const prevQtrs = DATA.quarterly.filter(q => q.quarter.endsWith(prevFY));
-  let prevAvg = null, yoy = null;
-  if (prevQtrs.length) {
-    const pRev  = prevQtrs.reduce((s, q) => s + (q[rf.qField] || 0), 0);
-    const pDays = prevQtrs.reduce((s, q) => s + (q.days || q.trading_days || 1), 0);
-    prevAvg = pRev / pDays;
-    yoy = (avg - prevAvg) / prevAvg;
+  const rev  = quarters.reduce((s, q) => s + (q[rf.qField] || 0), 0);
+  const days = quarters.reduce((s, q) => s + (q.days || q.trading_days || 1), 0);
+  return { label: fyStr, value: rev / days };
+}
+
+function getQAvg(qIdx, segKey) {
+  const rf = getRevFieldObj(segKey);
+  const q  = DATA.quarterly[qIdx];
+  if (!q) return null;
+  const days = q.days || q.trading_days || 1;
+  return { label: q.quarter, value: q[rf.qField] / days };
+}
+
+function getMAvg(mIdx, segKey) {
+  const rf = getRevFieldObj(segKey);
+  const m  = DATA.monthly[mIdx];
+  if (!m) return null;
+  const days = m.trading_days || m.days || 1;
+  return { label: m.month, value: m[rf.mField] / days };
+}
+
+function getM6mAvg(mIdx, segKey) {
+  const rf   = getRevFieldObj(segKey);
+  const allM = DATA.monthly;
+  let sum = 0, cnt = 0;
+  for (let i = Math.max(0, mIdx - 5); i <= mIdx; i++) {
+    const d = allM[i].trading_days || allM[i].days || 1;
+    sum += allM[i][rf.mField] / d;
+    cnt++;
   }
-  return { label: fyStr, value: avg, prevLabel: prevFY, prevValue: prevAvg, yoy };
+  return cnt > 0 ? sum / cnt : null;
 }
 
-// tbody row builders — all use 4-column format matching xl-period-table colgroup
-function xlFYRows(fyStr, segKey) {
-  const f = computeFYMetrics(fyStr, segKey);
-  if (!f) return '<tr><td colspan="4">—</td></tr>';
-  return [
-    `<tr class="xl-r-cur"><td>${f.label}</td><td>${xlVal(f.value)}</td><td>${xlChg(f.yoy)}</td><td></td></tr>`,
-    `<tr><td>${f.prevLabel}</td><td>${xlVal(f.prevValue)}</td><td></td><td></td></tr>`,
-  ].join('');
+// ── Per-row render functions ──────────────────────────────────────────────────
+// % change shown on each comparison row = (row0 - rowN) / rowN
+// i.e. "current period is X% vs this row"
+
+function renderFYRow(rowNum, fyStr, segKey) {
+  const cur   = getFYAvg(fyStr, segKey);
+  const valEl = document.getElementById('xlFYVal' + rowNum + '-' + segKey);
+  const chgEl = document.getElementById('xlFYChg' + rowNum + '-' + segKey);
+  if (valEl) valEl.innerHTML = xlVal(cur?.value);
+  if (chgEl) {
+    if (rowNum === 0) { chgEl.innerHTML = ''; return; }
+    const ref = getFYAvg(document.getElementById('xlFY0-' + segKey)?.value, segKey);
+    chgEl.innerHTML = xlChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
+  }
 }
 
-function xlQRows(qm) {
-  if (!qm) return '<tr><td colspan="4">—</td></tr>';
-  return [
-    `<tr class="xl-r-cur"><td>${qm.label}</td><td>${xlVal(qm.value)}</td><td>${xlChg(qm.qoq)}</td><td></td></tr>`,
-    `<tr><td>${qm.prevLabel || '—'}</td><td>${xlVal(qm.prevValue)}</td><td></td><td><span class="xl-tag">YoY ${xlChg(qm.yoy)}</span></td></tr>`,
-    qm.yoyLabel && qm.yoyLabel !== '—'
-      ? `<tr><td>${qm.yoyLabel}</td><td>${xlVal(qm.yoyValue)}</td><td></td><td></td></tr>`
-      : '',
-  ].join('');
+function renderQRow(rowNum, qIdx, segKey) {
+  const cur   = getQAvg(qIdx, segKey);
+  const valEl = document.getElementById('xlQVal' + rowNum + '-' + segKey);
+  const chgEl = document.getElementById('xlQChg' + rowNum + '-' + segKey);
+  if (valEl) valEl.innerHTML = xlVal(cur?.value);
+  if (chgEl) {
+    if (rowNum === 0) { chgEl.innerHTML = ''; return; }
+    const ref = getQAvg(parseInt(document.getElementById('xlQ0-' + segKey)?.value), segKey);
+    chgEl.innerHTML = xlChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
+  }
 }
 
-function xlMRows(mm) {
-  if (!mm) return '<tr><td colspan="4">—</td></tr>';
-  return [
-    `<tr class="xl-r-cur"><td>${mm.label}</td><td>${xlVal(mm.value)}</td><td>${xlChg(mm.mom)}</td><td></td></tr>`,
-    `<tr><td>${mm.prevLabel || '—'}</td><td>${xlVal(mm.prevValue)}</td><td></td><td><span class="xl-tag">Mo6M ${xlChg(mm.mo6m)}</span></td></tr>`,
-    `<tr><td>Avg 6 Months</td><td>${xlVal(mm.avg6mValue)}</td><td></td><td></td></tr>`,
-  ].join('');
+function renderMRow(rowNum, mIdx, segKey) {
+  const cur   = getMAvg(mIdx, segKey);
+  const valEl = document.getElementById('xlMVal' + rowNum + '-' + segKey);
+  const chgEl = document.getElementById('xlMChg' + rowNum + '-' + segKey);
+  if (valEl) valEl.innerHTML = xlVal(cur?.value);
+  if (chgEl) {
+    if (rowNum === 0) {
+      chgEl.innerHTML = '';
+      // Recompute Avg 6M (always anchored to row 0's month)
+      const avg = getM6mAvg(mIdx, segKey);
+      const avgValEl = document.getElementById('xlMAvgVal-' + segKey);
+      const avgChgEl = document.getElementById('xlMAvgChg-' + segKey);
+      if (avgValEl) avgValEl.innerHTML = xlVal(avg);
+      if (avgChgEl) avgChgEl.innerHTML = xlChg(avg && cur ? (cur.value - avg) / avg : null);
+      return;
+    }
+    const ref = getMAvg(parseInt(document.getElementById('xlM0-' + segKey)?.value), segKey);
+    chgEl.innerHTML = xlChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
+  }
 }
 
-// Derive "FY YYYY" string from a quarter label e.g. "Q1 FY 2027" → "FY 2027"
-function fyFromQLabel(qLabel) {
-  const m = (qLabel || '').match(/FY (\d{4})/);
-  return m ? 'FY ' + m[1] : 'FY 2027';
+// ── Cross-segment sync functions ──────────────────────────────────────────────
+const XL_SEGS = ['total', 'options', 'futures', 'cash'];
+
+function syncXLFY(rowNum, fyStr) {
+  XL_SEGS.forEach(sk => {
+    const sel = document.getElementById('xlFY' + rowNum + '-' + sk);
+    if (sel && sel.value !== fyStr) sel.value = fyStr;
+    renderFYRow(rowNum, fyStr, sk);
+    if (rowNum === 0) renderFYRow(1, document.getElementById('xlFY1-' + sk)?.value, sk);
+  });
 }
 
+function syncXLQ(rowNum, qIdx) {
+  XL_SEGS.forEach(sk => {
+    const sel = document.getElementById('xlQ' + rowNum + '-' + sk);
+    if (sel && parseInt(sel.value) !== qIdx) sel.value = qIdx;
+    renderQRow(rowNum, qIdx, sk);
+    if (rowNum === 0) {
+      [1, 2, 3].forEach(r => {
+        const ri = parseInt(document.getElementById('xlQ' + r + '-' + sk)?.value);
+        if (!isNaN(ri)) renderQRow(r, ri, sk);
+      });
+    }
+  });
+}
+
+function syncXLM(rowNum, mIdx) {
+  XL_SEGS.forEach(sk => {
+    const sel = document.getElementById('xlM' + rowNum + '-' + sk);
+    if (sel && parseInt(sel.value) !== mIdx) sel.value = mIdx;
+    renderMRow(rowNum, mIdx, sk);
+    if (rowNum === 0) {
+      const r1 = parseInt(document.getElementById('xlM1-' + sk)?.value);
+      if (!isNaN(r1)) renderMRow(1, r1, sk);
+    }
+  });
+}
+
+// ── Segment block template ────────────────────────────────────────────────────
 function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const s   = segData;
   const wl5 = s.weekly.last5;
@@ -704,8 +773,8 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
   const wRows = [
-    `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td><td></td></tr>`,
-    `<tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td></td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>`,
+    `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>`,
+    `<tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td></td><td></td></tr>`,
     `<tr><td>Last 50 Days</td><td>${xlVal(w50.value)}</td><td></td><td></td></tr>`,
   ].join('');
 
@@ -723,6 +792,41 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
     </tr>`;
   }).join('');
 
+  const mkSel = (id, opts) => `<select class="xl-row-sel" id="${id}">${opts}</select>`;
+
+  // FY: 2 independently selectable rows
+  const fyRows = [0, 1].map(r => `
+    <tr${r === 0 ? ' class="xl-r-cur"' : ''}>
+      <td>${mkSel('xlFY' + r + '-' + segKey, fyOpts)}</td>
+      <td id="xlFYVal${r}-${segKey}"></td>
+      <td id="xlFYChg${r}-${segKey}"></td>
+      <td></td>
+    </tr>`).join('');
+
+  // Quarter: 4 independently selectable rows (current, prev1, prev2, same-Q last year)
+  const qRows = [0, 1, 2, 3].map(r => `
+    <tr${r === 0 ? ' class="xl-r-cur"' : ''}>
+      <td>${mkSel('xlQ' + r + '-' + segKey, qOpts)}</td>
+      <td id="xlQVal${r}-${segKey}"></td>
+      <td id="xlQChg${r}-${segKey}"></td>
+      <td></td>
+    </tr>`).join('');
+
+  // Month: 2 selectable rows + 1 static Avg 6M row
+  const mRows = [0, 1].map(r => `
+    <tr${r === 0 ? ' class="xl-r-cur"' : ''}>
+      <td>${mkSel('xlM' + r + '-' + segKey, mOpts)}</td>
+      <td id="xlMVal${r}-${segKey}"></td>
+      <td id="xlMChg${r}-${segKey}"></td>
+      <td></td>
+    </tr>`).join('') + `
+    <tr>
+      <td style="color:var(--color-text-secondary);font-size:11.5px">Avg 6 Months</td>
+      <td id="xlMAvgVal-${segKey}"></td>
+      <td id="xlMAvgChg-${segKey}"></td>
+      <td></td>
+    </tr>`;
+
   return `
     <div class="xl-segment">
       <div class="xl-seg-header">${label} <span class="xl-seg-unit">₹ Cr · daily avg</span></div>
@@ -737,31 +841,22 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
           </colgroup>
 
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr">
-              <td>Financial Year</td>
-              <td colspan="3" class="xl-sec-hdr-ctrl"><select class="xl-sec-sel" id="xlSelFY-${segKey}">${fyOpts}</select></td>
-            </tr>
-            <tr class="xl-col-hdr"><td>Period</td><td>Value</td><td>YoY</td><td></td></tr>
+            <tr class="xl-sec-hdr"><td colspan="4">Financial Year</td></tr>
+            <tr class="xl-col-hdr"><td>Year</td><td>Value</td><td>% chg</td><td></td></tr>
+            ${fyRows}
           </tbody>
-          <tbody class="xl-sec-data" id="xl-fy-${segKey}"></tbody>
 
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr">
-              <td>Quarter</td>
-              <td colspan="3" class="xl-sec-hdr-ctrl"><select class="xl-sec-sel" id="xlSelQ-${segKey}">${qOpts}</select></td>
-            </tr>
-            <tr class="xl-col-hdr"><td>Period</td><td>Value</td><td>QoQ</td><td>YoY</td></tr>
+            <tr class="xl-sec-hdr"><td colspan="4">Quarter</td></tr>
+            <tr class="xl-col-hdr"><td>Quarter</td><td>Value</td><td>% chg</td><td></td></tr>
+            ${qRows}
           </tbody>
-          <tbody class="xl-sec-data" id="xl-q-${segKey}"></tbody>
 
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr">
-              <td>Month</td>
-              <td colspan="3" class="xl-sec-hdr-ctrl"><select class="xl-sec-sel" id="xlSelM-${segKey}">${mOpts}</select></td>
-            </tr>
-            <tr class="xl-col-hdr"><td>Period</td><td>Value</td><td>MoM</td><td>Mo6M</td></tr>
+            <tr class="xl-sec-hdr"><td colspan="4">Month</td></tr>
+            <tr class="xl-col-hdr"><td>Month</td><td>Value</td><td>% chg</td><td></td></tr>
+            ${mRows}
           </tbody>
-          <tbody class="xl-sec-data" id="xl-m-${segKey}"></tbody>
 
           <tbody class="xl-sec">
             <tr class="xl-sec-hdr"><td colspan="4">Week</td></tr>
@@ -772,13 +867,13 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
 
         <table class="xl-dow-table">
           <colgroup>
-            <col style="width:34px">
-            <col style="width:58px">
-            <col style="width:58px">
-            <col style="width:54px">
-            <col style="width:58px">
-            <col style="width:54px">
-            <col style="width:58px">
+            <col style="width:42px">
+            <col style="width:64px">
+            <col style="width:64px">
+            <col style="width:60px">
+            <col style="width:64px">
+            <col style="width:60px">
+            <col style="width:64px">
           </colgroup>
           <thead>
             <tr class="xl-sec-hdr"><td colspan="7">Day of Week</td></tr>
@@ -791,92 +886,91 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
     </div>`;
 }
 
-// Each type updates only its own rows and syncs its sibling selects across segments
-function updateXLFY(fyStr) {
-  const segs = ['total', 'options', 'futures', 'cash'];
-  segs.forEach(sk => {
-    const el = document.getElementById('xl-fy-' + sk);
-    if (el) el.innerHTML = xlFYRows(fyStr, sk);
-    const sel = document.getElementById('xlSelFY-' + sk);
-    if (sel && sel.value !== fyStr) sel.value = fyStr;
-  });
-}
-
-function updateXLQ(qIdx) {
-  const segs = ['total', 'options', 'futures', 'cash'];
-  segs.forEach(sk => {
-    const el = document.getElementById('xl-q-' + sk);
-    if (el) el.innerHTML = xlQRows(computeQuarterMetrics(qIdx, sk));
-    const sel = document.getElementById('xlSelQ-' + sk);
-    if (sel && parseInt(sel.value) !== qIdx) sel.value = qIdx;
-  });
-}
-
-function updateXLM(mIdx) {
-  const segs = ['total', 'options', 'futures', 'cash'];
-  segs.forEach(sk => {
-    const el = document.getElementById('xl-m-' + sk);
-    if (el) el.innerHTML = xlMRows(computeMonthMetrics(mIdx, sk));
-    const sel = document.getElementById('xlSelM-' + sk);
-    if (sel && parseInt(sel.value) !== mIdx) sel.value = mIdx;
-  });
-}
-
 function buildRevenueSummary() {
   const ed = ENRICHED_DATA;
   if (!ed || !ed.summary_total) return;
 
-  // Build FY option list
+  // Build option lists (no pre-selected — set via JS after render)
   const fySet = [];
   DATA.quarterly.forEach(q => {
     const m = q.quarter.match(/FY \d{4}/);
     if (m && !fySet.includes(m[0])) fySet.push(m[0]);
   });
-  fySet.reverse();
-  const defaultFY = fySet[0] || 'FY 2027';
-  const fyOpts = fySet.map(fy => `<option value="${fy}"${fy === defaultFY ? ' selected' : ''}>${fy}</option>`).join('');
+  fySet.reverse(); // newest first
+  const fyOpts = fySet.map(fy => `<option value="${fy}">${fy}</option>`).join('');
 
-  const allQ = DATA.quarterly;
-  const defaultQIdx = allQ.length - 1;
+  const allQ  = DATA.quarterly;
+  const nQ    = allQ.length;
   const qOpts = [...allQ].reverse().map((q, ri) => {
-    const idx = allQ.length - 1 - ri;
-    return `<option value="${idx}"${idx === defaultQIdx ? ' selected' : ''}>${q.quarter}</option>`;
+    const idx = nQ - 1 - ri;
+    return `<option value="${idx}">${q.quarter}</option>`;
   }).join('');
 
-  const allM = DATA.monthly;
-  const defaultMIdx = allM.length - 1;
+  const allM  = DATA.monthly;
+  const nM    = allM.length;
   const mOpts = [...allM].reverse().map((m, ri) => {
-    const idx = allM.length - 1 - ri;
-    return `<option value="${idx}"${idx === defaultMIdx ? ' selected' : ''}>${m.month}</option>`;
+    const idx = nM - 1 - ri;
+    return `<option value="${idx}">${m.month}</option>`;
   }).join('');
 
   // Render each segment into its own sub-tab container
-  const segments = [
+  [
     { key: 'total',   data: ed.summary_total, label: 'Total Revenue' },
     { key: 'options', data: ed.seg_options,   label: 'Options Revenue' },
     { key: 'futures', data: ed.seg_futures,   label: 'Futures Revenue' },
     { key: 'cash',    data: ed.seg_cash,      label: 'Cash Revenue' },
-  ];
-  segments.forEach(({ key, data, label }) => {
+  ].forEach(({ key, data, label }) => {
     const el = document.getElementById('subtab-rev-' + key);
     if (el) el.innerHTML = xlSegmentBlock(data, label, key, fyOpts, qOpts, mOpts);
   });
 
-  // Initial data population
-  updateXLFY(defaultFY);
-  updateXLQ(defaultQIdx);
-  updateXLM(defaultMIdx);
+  // Default row values
+  const defFY0 = fySet[0] || 'FY 2027';
+  const defFY1 = fySet[1] || 'FY 2026';
+  const defQ0  = nQ - 1;
+  const defQ1  = Math.max(0, nQ - 2);
+  const defQ2  = Math.max(0, nQ - 3);
+  // Same Q number as current, one year earlier
+  const curQNum = (allQ[defQ0]?.quarter || '').match(/^Q(\d)/)?.[1];
+  let defQ3 = Math.max(0, nQ - 5);
+  if (curQNum) {
+    for (let i = defQ0 - 1; i >= 0; i--) {
+      if (allQ[i].quarter.startsWith('Q' + curQNum + ' ')) { defQ3 = i; break; }
+    }
+  }
+  const defM0 = nM - 1;
+  const defM1 = Math.max(0, nM - 2);
 
-  // Wire up all selects — each type syncs across all 4 segment blocks
-  ['total', 'options', 'futures', 'cash'].forEach(sk => {
-    document.getElementById('xlSelFY-' + sk).addEventListener('change', function() {
-      updateXLFY(this.value);
+  // Set select values then render data
+  XL_SEGS.forEach(sk => {
+    document.getElementById('xlFY0-' + sk).value = defFY0;
+    document.getElementById('xlFY1-' + sk).value = defFY1;
+    document.getElementById('xlQ0-'  + sk).value = defQ0;
+    document.getElementById('xlQ1-'  + sk).value = defQ1;
+    document.getElementById('xlQ2-'  + sk).value = defQ2;
+    document.getElementById('xlQ3-'  + sk).value = defQ3;
+    document.getElementById('xlM0-'  + sk).value = defM0;
+    document.getElementById('xlM1-'  + sk).value = defM1;
+
+    renderFYRow(0, defFY0, sk); renderFYRow(1, defFY1, sk);
+    [defQ0, defQ1, defQ2, defQ3].forEach((qi, r) => renderQRow(r, qi, sk));
+    renderMRow(0, defM0, sk); renderMRow(1, defM1, sk);
+
+    // Wire event listeners
+    [0, 1].forEach(r => {
+      document.getElementById('xlFY' + r + '-' + sk).addEventListener('change', function() {
+        syncXLFY(r, this.value);
+      });
     });
-    document.getElementById('xlSelQ-' + sk).addEventListener('change', function() {
-      updateXLQ(parseInt(this.value));
+    [0, 1, 2, 3].forEach(r => {
+      document.getElementById('xlQ' + r + '-' + sk).addEventListener('change', function() {
+        syncXLQ(r, parseInt(this.value));
+      });
     });
-    document.getElementById('xlSelM-' + sk).addEventListener('change', function() {
-      updateXLM(parseInt(this.value));
+    [0, 1].forEach(r => {
+      document.getElementById('xlM' + r + '-' + sk).addEventListener('change', function() {
+        syncXLM(r, parseInt(this.value));
+      });
     });
   });
 }
