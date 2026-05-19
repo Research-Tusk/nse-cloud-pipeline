@@ -1220,7 +1220,7 @@ span.neutral {
 /* Each mini-table */
 .xl-table {
   border-collapse: collapse;
-  font-size: 11.5px;
+  font-size: 13px;
   min-width: 0;
   flex-shrink: 0;
   border-right: 1px solid var(--color-border);
@@ -1229,30 +1229,43 @@ span.neutral {
 .xl-table:last-child {
   border-right: none;
   flex: 1;
-  min-width: 280px;
+  min-width: 300px;
 }
 
+/* Section label row (e.g. "Financial Year") */
 .xl-table thead tr:first-child th {
   background: #f0f2f5;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 5px 10px 4px;
+  padding: 6px 12px 5px;
   text-align: left;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
+/* Column headers row */
 .xl-table thead .xl-col-hdr th {
   background: #f7f8fa;
   color: var(--color-text-faint);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
+  text-align: left;
+}
+
+/* Right-align numeric column headers to match cell alignment */
+.xl-table thead .xl-col-hdr th:nth-child(2),
+.xl-table thead .xl-col-hdr th:nth-child(3),
+.xl-table thead .xl-col-hdr th:nth-child(4),
+.xl-table thead .xl-col-hdr th:nth-child(5),
+.xl-table thead .xl-col-hdr th:nth-child(6),
+.xl-table thead .xl-col-hdr th:nth-child(7) {
+  text-align: right;
 }
 
 .xl-table tbody tr {
@@ -1272,7 +1285,7 @@ span.neutral {
 }
 
 .xl-table td {
-  padding: 5px 10px;
+  padding: 6px 12px;
   white-space: nowrap;
   vertical-align: middle;
   color: var(--color-text);
@@ -1280,28 +1293,38 @@ span.neutral {
 
 .xl-table td:first-child {
   color: var(--color-text-secondary);
-  font-size: 11px;
-  min-width: 120px;
+  font-size: 12px;
+  min-width: 130px;
 }
 
 .xl-table td:nth-child(2) {
   text-align: right;
-  min-width: 64px;
+  min-width: 68px;
   font-variant-numeric: tabular-nums;
 }
 
 .xl-table td:nth-child(3),
 .xl-table td:nth-child(4),
-.xl-table td:nth-child(6) {
+.xl-table td:nth-child(5),
+.xl-table td:nth-child(6),
+.xl-table td:nth-child(7) {
   text-align: right;
-  min-width: 56px;
+  min-width: 60px;
+}
+
+/* Cell-level background highlight for direct % change cells */
+.xl-table td:has(> .xl-chg.xl-pos) {
+  background: var(--color-positive-bg);
+}
+.xl-table td:has(> .xl-chg.xl-neg) {
+  background: var(--color-negative-bg);
 }
 
 /* Day-of-week table specifics */
 .xl-table-dow td.xl-day {
   font-weight: 600;
   color: var(--color-text);
-  min-width: 32px;
+  min-width: 34px;
 }
 
 .xl-table-dow td.xl-prev-wk {
@@ -1315,9 +1338,9 @@ span.neutral {
   letter-spacing: -0.01em;
 }
 
-/* Change badge */
+/* Change text inside highlighted cells */
 .xl-chg {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
@@ -1327,12 +1350,12 @@ span.neutral {
 .xl-chg.xl-neg { color: var(--color-negative); }
 .xl-chg.xl-neu { color: var(--color-text-faint); }
 
-/* Inline secondary tag (e.g. "YoY +5 %") */
+/* Inline secondary tag (e.g. "YoY +5 %") — no cell highlight, just text */
 .xl-tag {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  font-size: 10px;
+  gap: 3px;
+  font-size: 11px;
   color: var(--color-text-faint);
   font-weight: 500;
 }
@@ -1340,6 +1363,13 @@ span.neutral {
 /* Hover row highlight */
 .xl-table tbody tr:hover {
   background: var(--color-bg-elevated);
+}
+/* Preserve cell bg over hover for change cells */
+.xl-table tbody tr:hover td:has(> .xl-chg.xl-pos) {
+  background: var(--color-positive-bg);
+}
+.xl-table tbody tr:hover td:has(> .xl-chg.xl-neg) {
+  background: var(--color-negative-bg);
 }
 
 /* =========================
