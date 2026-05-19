@@ -226,7 +226,7 @@ const EXCHANGE_TABS = {
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
     { id: 'executive',  label: 'Executive Summary',    icon: 'executive' },
     { id: 'weekly',     label: 'Weekly Analysis',      icon: 'weekly' },
-    { id: 'share',      label: 'Share Analytics',      icon: 'share' },
+    { id: 'share',      label: 'Regression',            icon: 'share' },
     { id: 'live',       label: 'Live Market',           icon: 'live' },
   ],
 };
