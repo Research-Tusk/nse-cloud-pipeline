@@ -1182,6 +1182,50 @@ span.neutral {
   gap: 20px;
 }
 
+/* Period selector bar */
+.xl-period-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: 10px 2px 4px;
+  flex-wrap: wrap;
+}
+
+.xl-period-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.xl-period-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.xl-period-sel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 24px 4px 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  cursor: pointer;
+  transition: border-color var(--transition-interactive);
+}
+
+.xl-period-sel:hover { border-color: var(--color-primary); }
+.xl-period-sel:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-glow); }
+
 .xl-segment {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -1231,6 +1275,13 @@ span.neutral {
   flex: 1;
   min-width: 300px;
 }
+
+/* Fixed widths per table type — ensures columns align across all 4 segments */
+.xl-table-fy  { width: 272px; }
+.xl-table-q   { width: 272px; }
+.xl-table-m   { width: 272px; }
+.xl-table-w   { width: 272px; }
+.xl-table-dow { width: auto; flex: 1; min-width: 380px; }
 
 /* Section label row (e.g. "Financial Year") */
 .xl-table thead tr:first-child th {

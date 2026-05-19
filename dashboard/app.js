@@ -623,11 +623,11 @@ function computeMonthMetrics(mIdx, segKey) {
 
 // ── Excel-style Revenue Summary ──────────────────────────────────────────────
 
-function xlChg(val, compact) {
+function xlChg(val) {
   if (val == null || isNaN(val)) return '<span class="xl-chg xl-neu">—</span>';
   const abs = Math.abs(val * 100).toFixed(1);
   const sign = val > 0.0005 ? '+' : val < -0.0005 ? '−' : '';
-  const cls = val > 0.0005 ? 'xl-pos' : val < -0.0005 ? 'xl-neg' : 'xl-neu';
+  const cls  = val > 0.0005 ? 'xl-pos' : val < -0.0005 ? 'xl-neg' : 'xl-neu';
   return `<span class="xl-chg ${cls}">${sign}${abs} %</span>`;
 }
 
@@ -636,59 +636,79 @@ function xlVal(v) {
   return `<span class="xl-num">${fmt(v)}</span>`;
 }
 
-function xlSegmentBlock(segData, label) {
-  const s = segData;
-  const fy = s.fy;
-  const q  = s.quarterly;
-  const m  = s.monthly;
+// Compute FY daily-avg metrics for a given "FY YYYY" string and segment key
+function computeFYMetrics(fyStr, segKey) {
+  const rf = getRevFieldObj(segKey);
+  const quarters = DATA.quarterly.filter(q => q.quarter.endsWith(fyStr));
+  if (!quarters.length) return null;
+  const totalRev  = quarters.reduce((s, q) => s + (q[rf.qField] || 0), 0);
+  const totalDays = quarters.reduce((s, q) => s + (q.days || q.trading_days || 1), 0);
+  const avg = totalRev / totalDays;
+
+  const fyYear   = parseInt(fyStr.replace('FY ', ''));
+  const prevFY   = 'FY ' + (fyYear - 1);
+  const prevQtrs = DATA.quarterly.filter(q => q.quarter.endsWith(prevFY));
+  let prevAvg = null, yoy = null;
+  if (prevQtrs.length) {
+    const pRev  = prevQtrs.reduce((s, q) => s + (q[rf.qField] || 0), 0);
+    const pDays = prevQtrs.reduce((s, q) => s + (q.days || q.trading_days || 1), 0);
+    prevAvg = pRev / pDays;
+    yoy = (avg - prevAvg) / prevAvg;
+  }
+  return { label: fyStr, value: avg, prevLabel: prevFY, prevValue: prevAvg, yoy };
+}
+
+// Row HTML builders (return tbody innerHTML only)
+function xlFYRows(fyStr, segKey) {
+  const f = computeFYMetrics(fyStr, segKey);
+  if (!f) return '<tr><td colspan="3">—</td></tr>';
+  return [
+    `<tr class="xl-r-cur"><td>${f.label}</td><td>${xlVal(f.value)}</td><td>${xlChg(f.yoy)}</td></tr>`,
+    `<tr><td>${f.prevLabel}</td><td>${xlVal(f.prevValue)}</td><td></td></tr>`,
+  ].join('');
+}
+
+function xlQRows(qm) {
+  if (!qm) return '<tr><td colspan="3">—</td></tr>';
+  return [
+    `<tr class="xl-r-cur"><td>${qm.label}</td><td>${xlVal(qm.value)}</td><td>${xlChg(qm.qoq)}</td></tr>`,
+    `<tr><td>${qm.prevLabel || '—'}</td><td>${qm.prevValue != null ? xlVal(qm.prevValue) : '<span class="xl-num">—</span>'}</td><td><span class="xl-tag">YoY ${xlChg(qm.yoy)}</span></td></tr>`,
+    qm.yoyLabel && qm.yoyLabel !== '—' ? `<tr><td>${qm.yoyLabel}</td><td>${qm.yoyValue != null ? xlVal(qm.yoyValue) : '<span class="xl-num">—</span>'}</td><td></td></tr>` : '',
+  ].join('');
+}
+
+function xlMRows(mm) {
+  if (!mm) return '<tr><td colspan="3">—</td></tr>';
+  return [
+    `<tr class="xl-r-cur"><td>${mm.label}</td><td>${xlVal(mm.value)}</td><td>${xlChg(mm.mom)}</td></tr>`,
+    `<tr><td>${mm.prevLabel || '—'}</td><td>${mm.prevValue != null ? xlVal(mm.prevValue) : '<span class="xl-num">—</span>'}</td><td><span class="xl-tag">Mo6M ${xlChg(mm.mo6m)}</span></td></tr>`,
+    `<tr><td>Avg 6M</td><td>${mm.avg6mValue != null ? xlVal(mm.avg6mValue) : '<span class="xl-num">—</span>'}</td><td></td></tr>`,
+  ].join('');
+}
+
+function xlSegmentBlock(segData, label, segKey) {
+  const s   = segData;
   const wl5 = s.weekly.last5;
   const wp5 = s.weekly.prev5;
   const w50 = s.weekly.last50;
   const dow = s.day_of_week;
   const pw  = s.previous_week || {};
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const dayAbbr = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-  // Derive FY labels from the current quarter (e.g. "Q1 FY 2027" → "FY 2027")
-  const curQLabel = q.current.label || '';
-  const fyMatch = curQLabel.match(/FY\s+(\d{4})/);
-  const curFY = fyMatch ? 'FY ' + fyMatch[1] : 'Current FY';
-  const prevFYNum = fyMatch ? String(parseInt(fyMatch[1]) - 1) : null;
-  const prevFY = prevFYNum ? 'FY ' + prevFYNum : 'Previous FY';
-
-  // FY mini-table
-  const fyRows = [
-    `<tr class="xl-r-cur"><td>${curFY}</td><td>${xlVal(fy.current)}</td><td>${xlChg(fy.yoy)}</td></tr>`,
-    `<tr><td>${prevFY}</td><td>${xlVal(fy.previous)}</td><td></td></tr>`,
-  ].join('');
-
-  // Quarter mini-table
-  const qRows = [
-    `<tr class="xl-r-cur"><td>${q.current.label}</td><td>${xlVal(q.current.value)}</td><td>${xlChg(q.current.qoq)}</td></tr>`,
-    `<tr><td>${q.previous.label}</td><td>${xlVal(q.previous.value)}</td><td><span class="xl-tag">YoY ${xlChg(q.current.yoy)}</span></td></tr>`,
-    q.prev2 ? `<tr><td>${q.prev2.label}</td><td>${xlVal(q.prev2.value)}</td><td></td></tr>` : '',
-  ].join('');
-
-  // Month mini-table
-  const mRows = [
-    `<tr class="xl-r-cur"><td>${m.current.label}</td><td>${xlVal(m.current.value)}</td><td>${xlChg(m.current.mom)}</td></tr>`,
-    `<tr><td>${m.previous.label}</td><td>${xlVal(m.previous.value)}</td><td><span class="xl-tag">Mo6M ${xlChg(m.current.mo6m)}</span></td></tr>`,
-    `<tr><td>${m.avg_6m.label}</td><td>${xlVal(m.avg_6m.value)}</td><td></td></tr>`,
-  ].join('');
-
-  // Week mini-table
+  // Week rows (static — always shows last 5 / prev 5 / last 50)
   const wRows = [
     `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td></tr>`,
     `<tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>`,
     `<tr><td>Last 50 Days</td><td>${xlVal(w50.value)}</td><td></td></tr>`,
   ].join('');
 
-  // Day-of-week table
+  // Day-of-week rows
   const dowRows = dayFull.map((d, i) => {
     const dd = dow[d] || {};
     const pwVal = pw[d];
     return `<tr>
-      <td class="xl-day">${days[i]}</td>
+      <td class="xl-day">${dayAbbr[i]}</td>
       <td>${xlVal(dd.latest)}</td>
       <td>${xlVal(dd.avg_3d)}</td>
       <td>${xlChg(dd.do3d)}</td>
@@ -698,38 +718,49 @@ function xlSegmentBlock(segData, label) {
     </tr>`;
   }).join('');
 
+  // FY / Quarter / Month rows will be populated by updateXLPeriods()
   return `
     <div class="xl-segment">
       <div class="xl-seg-header">${label} <span class="xl-seg-unit">₹ Cr · daily avg</span></div>
       <div class="xl-tables-row">
 
-        <table class="xl-table">
-          <thead><tr><th colspan="3">Financial Year</th></tr>
-            <tr class="xl-col-hdr"><th>Period</th><th>Value</th><th>YoY</th></tr></thead>
-          <tbody>${fyRows}</tbody>
+        <table class="xl-table xl-table-fy">
+          <thead>
+            <tr><th colspan="3">Financial Year</th></tr>
+            <tr class="xl-col-hdr"><th>Period</th><th>Value</th><th>YoY</th></tr>
+          </thead>
+          <tbody id="xl-fy-${segKey}"></tbody>
         </table>
 
-        <table class="xl-table">
-          <thead><tr><th colspan="3">Quarter</th></tr>
-            <tr class="xl-col-hdr"><th>Period</th><th>Value</th><th>QoQ</th></tr></thead>
-          <tbody>${qRows}</tbody>
+        <table class="xl-table xl-table-q">
+          <thead>
+            <tr><th colspan="3">Quarter</th></tr>
+            <tr class="xl-col-hdr"><th>Period</th><th>Value</th><th>QoQ</th></tr>
+          </thead>
+          <tbody id="xl-q-${segKey}"></tbody>
         </table>
 
-        <table class="xl-table">
-          <thead><tr><th colspan="3">Month</th></tr>
-            <tr class="xl-col-hdr"><th>Period</th><th>Value</th><th>MoM</th></tr></thead>
-          <tbody>${mRows}</tbody>
+        <table class="xl-table xl-table-m">
+          <thead>
+            <tr><th colspan="3">Month</th></tr>
+            <tr class="xl-col-hdr"><th>Period</th><th>Value</th><th>MoM</th></tr>
+          </thead>
+          <tbody id="xl-m-${segKey}"></tbody>
         </table>
 
-        <table class="xl-table">
-          <thead><tr><th colspan="3">Week</th></tr>
-            <tr class="xl-col-hdr"><th>Period</th><th>Value</th><th>WoW</th></tr></thead>
+        <table class="xl-table xl-table-w">
+          <thead>
+            <tr><th colspan="3">Week</th></tr>
+            <tr class="xl-col-hdr"><th>Period</th><th>Value</th><th>WoW</th></tr>
+          </thead>
           <tbody>${wRows}</tbody>
         </table>
 
         <table class="xl-table xl-table-dow">
-          <thead><tr><th colspan="7">Day of Week</th></tr>
-            <tr class="xl-col-hdr"><th>Day</th><th>Latest</th><th>3D Avg</th><th>Do3D</th><th>10D Avg</th><th>Do10D</th><th>Prev Wk</th></tr></thead>
+          <thead>
+            <tr><th colspan="7">Day of Week</th></tr>
+            <tr class="xl-col-hdr"><th>Day</th><th>Latest</th><th>3D Avg</th><th>Do3D</th><th>10D Avg</th><th>Do10D</th><th>Prev Wk</th></tr>
+          </thead>
           <tbody>${dowRows}</tbody>
         </table>
 
@@ -737,18 +768,99 @@ function xlSegmentBlock(segData, label) {
     </div>`;
 }
 
+// Update all segment FY/Quarter/Month tbodies when a period selector changes
+function updateXLPeriods(fyStr, qIdx, mIdx) {
+  const segs = ['total', 'options', 'futures', 'cash'];
+  segs.forEach(sk => {
+    const fyEl = document.getElementById('xl-fy-' + sk);
+    const qEl  = document.getElementById('xl-q-'  + sk);
+    const mEl  = document.getElementById('xl-m-'  + sk);
+    if (fyEl) fyEl.innerHTML = xlFYRows(fyStr, sk);
+    if (qEl)  qEl.innerHTML  = xlQRows(computeQuarterMetrics(qIdx, sk));
+    if (mEl)  mEl.innerHTML  = xlMRows(computeMonthMetrics(mIdx, sk));
+  });
+}
+
 function buildRevenueSummary() {
   const ed = ENRICHED_DATA;
   const container = document.getElementById('revExcelView');
   if (!container) return;
-  if (!ed || !ed.summary_total) { container.innerHTML = '<p style="padding:20px;color:var(--color-text-muted)">Loading…</p>'; return; }
+  if (!ed || !ed.summary_total) {
+    container.innerHTML = '<p style="padding:20px;color:var(--color-text-muted)">Loading…</p>';
+    return;
+  }
 
-  container.innerHTML = [
-    xlSegmentBlock(ed.summary_total, 'Total Revenue'),
-    xlSegmentBlock(ed.seg_options,   'Options Revenue'),
-    xlSegmentBlock(ed.seg_futures,   'Futures Revenue'),
-    xlSegmentBlock(ed.seg_cash,      'Cash Revenue'),
-  ].join('');
+  // Build FY option list from quarterly data
+  const fySet = [];
+  DATA.quarterly.forEach(q => {
+    const m = q.quarter.match(/FY \d{4}/);
+    if (m && !fySet.includes(m[0])) fySet.push(m[0]);
+  });
+  fySet.reverse(); // most recent first
+  const defaultFY = fySet[0] || 'FY 2027';
+
+  const allQ = DATA.quarterly;
+  const defaultQIdx = allQ.length - 1;
+
+  const allM = DATA.monthly;
+  const defaultMIdx = allM.length - 1;
+
+  const fyOpts = fySet.map(fy => `<option value="${fy}">${fy}</option>`).join('');
+  const qOpts  = [...allQ].reverse().map((q, ri) => {
+    const idx = allQ.length - 1 - ri;
+    return `<option value="${idx}"${idx === defaultQIdx ? ' selected' : ''}>${q.quarter}</option>`;
+  }).join('');
+  const mOpts  = [...allM].reverse().map((m, ri) => {
+    const idx = allM.length - 1 - ri;
+    return `<option value="${idx}"${idx === defaultMIdx ? ' selected' : ''}>${m.month}</option>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="xl-period-bar">
+      <div class="xl-period-group">
+        <label class="xl-period-label">Financial Year</label>
+        <select class="xl-period-sel" id="xlSelFY">${fyOpts}</select>
+      </div>
+      <div class="xl-period-group">
+        <label class="xl-period-label">Quarter</label>
+        <select class="xl-period-sel" id="xlSelQ">${qOpts}</select>
+      </div>
+      <div class="xl-period-group">
+        <label class="xl-period-label">Month</label>
+        <select class="xl-period-sel" id="xlSelM">${mOpts}</select>
+      </div>
+    </div>
+    ${xlSegmentBlock(ed.summary_total, 'Total Revenue',   'total')}
+    ${xlSegmentBlock(ed.seg_options,   'Options Revenue', 'options')}
+    ${xlSegmentBlock(ed.seg_futures,   'Futures Revenue', 'futures')}
+    ${xlSegmentBlock(ed.seg_cash,      'Cash Revenue',    'cash')}
+  `;
+
+  // Initial population
+  updateXLPeriods(defaultFY, defaultQIdx, defaultMIdx);
+
+  // Wire up dropdowns — each independently triggers a full update
+  document.getElementById('xlSelFY').addEventListener('change', function() {
+    updateXLPeriods(
+      this.value,
+      parseInt(document.getElementById('xlSelQ').value),
+      parseInt(document.getElementById('xlSelM').value)
+    );
+  });
+  document.getElementById('xlSelQ').addEventListener('change', function() {
+    updateXLPeriods(
+      document.getElementById('xlSelFY').value,
+      parseInt(this.value),
+      parseInt(document.getElementById('xlSelM').value)
+    );
+  });
+  document.getElementById('xlSelM').addEventListener('change', function() {
+    updateXLPeriods(
+      document.getElementById('xlSelFY').value,
+      parseInt(document.getElementById('xlSelQ').value),
+      parseInt(this.value)
+    );
+  });
 }
 
 
