@@ -2606,7 +2606,7 @@ function buildBSEShareAnalysis() {
     </div>
     <div style="font-size:12px;color:var(--color-text-muted);display:flex;gap:24px;flex-wrap:wrap">
       <span>R² = ${reg.r_squared.toFixed(3)} &nbsp;|&nbsp; r = ${reg.pearson_r.toFixed(3)} &nbsp;|&nbsp; n = ${SHARE_DATA.n_days} trading days</span>
-      <span>Revenue MA window: ${SHARE_DATA.ma_window} days &nbsp;|&nbsp; Ticker: ${SHARE_DATA.ticker}</span>
+      <span>MA window: ${SHARE_DATA.ma_window} days (best fit) &nbsp;|&nbsp; Regression from: ${SHARE_DATA.regression_start || 'N/A'} &nbsp;|&nbsp; Ticker: ${SHARE_DATA.ticker}</span>
       <span>Prediction error: ${lat.error_pct}% &nbsp;|&nbsp; As of: ${lat.date}</span>
     </div>
   </div>`;
@@ -2684,9 +2684,10 @@ function buildBSEShareAnalysis() {
     }
   });
 
-  // ── Chart 2: 50-day MA of revenue ──
-  const revMA = ser.map(r => r.rev_ma50);
+  // ── Chart 2: Revenue MA ──
+  const revMA  = ser.map(r => r.rev_ma);
   const revRaw = ser.map(r => r.revenue_cr);
+  const maWin  = SHARE_DATA.ma_window;
   setCanvasHeight('chartBseRevMA50', 280);
   charts.bseRevMA50 = new Chart(document.getElementById('chartBseRevMA50'), {
     type: 'line',
@@ -2703,7 +2704,7 @@ function buildBSEShareAnalysis() {
           tension: 0.2,
         },
         {
-          label: '50-Day MA',
+          label: maWin + '-Day MA',
           data: revMA,
           borderColor: CHART_COLORS[0],
           backgroundColor: 'transparent',
@@ -2724,11 +2725,11 @@ function buildBSEShareAnalysis() {
     }
   });
 
-  // ── Chart 3: Scatter (Revenue MA50 → Price) ──
-  const scatterData = ser.map(r => ({ x: r.rev_ma50, y: r.price }));
+  // ── Chart 3: Scatter (Revenue MA → Price) ──
+  const scatterData = ser.map(r => ({ x: r.rev_ma, y: r.price }));
   // Regression line points
-  const xMin = Math.min(...ser.map(r => r.rev_ma50));
-  const xMax = Math.max(...ser.map(r => r.rev_ma50));
+  const xMin = Math.min(...ser.map(r => r.rev_ma));
+  const xMax = Math.max(...ser.map(r => r.rev_ma));
   const regLine = [
     { x: xMin, y: reg.slope * xMin + reg.intercept },
     { x: xMax, y: reg.slope * xMax + reg.intercept },
@@ -2761,12 +2762,12 @@ function buildBSEShareAnalysis() {
       plugins: {
         tooltip: {
           callbacks: {
-            label: ctx => `Rev MA50: ₹${fmtNum(ctx.parsed.x, 1)} Cr | Price: ₹${fmtNum(ctx.parsed.y, 0)}`
+            label: ctx => `Rev MA${maWin}: ₹${fmtNum(ctx.parsed.x, 1)} Cr | Price: ₹${fmtNum(ctx.parsed.y, 0)}`
           }
         }
       },
       scales: {
-        x: { title: { display: true, text: '50-Day MA Revenue (₹ Cr)' }, ticks: { callback: v => '₹' + fmtNum(v, 0) } },
+        x: { title: { display: true, text: maWin + '-Day MA Revenue (₹ Cr)' }, ticks: { callback: v => '₹' + fmtNum(v, 0) } },
         y: { title: { display: true, text: 'BSE Share Price (₹)' }, ticks: { callback: v => '₹' + fmtNum(v, 0) } }
       }
     }
