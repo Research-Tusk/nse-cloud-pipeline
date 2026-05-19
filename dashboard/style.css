@@ -1172,7 +1172,178 @@ span.neutral {
 }
 
 /* =========================
-   REVENUE SUMMARY
+   EXCEL-STYLE REVENUE SUMMARY
+   ========================= */
+
+#revExcelView {
+  padding: var(--space-3) var(--space-4) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.xl-segment {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-card);
+}
+
+.xl-seg-header {
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.xl-seg-unit {
+  font-weight: 400;
+  opacity: 0.7;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 10px;
+}
+
+.xl-tables-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  overflow-x: auto;
+}
+
+/* Each mini-table */
+.xl-table {
+  border-collapse: collapse;
+  font-size: 11.5px;
+  min-width: 0;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border);
+}
+
+.xl-table:last-child {
+  border-right: none;
+  flex: 1;
+  min-width: 280px;
+}
+
+.xl-table thead tr:first-child th {
+  background: #f0f2f5;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 5px 10px 4px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.xl-table thead .xl-col-hdr th {
+  background: #f7f8fa;
+  color: var(--color-text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.xl-table tbody tr {
+  border-bottom: 1px solid #eef0f3;
+}
+
+.xl-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.xl-table tbody tr.xl-r-cur {
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.xl-table tbody tr.xl-r-cur td {
+  font-weight: 600;
+}
+
+.xl-table td {
+  padding: 5px 10px;
+  white-space: nowrap;
+  vertical-align: middle;
+  color: var(--color-text);
+}
+
+.xl-table td:first-child {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  min-width: 120px;
+}
+
+.xl-table td:nth-child(2) {
+  text-align: right;
+  min-width: 64px;
+  font-variant-numeric: tabular-nums;
+}
+
+.xl-table td:nth-child(3),
+.xl-table td:nth-child(4),
+.xl-table td:nth-child(6) {
+  text-align: right;
+  min-width: 56px;
+}
+
+/* Day-of-week table specifics */
+.xl-table-dow td.xl-day {
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 32px;
+}
+
+.xl-table-dow td.xl-prev-wk {
+  border-left: 1px solid var(--color-border);
+  color: var(--color-text-faint);
+}
+
+/* Number spans */
+.xl-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Change badge */
+.xl-chg {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.xl-chg.xl-pos { color: var(--color-positive); }
+.xl-chg.xl-neg { color: var(--color-negative); }
+.xl-chg.xl-neu { color: var(--color-text-faint); }
+
+/* Inline secondary tag (e.g. "YoY +5 %") */
+.xl-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--color-text-faint);
+  font-weight: 500;
+}
+
+/* Hover row highlight */
+.xl-table tbody tr:hover {
+  background: var(--color-bg-elevated);
+}
+
+/* =========================
+   REVENUE SUMMARY (legacy — kept for reference)
    ========================= */
 
 .rev-summary-grid {
@@ -2053,5 +2224,26 @@ span.pr-neg {
   /* ── Regression equation card: smaller font ── */
   #bse-share-inner .chart-panel [style*="font-size:20px"] {
     font-size: 14px !important;
+  }
+
+  /* ── Excel-style Revenue Summary: stack segment tables on mobile ── */
+  #revExcelView {
+    padding: var(--space-2) var(--space-2) var(--space-5);
+    gap: 12px;
+  }
+
+  .xl-tables-row {
+    flex-direction: column;
+  }
+
+  .xl-table {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    width: 100%;
+  }
+
+  .xl-table:last-child {
+    border-bottom: none;
+    min-width: unset;
   }
 }
