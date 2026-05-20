@@ -766,7 +766,7 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const s   = segData;
   const wl5 = s.weekly.last5;
   const wp5 = s.weekly.prev5;
-  const w50 = s.weekly.last50;
+  const w50 = s.weekly.last45;
   const dow = s.day_of_week;
   const pw  = s.previous_week || {};
   const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -774,7 +774,7 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const wRows = [
     `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>`,
     `<tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td></td><td></td></tr>`,
-    `<tr><td>Last 50 Days</td><td>${xlVal(w50.value)}</td><td></td><td></td></tr>`,
+    `<tr><td>Last 45 Days</td><td>${xlVal(w50.value)}</td><td></td><td></td></tr>`,
   ].join('');
 
   const dowRows = dayFull.map((d) => {
