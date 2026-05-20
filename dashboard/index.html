@@ -43,6 +43,7 @@
     <div class="exchange-pill">
       <button class="exchange-btn active" data-exchange="nse">NSE</button>
       <button class="exchange-btn" data-exchange="bse">BSE</button>
+      <button class="exchange-btn" data-exchange="mcx">MCX</button>
     </div>
 
     <nav class="sidebar-nav" id="sidebarNav">
@@ -267,11 +268,35 @@
           </div>
         </div>
       </div>
+      <!-- MCX: Simple Revenue Predictor -->
+      <div id="mcxPredictionContent" style="display:none">
+        <div class="chart-panel" style="margin-bottom:var(--space-5)">
+          <div class="chart-title">Revenue Extrapolation <span class="chart-badge">Current Quarter</span></div>
+          <div class="predictor-cards" id="mcxPredictorKpis"></div>
+          <div class="progress-bar-container" style="margin-top:var(--space-4)">
+            <div class="progress-bar">
+              <div class="progress-bar-fill" id="mcxProgressBarFill" style="width:0%"></div>
+            </div>
+            <div class="progress-label" id="mcxProgressLabel"></div>
+          </div>
+        </div>
+        <div class="chart-panel" style="margin-bottom:var(--space-5)">
+          <div class="chart-title">Revenue Composition — Current Quarter</div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="tableMcxRevComposition"></table>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <!-- TAB: Share Analytics (BSE only) -->
+    <!-- TAB: Share Analytics (BSE + MCX) -->
     <section class="tab-content" id="tab-share">
       <div id="bse-share-inner" style="padding:4px 0">
+        <div class="chart-panel" style="text-align:center;padding:40px;color:var(--color-text-muted)">
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px">Loading share analysis…</div>
+        </div>
+      </div>
+      <div id="mcx-share-inner" style="display:none;padding:4px 0">
         <div class="chart-panel" style="text-align:center;padding:40px;color:var(--color-text-muted)">
           <div style="font-size:14px;font-weight:600;margin-bottom:8px">Loading share analysis…</div>
         </div>

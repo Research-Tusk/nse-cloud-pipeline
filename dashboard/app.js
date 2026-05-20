@@ -216,6 +216,7 @@ const NAV_ICONS = {
   temporal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
   prediction: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   advanced: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
 };
 
 // ========================
@@ -232,6 +233,11 @@ const EXCHANGE_TABS = {
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
   ],
+  mcx: [
+    { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
+    { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
+    { id: 'share',      label: 'Regression',            icon: 'share' },
+  ],
 };
 
 const TAB_TITLES = {
@@ -243,7 +249,12 @@ const TAB_TITLES = {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
     share: 'Share Price Analytics',
-  }
+  },
+  mcx: {
+    revenue: 'Revenue Summary',
+    prediction: 'Revenue Predictor',
+    share: 'Share Price Analytics',
+  },
 };
 
 // ========================
@@ -361,31 +372,32 @@ async function switchExchange(exchange) {
 
 function toggleExchangeContent(exchange) {
   const isNSE = exchange === 'nse';
-  // Segment tab content
-  const nseSegment = document.getElementById('nseSegmentContent');
-  const bseSegment = document.getElementById('bseSegmentContent');
-  if (nseSegment) nseSegment.style.display = isNSE ? '' : 'none';
-  if (bseSegment) bseSegment.style.display = isNSE ? 'none' : '';
-  // Temporal/Quarterly tab content
-  const nseTemporal = document.getElementById('nseTemporalContent');
-  const bseQuarterly = document.getElementById('bseQuarterlyContent');
-  if (nseTemporal) nseTemporal.style.display = isNSE ? '' : 'none';
-  if (bseQuarterly) bseQuarterly.style.display = isNSE ? 'none' : '';
-  // Prediction tab content
-  const nsePred = document.getElementById('nsePredictionContent');
-  const bsePred = document.getElementById('bsePredictionContent');
-  if (nsePred) nsePred.style.display = isNSE ? '' : 'none';
-  if (bsePred) bsePred.style.display = isNSE ? 'none' : '';
-  // Advanced/Monthly tab content
-  const nseAdv = document.getElementById('nseAdvancedContent');
-  const bseMonthly = document.getElementById('bseMonthlyContent');
-  if (nseAdv) nseAdv.style.display = isNSE ? '' : 'none';
-  if (bseMonthly) bseMonthly.style.display = isNSE ? 'none' : '';
-  // Executive extras
-  const nseExec = document.getElementById('nseExecExtras');
-  const bseExec = document.getElementById('bseExecExtras');
-  if (nseExec) nseExec.style.display = isNSE ? '' : 'none';
-  if (bseExec) bseExec.style.display = isNSE ? 'none' : '';
+  const isBSE = exchange === 'bse';
+  const isMCX = exchange === 'mcx';
+
+  const show = (id, visible) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = visible ? '' : 'none';
+  };
+
+  // NSE-only sections
+  show('nseSegmentContent',   isNSE);
+  show('nseTemporalContent',  isNSE);
+  show('nseAdvancedContent',  isNSE);
+  show('nseExecExtras',       isNSE);
+  show('nsePredictionContent', isNSE);
+
+  // BSE-only sections
+  show('bseSegmentContent',   isBSE);
+  show('bseQuarterlyContent', isBSE);
+  show('bseMonthlyContent',   isBSE);
+  show('bseExecExtras',       isBSE);
+  show('bsePredictionContent', isBSE);
+  show('bse-share-inner',     isBSE);
+
+  // MCX-only sections
+  show('mcxPredictionContent', isMCX);
+  show('mcx-share-inner',      isMCX);
 }
 
 // ========================
@@ -393,18 +405,17 @@ function toggleExchangeContent(exchange) {
 // ========================
 
 async function loadExchangeData(exchange) {
-  const prefix = exchange === 'nse' ? 'nse' : 'bse';
   const fetches = [
-    fetch(`./data/${prefix}_dashboard_data.json`),
-    fetch(`./data/${prefix}_enriched_data.json`),
+    fetch(`./data/${exchange}_dashboard_data.json`),
+    fetch(`./data/${exchange}_enriched_data.json`),
   ];
-  if (exchange === 'bse') {
-    fetches.push(fetch('./data/bse_share_analysis.json').catch(() => null));
+  if (exchange === 'bse' || exchange === 'mcx') {
+    fetches.push(fetch(`./data/${exchange}_share_analysis.json`).catch(() => null));
   }
   const results = await Promise.all(fetches);
   DATA = await results[0].json();
   ENRICHED_DATA = await results[1].json();
-  if (exchange === 'bse' && results[2]) {
+  if ((exchange === 'bse' || exchange === 'mcx') && results[2]) {
     SHARE_DATA = await results[2].json().catch(() => null);
   } else {
     SHARE_DATA = null;
@@ -536,9 +547,12 @@ function rebuildAll() {
     initNSEPATPredictor();
     initNSEPEValuation();
     initNSEPrediction();
-  } else {
+  } else if (currentExchange === 'bse') {
     buildBSERevenuePredictor();
     buildBSEShareAnalysis();
+  } else if (currentExchange === 'mcx') {
+    buildMCXRevenuePredictor();
+    buildMCXShareAnalysis();
   }
 }
 
@@ -1835,6 +1849,51 @@ function buildBSERevenuePredictor() {
   document.getElementById('tableBseRevComposition').innerHTML = compositionHTML;
 }
 
+function buildMCXRevenuePredictor() {
+  const p = ENRICHED_DATA.pnl_predictor;
+  if (!p) return;
+  const otherIncome = p.total_revenue_predicted - p.transaction_rev_extrapolated;
+  const progressPct = ((p.trading_days_so_far / p.expected_trading_days) * 100).toFixed(0);
+
+  const kpis = [
+    { label: 'Daily Avg Transaction Rev', value: fmt(p.daily_avg_rev) },
+    { label: 'Trading Days (Actual / Expected)', value: `${p.trading_days_so_far} / ${p.expected_trading_days}` },
+    { label: 'Extrapolated Qtr Transaction Rev', value: fmt(p.transaction_rev_extrapolated) },
+    { label: `Other Income (~${fmtPct(p.other_income_ratio)} of Txn)`, value: fmt(otherIncome) },
+  ];
+
+  document.getElementById('mcxPredictorKpis').innerHTML = kpis.map(k => `
+    <div class="extrap-card${k.highlight ? ' highlight' : ''}">
+      <div class="extrap-label">${k.label}</div>
+      <div class="extrap-value">${k.value}</div>
+    </div>
+  `).join('') + `
+    <div class="extrap-card highlight" style="grid-column: 1 / -1">
+      <div class="extrap-label">Total Estimated Quarterly Revenue</div>
+      <div class="extrap-value" style="font-size:var(--text-xl)">${fmt(p.total_revenue_predicted)}</div>
+    </div>
+  `;
+
+  document.getElementById('mcxProgressBarFill').style.width = progressPct + '%';
+  document.getElementById('mcxProgressLabel').textContent =
+    `Quarter Progress: ${p.trading_days_so_far} of ${p.expected_trading_days} trading days completed (${progressPct}%)`;
+
+  const q = DATA.quarterly;
+  const cq = q[q.length - 1];
+  const cqDays = cq.days || cq.trading_days || 1;
+  const optPct  = cq.total_rev > 0 ? (cq.opt_rev  / cq.total_rev * 100).toFixed(1) : 0;
+  const cashPct = cq.total_rev > 0 ? (cq.cash_rev / cq.total_rev * 100).toFixed(1) : 0;
+  const futPct  = cq.total_rev > 0 ? (cq.fut_rev  / cq.total_rev * 100).toFixed(1) : 0;
+
+  let compositionHTML = `<thead><tr><th>Segment</th><th>Current Qtr Rev</th><th>% of Total</th><th>Days</th><th>Daily Avg</th></tr></thead><tbody>`;
+  compositionHTML += `<tr><td>Options</td><td>${fmt(cq.opt_rev)}</td><td>${optPct}%</td><td>${cqDays}</td><td>${fmt(cq.opt_rev / cqDays)}</td></tr>`;
+  compositionHTML += `<tr><td>Futures</td><td>${fmt(cq.fut_rev)}</td><td>${futPct}%</td><td>${cqDays}</td><td>${fmt(cq.fut_rev / cqDays)}</td></tr>`;
+  compositionHTML += `<tr><td>Cash</td><td>${fmt(cq.cash_rev)}</td><td>${cashPct}%</td><td>${cqDays}</td><td>${fmt(cq.cash_rev / cqDays)}</td></tr>`;
+  compositionHTML += `<tr style="font-weight:600"><td>Total</td><td>${fmt(cq.total_rev)}</td><td>100%</td><td>${cqDays}</td><td>${fmt(cq.total_rev / cqDays)}</td></tr>`;
+  compositionHTML += `</tbody>`;
+  document.getElementById('tableMcxRevComposition').innerHTML = compositionHTML;
+}
+
 // ========================
 // BSE: QUARTERLY ANALYSIS
 // ========================
@@ -2373,6 +2432,276 @@ function buildBSEShareAnalysis() {
       el.querySelectorAll('.share-range-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       buildBSECharts(filterShareSeries(ser, btn.dataset.range, regStart), reg, maWin);
+    });
+  });
+}
+
+function buildMCXCharts(viewSer, reg, maWin) {
+  ['mcxSharePrice', 'mcxRevMA50', 'mcxRevMaVsPrice', 'mcxRatioSD', 'mcxShareScatter'].forEach(k => {
+    if (charts[k]) { charts[k].destroy(); charts[k] = null; }
+  });
+  if (!viewSer.length) return;
+
+  const labels  = viewSer.map(r => r.date.slice(5));
+  const actuals = viewSer.map(r => r.price);
+  const preds   = viewSer.map(r => r.price_pred);
+  const revMA   = viewSer.map(r => r.rev_ma);
+  const revRaw  = viewSer.map(r => r.revenue_cr);
+
+  setCanvasHeight('chartMcxSharePrice', 280);
+  charts.mcxSharePrice = new Chart(document.getElementById('chartMcxSharePrice'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Actual Price',    data: actuals, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2,   pointRadius: 0, tension: 0.2 },
+        { label: 'Model Prediction', data: preds,  borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, borderDash: [5, 3] },
+      ]
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 0) } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
+        y: { ticks: { callback: v => '₹' + fmtNum(v, 0) } }
+      }
+    }
+  });
+
+  setCanvasHeight('chartMcxRevMA50', 280);
+  charts.mcxRevMA50 = new Chart(document.getElementById('chartMcxRevMA50'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Daily Revenue', data: revRaw, borderColor: CHART_COLORS[3], backgroundColor: 'transparent', borderWidth: 1, pointRadius: 0, tension: 0.2 },
+        { label: maWin + '-Day MA', data: revMA, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+      ]
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 2) + ' Cr' } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
+        y: { ticks: { callback: v => '₹' + fmtNum(v, 1) + ' Cr' } }
+      }
+    }
+  });
+
+  setCanvasHeight('chartMcxRevMaVsPrice', 300);
+  charts.mcxRevMaVsPrice = new Chart(document.getElementById('chartMcxRevMaVsPrice'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: maWin + '-Day MA Revenue (₹ Cr)', data: revMA,   borderColor: CHART_COLORS[4], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'yRev' },
+        { label: 'MCX Share Price (₹)',             data: actuals, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'yPrice' },
+      ]
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.yAxisID === 'yRev'
+              ? ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 2) + ' Cr'
+              : ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 0)
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+        yRev: {
+          type: 'linear', position: 'left',
+          title: { display: true, text: maWin + '-Day MA Rev (₹ Cr)', font: { size: 10 } },
+          ticks: { callback: v => '₹' + fmtNum(v, 1) + ' Cr', font: { size: 10 } },
+        },
+        yPrice: {
+          type: 'linear', position: 'right',
+          title: { display: true, text: 'Share Price (₹)', font: { size: 10 } },
+          ticks: { callback: v => '₹' + fmtNum(v, 0), font: { size: 10 } },
+          grid: { drawOnChartArea: false },
+        },
+      }
+    }
+  });
+
+  const ratios = viewSer.map(r => r.price / r.rev_ma);
+  const n      = ratios.length;
+  const mean   = ratios.reduce((a, b) => a + b, 0) / n;
+  const std    = Math.sqrt(ratios.reduce((a, b) => a + (b - mean) ** 2, 0) / n);
+  const flat   = val => viewSer.map(() => val);
+  const sdBandOuter = CHART_COLORS[0] + '18';
+  const sdBandInner = CHART_COLORS[0] + '30';
+  const sdLineOuter = CHART_COLORS[0] + '55';
+  const sdLineInner = CHART_COLORS[0] + '80';
+
+  setCanvasHeight('chartMcxRatioSD', 300);
+  charts.mcxRatioSD = new Chart(document.getElementById('chartMcxRatioSD'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '+2σ',          data: flat(mean + 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 4 }, backgroundColor: sdBandOuter },
+        { label: '+1σ',          data: flat(mean + std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 3 }, backgroundColor: sdBandInner },
+        { label: 'Mean',         data: flat(mean),           borderColor: CHART_COLORS[4], borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+        { label: '−1σ',          data: flat(mean - std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+        { label: '−2σ',          data: flat(mean - 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+        { label: 'Price / Rev MA', data: ratios, borderColor: CHART_COLORS[1], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
+      ]
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw.toFixed(1);
+              if (ctx.dataset.label === 'Price / Rev MA') {
+                const zVal = (ctx.raw - mean) / std;
+                return `Ratio: ${v}  (${zVal >= 0 ? '+' : ''}${zVal.toFixed(1)}σ)`;
+              }
+              return ctx.dataset.label + ': ' + v;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+        y: {
+          ticks: { font: { size: 10 }, callback: v => v.toFixed(0) },
+          title: { display: true, text: 'Price ÷ Rev MA' + maWin, font: { size: 10 } },
+        }
+      }
+    }
+  });
+
+  const scatterData = viewSer.map(r => ({ x: r.rev_ma, y: r.price }));
+  const xVals = viewSer.map(r => r.rev_ma);
+  const xMin  = Math.min(...xVals);
+  const xMax  = Math.max(...xVals);
+  const regLine = [
+    { x: xMin, y: reg.slope * xMin + reg.intercept },
+    { x: xMax, y: reg.slope * xMax + reg.intercept },
+  ];
+
+  setCanvasHeight('chartMcxShareScatter', 260);
+  charts.mcxShareScatter = new Chart(document.getElementById('chartMcxShareScatter'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label: 'Trading Days',  data: scatterData, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3 },
+        { label: 'Regression Line', data: regLine, type: 'line', borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 3], pointRadius: 0 },
+      ]
+    },
+    options: {
+      plugins: {
+        tooltip: { callbacks: { label: ctx => `Rev MA${maWin}: ₹${fmtNum(ctx.parsed.x, 1)} Cr | Price: ₹${fmtNum(ctx.parsed.y, 0)}` } }
+      },
+      scales: {
+        x: { title: { display: true, text: maWin + '-Day MA Revenue (₹ Cr)' }, ticks: { callback: v => '₹' + fmtNum(v, 1) } },
+        y: { title: { display: true, text: 'MCX Share Price (₹)' },            ticks: { callback: v => '₹' + fmtNum(v, 0) } }
+      }
+    }
+  });
+}
+
+function buildMCXShareAnalysis() {
+  const el = document.getElementById('mcx-share-inner');
+  if (!el) return;
+
+  if (!SHARE_DATA) {
+    el.innerHTML = `<div class="chart-panel" style="text-align:center;padding:48px;color:var(--color-text-muted)">
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px">Share analytics data not available</div>
+      <div style="font-size:12px">Run scripts/mcx_share_analysis.py to generate mcx_share_analysis.json</div>
+    </div>`;
+    return;
+  }
+
+  const reg      = SHARE_DATA.regression;
+  const lat      = SHARE_DATA.latest;
+  const ser      = SHARE_DATA.series || [];
+  const maWin    = SHARE_DATA.ma_window;
+  const regStart = SHARE_DATA.regression_start || '2024-11-01';
+  const r2pct    = Math.round(reg.r_squared * 100);
+  const errDiff  = lat.price_pred - lat.price_actual;
+
+  const kpiHTML = `
+  <div class="share-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
+    ${kpi('Model R²',        r2pct + '%',                        reg.fit + ' fit',                           r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
+    ${kpi('Pearson r',       reg.pearson_r.toFixed(2),           'revenue ↔ price',                          '')}
+    ${kpi('Predicted Price', '₹' + fmtNum(lat.price_pred, 0),   'model estimate',                           '')}
+    ${kpi('Actual Price',    '₹' + fmtNum(lat.price_actual, 0), (errDiff >= 0 ? '+' : '') + fmtNum(errDiff, 0) + ' vs model', errDiff >= 0 ? 'positive' : 'negative')}
+  </div>`;
+
+  const eqHTML = `
+  <div class="chart-panel" style="margin-bottom:var(--space-4);padding:20px 24px">
+    <div class="chart-title">Regression Equation</div>
+    <div style="font-size:20px;font-weight:700;color:var(--color-text);margin:12px 0 8px;font-family:var(--font-mono,monospace)">${reg.equation}</div>
+    <div style="font-size:12px;color:var(--color-text-muted);display:flex;gap:24px;flex-wrap:wrap">
+      <span>R² = ${reg.r_squared.toFixed(3)} &nbsp;|&nbsp; r = ${reg.pearson_r.toFixed(3)} &nbsp;|&nbsp; n = ${SHARE_DATA.n_days} trading days</span>
+      <span>MA window: ${maWin} days &nbsp;|&nbsp; Regression from: ${regStart} &nbsp;|&nbsp; Ticker: ${SHARE_DATA.ticker}</span>
+      <span>Prediction error: ${lat.error_pct} % &nbsp;|&nbsp; As of: ${lat.date}</span>
+    </div>
+  </div>`;
+
+  const ranges = [
+    { key: '1m',      label: '1M' },
+    { key: '3m',      label: '3M' },
+    { key: '6m',      label: '6M' },
+    { key: 'nov2024', label: 'Nov 2024+' },
+    { key: '1y',      label: '1Y' },
+    { key: '2y',      label: '2Y' },
+  ];
+  const toggleHTML = `
+  <div class="share-range-toggle">
+    ${ranges.map(r => `<button class="share-range-btn${r.key === 'nov2024' ? ' active' : ''}" data-range="${r.key}">${r.label}</button>`).join('')}
+  </div>`;
+
+  const chartsHTML = `
+  <div style="margin-top:var(--space-4)">
+    <div class="chart-grid chart-grid-2" style="margin-bottom:var(--space-4)">
+      <div class="chart-panel">
+        <div class="chart-title">MCX Share Price: Actual vs Model</div>
+        <div class="chart-wrapper"><canvas id="chartMcxSharePrice"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-title">${maWin}-Day MA Revenue (₹ Cr)</div>
+        <div class="chart-wrapper"><canvas id="chartMcxRevMA50"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-panel" style="margin-bottom:var(--space-4)">
+      <div class="chart-title">${maWin}-Day MA Revenue vs MCX Share Price</div>
+      <div class="chart-wrapper"><canvas id="chartMcxRevMaVsPrice"></canvas></div>
+    </div>
+    <div class="chart-panel" style="margin-bottom:var(--space-4)">
+      <div class="chart-title">Price ÷ Rev MA${maWin} Ratio — Mean ± SD</div>
+      <div class="chart-wrapper"><canvas id="chartMcxRatioSD"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">Revenue → Price Scatter</div>
+      <div class="chart-wrapper" style="max-height:300px"><canvas id="chartMcxShareScatter"></canvas></div>
+    </div>
+  </div>`;
+
+  const sectionHTML = `
+  <div style="margin-top:var(--space-5)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--color-border)">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)">Charts</span>
+      ${toggleHTML}
+    </div>
+    ${chartsHTML}
+  </div>`;
+
+  el.innerHTML = kpiHTML + eqHTML + sectionHTML;
+
+  buildMCXCharts(filterShareSeries(ser, 'nov2024', regStart), reg, maWin);
+
+  el.querySelectorAll('.share-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.share-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      buildMCXCharts(filterShareSeries(ser, btn.dataset.range, regStart), reg, maWin);
     });
   });
 }
