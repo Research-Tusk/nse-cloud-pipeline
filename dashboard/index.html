@@ -45,6 +45,7 @@
       <button class="exchange-btn active" data-exchange="nse">NSE</button>
       <button class="exchange-btn" data-exchange="bse">BSE</button>
       <button class="exchange-btn" data-exchange="mcx">MCX</button>
+      <button class="exchange-btn" data-exchange="nsebse">NSE+BSE</button>
     </div>
 
     <nav class="sidebar-nav" id="sidebarNav">
@@ -80,6 +81,7 @@
 
     <!-- ===================== TAB 1: REVENUE SUMMARY ===================== -->
     <section class="tab-content active" id="tab-revenue">
+      <div id="marketSharePanel" style="display:none"></div>
       <div class="sub-tabs" id="revSubTabs">
         <button class="sub-tab active" data-subtab="rev-total">Total</button>
         <button class="sub-tab" data-subtab="rev-options">Options</button>

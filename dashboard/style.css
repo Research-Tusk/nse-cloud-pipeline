@@ -1388,6 +1388,141 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 }
 
 /* =========================
+   NSE+BSE MARKET SHARE PANEL
+   ========================= */
+
+#marketSharePanel {
+  padding: var(--space-3) var(--space-4) 0;
+}
+
+.ms-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-card);
+  margin-bottom: var(--space-4);
+}
+
+.ms-header {
+  background: #16a34a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ms-segs-row {
+  display: flex;
+  flex-wrap: wrap;
+  overflow-x: auto;
+}
+
+.ms-seg {
+  flex: 1;
+  min-width: 240px;
+  border-right: 1px solid var(--color-border);
+}
+
+.ms-seg:last-child {
+  border-right: none;
+}
+
+.ms-seg-label {
+  background: #f0f2f5;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ms-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.ms-table thead tr th {
+  background: #f7f8fa;
+  color: var(--color-text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  text-align: left;
+}
+
+.ms-table thead tr th:nth-child(2),
+.ms-table thead tr th:nth-child(3),
+.ms-table thead tr th:nth-child(4),
+.ms-table thead tr th:nth-child(5) {
+  text-align: right;
+}
+
+.ms-table tbody tr {
+  border-bottom: 1px solid #eef0f3;
+}
+
+.ms-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.ms-table tbody tr:hover {
+  background: var(--color-bg-elevated);
+}
+
+.ms-table tbody tr.xl-r-cur {
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.ms-table tbody tr.xl-r-cur td {
+  font-weight: 600;
+}
+
+.ms-table td {
+  padding: 4px 8px;
+  white-space: nowrap;
+  vertical-align: middle;
+  color: var(--color-text);
+}
+
+.ms-table td:first-child {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  min-width: 90px;
+}
+
+.ms-table td:nth-child(2),
+.ms-table td:nth-child(4) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ms-table td:nth-child(3),
+.ms-table td:nth-child(5) {
+  text-align: right;
+  min-width: 44px;
+}
+
+.ms-pct {
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.ms-nse { color: #2563eb; }
+.ms-bse { color: #c0392b; }
+
+/* =========================
    REVENUE SUMMARY (legacy — kept for reference)
    ========================= */
 

@@ -7,8 +7,9 @@
 
 let DATA = {};
 let ENRICHED_DATA = {};
-let SHARE_DATA = null;   // BSE Ltd share price analysis
-let MARKET_DATA = {};    // Preloaded enriched data for all 3 exchanges
+let SHARE_DATA = null;    // BSE Ltd share price analysis
+let MARKET_DATA = {};     // Preloaded enriched data for all 3 exchanges
+let MARKET_RAW = {};      // Preloaded raw dashboard_data.json for all 3 exchanges
 let currentExchange = 'nse';
 const charts = {};
 
@@ -241,7 +242,10 @@ const EXCHANGE_TABS = {
     { id: 'share',      label: 'Regression',            icon: 'share' },
   ],
   all: [
-    { id: 'overview',   label: 'Market Overview',     icon: 'overview' },
+    { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
+  ],
+  nsebse: [
+    { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
   ],
 };
 
@@ -261,7 +265,10 @@ const TAB_TITLES = {
     share: 'Share Price Analytics',
   },
   all: {
-    overview: 'Market Overview — NSE + BSE + MCX',
+    revenue: 'Combined Revenue — NSE + BSE + MCX',
+  },
+  nsebse: {
+    revenue: 'NSE + BSE Revenue Summary',
   },
 };
 
@@ -361,7 +368,7 @@ async function switchExchange(exchange) {
   Object.keys(charts).forEach(k => delete charts[k]);
   currentExchange = exchange;
   // Update logo
-  const logoLabels = { nse: 'NSE Analytics', bse: 'BSE Analytics', mcx: 'MCX Analytics', all: 'All Exchanges' };
+  const logoLabels = { nse: 'NSE Analytics', bse: 'BSE Analytics', mcx: 'MCX Analytics', all: 'All Exchanges', nsebse: 'NSE+BSE' };
   document.getElementById('logoText').textContent = logoLabels[exchange] || exchange.toUpperCase() + ' Analytics';
   // Update sidebar nav
   buildSidebarNav(exchange);
@@ -407,6 +414,9 @@ function toggleExchangeContent(exchange) {
   // MCX-only sections
   show('mcxPredictionContent', isMCX);
   show('mcx-share-inner',      isMCX);
+
+  // NSE+BSE market share panel — only visible for nsebse exchange
+  show('marketSharePanel', exchange === 'nsebse');
 }
 
 // ========================
@@ -415,10 +425,17 @@ function toggleExchangeContent(exchange) {
 
 async function loadExchangeData(exchange) {
   if (exchange === 'all') {
-    DATA = {};
-    ENRICHED_DATA = {};
-    SHARE_DATA = null;
     if (!Object.keys(MARKET_DATA).length) await preloadMarketData();
+    DATA = buildCombinedRawData(['nse', 'bse', 'mcx']);
+    ENRICHED_DATA = buildCombinedEnrichedData(['nse', 'bse', 'mcx']);
+    SHARE_DATA = null;
+    return;
+  }
+  if (exchange === 'nsebse') {
+    if (!Object.keys(MARKET_DATA).length) await preloadMarketData();
+    DATA = buildCombinedRawData(['nse', 'bse']);
+    ENRICHED_DATA = buildCombinedEnrichedData(['nse', 'bse']);
+    SHARE_DATA = null;
     return;
   }
   const fetches = [
@@ -440,12 +457,102 @@ async function loadExchangeData(exchange) {
 
 async function preloadMarketData() {
   const exchanges = ['nse', 'bse', 'mcx'];
-  const results = await Promise.allSettled(
-    exchanges.map(ex => fetch(`./data/${ex}_enriched_data.json`).then(r => r.json()))
-  );
+  const [enr, raw] = await Promise.all([
+    Promise.allSettled(exchanges.map(ex => fetch(`./data/${ex}_enriched_data.json`).then(r => r.json()))),
+    Promise.allSettled(exchanges.map(ex => fetch(`./data/${ex}_dashboard_data.json`).then(r => r.json()))),
+  ]);
   exchanges.forEach((ex, i) => {
-    if (results[i].status === 'fulfilled') MARKET_DATA[ex] = results[i].value;
+    if (enr[i].status === 'fulfilled') MARKET_DATA[ex] = enr[i].value;
+    if (raw[i].status === 'fulfilled') MARKET_RAW[ex]  = raw[i].value;
   });
+}
+
+// ── Build combined DATA.quarterly + DATA.monthly by summing across exchanges ─
+function buildCombinedRawData(exList) {
+  const raws = exList.map(ex => MARKET_RAW[ex]).filter(Boolean);
+  if (!raws.length) return { quarterly: [], monthly: [], daily: [], daily_all: [] };
+
+  // Use the exchange with the most complete trading days as the days reference
+  const refRaw = raws.find(r => r.quarterly?.length >= Math.max(...raws.map(r => r.quarterly?.length || 0))) || raws[0];
+
+  const qMap = {};
+  raws.forEach(raw => {
+    (raw.quarterly || []).forEach(q => {
+      if (!qMap[q.quarter]) qMap[q.quarter] = { quarter: q.quarter, total_rev: 0, opt_rev: 0, fut_rev: 0, cash_rev: 0, days: 0 };
+      qMap[q.quarter].total_rev += (q.total_rev || 0);
+      qMap[q.quarter].opt_rev   += (q.opt_rev   || 0);
+      qMap[q.quarter].fut_rev   += (q.fut_rev   || 0);
+      qMap[q.quarter].cash_rev  += (q.cash_rev  || 0);
+    });
+  });
+  // Set days from reference exchange
+  (refRaw.quarterly || []).forEach(q => {
+    if (qMap[q.quarter]) qMap[q.quarter].days = q.days || q.trading_days || 1;
+  });
+  const quarterly = Object.values(qMap).sort((a, b) => a.quarter.localeCompare(b.quarter));
+
+  const mMap = {};
+  raws.forEach(raw => {
+    (raw.monthly || []).forEach(m => {
+      const k = m.month;
+      if (!mMap[k]) mMap[k] = { month: k, total_rev: 0, opt_rev: 0, fut_rev: 0, cash_rev: 0, trading_days: 0 };
+      mMap[k].total_rev += (m.total_rev || 0);
+      mMap[k].opt_rev   += (m.opt_rev   || 0);
+      mMap[k].fut_rev   += (m.fut_rev   || 0);
+      mMap[k].cash_rev  += (m.cash_rev  || 0);
+    });
+  });
+  (refRaw.monthly || []).forEach(m => {
+    if (mMap[m.month]) mMap[m.month].trading_days = m.trading_days || m.days || 1;
+  });
+  const monthly = Object.values(mMap).sort((a, b) => a.month.localeCompare(b.month));
+
+  return { quarterly, monthly, daily: [], daily_all: [] };
+}
+
+// ── Build combined ENRICHED_DATA from pre-loaded enriched JSONs ───────────────
+function buildCombinedEnrichedData(exList) {
+  const combineOneSeg = (segKey) => {
+    const sts = exList.map(ex => MARKET_DATA[ex]?.[segKey]).filter(Boolean);
+    if (!sts.length) return null;
+    const sum  = (...vals) => vals.reduce((a, v) => a + (v || 0), 0);
+    const chg  = (cur, prev) => prev ? (cur - prev) / prev : null;
+    const fyCur  = sum(...sts.map(s => s.fy?.current));
+    const fyPrev = sum(...sts.map(s => s.fy?.previous));
+    const qCur   = sum(...sts.map(s => s.quarterly?.current?.value));
+    const qPrev  = sum(...sts.map(s => s.quarterly?.previous?.value));
+    const qPrev2 = sum(...sts.map(s => s.quarterly?.prev2?.value));
+    const mCur   = sum(...sts.map(s => s.monthly?.current?.value));
+    const mPrev  = sum(...sts.map(s => s.monthly?.previous?.value));
+    const mAvg6m = sum(...sts.map(s => s.monthly?.avg_6m?.value));
+    const w5     = sum(...sts.map(s => s.weekly?.last5?.value));
+    const wp5    = sum(...sts.map(s => s.weekly?.prev5?.value));
+    const w45    = sum(...sts.map(s => s.weekly?.last45?.value));
+    const dayFull = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+    const dow = {}, pw = {};
+    dayFull.forEach(d => {
+      const lat = sum(...sts.map(s => s.day_of_week?.[d]?.latest));
+      const a3  = sum(...sts.map(s => s.day_of_week?.[d]?.avg_3d));
+      const a10 = sum(...sts.map(s => s.day_of_week?.[d]?.avg_10d));
+      dow[d] = { latest: lat, avg_3d: a3, avg_10d: a10, do3d: chg(lat, a3), do10d: chg(lat, a10) };
+      pw[d]  = sum(...sts.map(s => s.previous_week?.[d])) || null;
+    });
+    const ref = sts[0];
+    return {
+      fy:        { current: fyCur,  previous: fyPrev,  yoy: chg(fyCur, fyPrev) },
+      quarterly: { current: { label: ref.quarterly?.current?.label,  value: qCur,  qoq: chg(qCur, qPrev), yoy: chg(qCur, qPrev2) }, previous: { label: ref.quarterly?.previous?.label, value: qPrev }, prev2: ref.quarterly?.prev2 ? { label: ref.quarterly.prev2.label, value: qPrev2 } : null },
+      monthly:   { current: { label: ref.monthly?.current?.label,    value: mCur,  mom: chg(mCur, mPrev), mo6m: chg(mCur, mAvg6m) }, previous: { label: ref.monthly?.previous?.label, value: mPrev }, avg_6m: { label: ref.monthly?.avg_6m?.label, value: mAvg6m } },
+      weekly:    { last5: { value: w5, wow: chg(w5, wp5), wo10w: chg(w5, w45) }, prev5: { value: wp5 }, last45: { value: w45 } },
+      day_of_week:   dow,
+      previous_week: pw,
+    };
+  };
+  return {
+    summary_total: combineOneSeg('summary_total'),
+    seg_options:   combineOneSeg('seg_options'),
+    seg_futures:   combineOneSeg('seg_futures'),
+    seg_cash:      combineOneSeg('seg_cash'),
+  };
 }
 
 // ========================
@@ -565,12 +672,14 @@ async function updateLatestRevBanner() {
 function rebuildAll() {
   applyChartDefaults();
 
-  if (currentExchange === 'all') {
-    buildOverview();
+  buildRevenueSummary();
+
+  if (currentExchange === 'nsebse') {
+    buildNSEBSESharePanel();
     return;
   }
 
-  buildRevenueSummary();
+  if (currentExchange === 'all') return;
 
   if (currentExchange === 'nse') {
     buildNSEExtrapolationKPIs();
@@ -1121,6 +1230,7 @@ function buildOverview() {
 function buildRevenueSummary() {
   const ed = ENRICHED_DATA;
   if (!ed || !ed.summary_total) return;
+  if (!DATA.quarterly?.length || !DATA.monthly?.length) return;
 
   // Build option lists (no pre-selected — set via JS after render)
   const fySet = [];
@@ -1153,7 +1263,9 @@ function buildRevenueSummary() {
     { key: 'cash',    data: ed.seg_cash,      label: 'Cash Revenue' },
   ].forEach(({ key, data, label }) => {
     const el = document.getElementById('subtab-rev-' + key);
-    if (el) el.innerHTML = xlSegmentBlock(data, label, key, fyOpts, qOpts, mOpts);
+    if (!el) return;
+    if (!data) { el.innerHTML = ''; return; }
+    el.innerHTML = xlSegmentBlock(data, label, key, fyOpts, qOpts, mOpts);
   });
 
   // Default row values
@@ -1175,6 +1287,7 @@ function buildRevenueSummary() {
 
   // Set select values then render data
   XL_SEGS.forEach(sk => {
+    if (!document.getElementById('xlFY0-' + sk)) return;  // segment was skipped (null data)
     document.getElementById('xlFY0-' + sk).value = defFY0;
     document.getElementById('xlFY1-' + sk).value = defFY1;
     document.getElementById('xlQ0-'  + sk).value = defQ0;
@@ -1207,7 +1320,62 @@ function buildRevenueSummary() {
   });
 }
 
+// ========================
+// NSE+BSE MARKET SHARE PANEL
+// ========================
 
+function buildNSEBSESharePanel() {
+  const el = document.getElementById('marketSharePanel');
+  if (!el) return;
+  const nseED = MARKET_DATA.nse;
+  const bseED = MARKET_DATA.bse;
+  if (!nseED || !bseED) { el.innerHTML = ''; return; }
+
+  const pct = (n, d) => d > 0 ? (n / d * 100).toFixed(1) + ' %' : '—';
+  const fmtV = v => v != null ? fmt(v) : '—';
+
+  const segs = [
+    { key: 'total',   label: 'Total',   nse: nseED.summary_total, bse: bseED.summary_total },
+    { key: 'options', label: 'Options', nse: nseED.seg_options,   bse: bseED.seg_options   },
+    { key: 'futures', label: 'Futures', nse: nseED.seg_futures,   bse: bseED.seg_futures   },
+    { key: 'cash',    label: 'Cash',    nse: nseED.seg_cash,      bse: bseED.seg_cash      },
+  ];
+
+  const segHTML = segs.map(({ key, label, nse, bse }) => {
+    if (!nse || !bse) return '';
+    const periods = [
+      { label: nse.quarterly?.current?.label  || 'Current Q',  nseVal: nse.quarterly?.current?.value,  bseVal: bse.quarterly?.current?.value,  cur: true },
+      { label: nse.quarterly?.previous?.label || 'Prev Q',     nseVal: nse.quarterly?.previous?.value, bseVal: bse.quarterly?.previous?.value  },
+      { label: nse.monthly?.current?.label    || 'Current M',  nseVal: nse.monthly?.current?.value,    bseVal: bse.monthly?.current?.value     },
+      { label: nse.monthly?.previous?.label   || 'Prev M',     nseVal: nse.monthly?.previous?.value,   bseVal: bse.monthly?.previous?.value    },
+      { label: 'Last 5 Days',                                   nseVal: nse.weekly?.last5?.value,       bseVal: bse.weekly?.last5?.value        },
+      { label: 'Prev 5 Days',                                   nseVal: nse.weekly?.prev5?.value,       bseVal: bse.weekly?.prev5?.value        },
+    ];
+    const rows = periods.map(({ label: pLabel, nseVal, bseVal, cur }) => {
+      const total = (nseVal || 0) + (bseVal || 0);
+      return `<tr${cur ? ' class="xl-r-cur"' : ''}>
+        <td>${pLabel}</td>
+        <td>${fmtV(nseVal)}</td>
+        <td><span class="ms-pct ms-nse">${pct(nseVal || 0, total)}</span></td>
+        <td>${fmtV(bseVal)}</td>
+        <td><span class="ms-pct ms-bse">${pct(bseVal || 0, total)}</span></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="ms-seg">
+      <div class="ms-seg-label">${label}</div>
+      <table class="ms-table">
+        <thead><tr class="xl-col-hdr"><th>Period</th><th>NSE</th><th>NSE %</th><th>BSE</th><th>BSE %</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="ms-panel">
+    <div class="ms-header">Market Share — NSE vs BSE <span class="xl-seg-unit">daily avg rev · ₹ Cr</span></div>
+    <div class="ms-segs-row">${segHTML}</div>
+  </div>`;
+}
 
 
 // ========================
@@ -2955,7 +3123,7 @@ async function init() {
   initExchangeSwitcher();
   buildSidebarNav('nse');
   toggleExchangeContent('nse');
-  preloadMarketData().then(() => { if (currentExchange === 'all') buildOverview(); });
+  preloadMarketData().then(() => { if (currentExchange === 'all' || currentExchange === 'nsebse') rebuildAll(); });
   await loadExchangeData('nse');
   updateHeaderInfo();
   rebuildAll();
