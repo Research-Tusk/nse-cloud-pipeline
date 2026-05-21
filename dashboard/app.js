@@ -2797,11 +2797,12 @@ function buildMCXShareAnalysis() {
     </div>
   </div>`;
 
+  const regLabel = new Date(regStart + 'T00:00:00').toLocaleString('en-IN', { month: 'short', year: 'numeric' }) + '+';
   const ranges = [
     { key: '1m',      label: '1M' },
     { key: '3m',      label: '3M' },
     { key: '6m',      label: '6M' },
-    { key: 'nov2024', label: 'Nov 2024+' },
+    { key: 'nov2024', label: regLabel },
     { key: '1y',      label: '1Y' },
     { key: '2y',      label: '2Y' },
   ];
