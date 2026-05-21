@@ -556,8 +556,8 @@ async function updateLatestRevBanner() {
 
 function rebuildAll() {
   applyChartDefaults();
-  // Shared
   buildRevenueSummary();
+  buildOverview();
 
   if (currentExchange === 'nse') {
     buildNSEExtrapolationKPIs();
@@ -906,6 +906,198 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
 
       </div>
     </div>`;
+}
+
+// ── Static segment block (pre-computed data — used by Market Overview) ────────
+function xlStaticSegmentBlock(st, label) {
+  if (!st) return `<div class="xl-segment"><div class="xl-seg-header">${label} <span class="xl-seg-unit">— data not available</span></div></div>`;
+
+  const fy  = st.fy || {};
+  const q   = st.quarterly || {};
+  const m   = st.monthly   || {};
+  const wl5 = (st.weekly || {}).last5  || {};
+  const wp5 = (st.weekly || {}).prev5  || {};
+  const w45 = (st.weekly || {}).last45 || {};
+  const dow = st.day_of_week   || {};
+  const pw  = st.previous_week || {};
+  const dayFull  = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const dayShort = ['Mon','Tue','Wed','Thu','Fri'];
+
+  const curFYLabel  = (q.current?.label  || '').match(/FY \d{4}/)?.[0] || 'Current FY';
+  const prevFYLabel = (q.previous?.label || '').match(/FY \d{4}/)?.[0] || 'Prev FY';
+
+  const fyRows = `
+    <tr class="xl-r-cur"><td>${curFYLabel}</td><td>${xlVal(fy.current)}</td><td>${xlChg(fy.yoy)}</td><td></td></tr>
+    <tr><td>${prevFYLabel}</td><td>${xlVal(fy.previous)}</td><td></td><td></td></tr>`;
+
+  const qRows = [
+    `<tr class="xl-r-cur"><td>${q.current?.label  || '—'}</td><td>${xlVal(q.current?.value)}</td><td>${xlChg(q.current?.qoq)}</td><td></td></tr>`,
+    `<tr><td>${q.previous?.label || '—'}</td><td>${xlVal(q.previous?.value)}</td><td></td><td></td></tr>`,
+    q.prev2 ? `<tr><td>${q.prev2.label}</td><td>${xlVal(q.prev2.value)}</td><td></td><td></td></tr>` : '',
+  ].join('');
+
+  const mRows = `
+    <tr class="xl-r-cur"><td>${m.current?.label  || '—'}</td><td>${xlVal(m.current?.value)}</td><td>${xlChg(m.current?.mom)}</td><td></td></tr>
+    <tr><td>${m.previous?.label || '—'}</td><td>${xlVal(m.previous?.value)}</td><td></td><td></td></tr>
+    <tr><td>${m.avg_6m?.label   || 'Avg 6 Months'}</td><td>${xlVal(m.avg_6m?.value)}</td><td>${xlChg(m.current?.mo6m)}</td><td></td></tr>`;
+
+  const wRows = `
+    <tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>
+    <tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td></td><td></td></tr>
+    <tr><td>Last 45 Days</td><td>${xlVal(w45.value)}</td><td></td><td></td></tr>`;
+
+  const dowRows = dayFull.map((d, i) => {
+    const dd = dow[d] || {};
+    const pwVal = pw[d];
+    return `<tr>
+      <td class="xl-day">${dayShort[i]}</td>
+      <td>${xlVal(dd.latest)}</td>
+      <td>${xlVal(dd.avg_3d)}</td>
+      <td>${xlChg(dd.do3d)}</td>
+      <td>${xlVal(dd.avg_10d)}</td>
+      <td>${xlChg(dd.do10d)}</td>
+      <td class="xl-prev-wk">${pwVal != null ? xlVal(pwVal) : '<span class="xl-num">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="xl-segment">
+      <div class="xl-seg-header">${label} <span class="xl-seg-unit">₹ Cr · daily avg</span></div>
+      <div class="xl-main-row">
+        <table class="xl-period-table">
+          <colgroup>
+            <col class="xl-col-period">
+            <col class="xl-col-val">
+            <col class="xl-col-chg1">
+            <col class="xl-col-chg2">
+          </colgroup>
+          <tbody class="xl-sec">
+            <tr class="xl-sec-hdr"><td colspan="4">Financial Year</td></tr>
+            <tr class="xl-col-hdr"><td>Year</td><td>Value</td><td>YoY</td><td></td></tr>
+            ${fyRows}
+          </tbody>
+          <tbody class="xl-sec">
+            <tr class="xl-sec-hdr"><td colspan="4">Quarter</td></tr>
+            <tr class="xl-col-hdr"><td>Quarter</td><td>Value</td><td>QoQ</td><td></td></tr>
+            ${qRows}
+          </tbody>
+          <tbody class="xl-sec">
+            <tr class="xl-sec-hdr"><td colspan="4">Month</td></tr>
+            <tr class="xl-col-hdr"><td>Month</td><td>Value</td><td>MoM</td><td></td></tr>
+            ${mRows}
+          </tbody>
+          <tbody class="xl-sec">
+            <tr class="xl-sec-hdr"><td colspan="4">Week</td></tr>
+            <tr class="xl-col-hdr"><td>Period</td><td>Value</td><td>WoW</td><td>Wo10W</td></tr>
+            ${wRows}
+          </tbody>
+        </table>
+        <table class="xl-dow-table">
+          <thead>
+            <tr class="xl-sec-hdr"><td colspan="7">Day of Week</td></tr>
+            <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td></tr>
+          </thead>
+          <tbody>${dowRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── Market Overview — all 3 exchanges ────────────────────────────────────────
+function buildOverview() {
+  const el = document.getElementById('overviewInner');
+  if (!el) return;
+
+  const exchanges = [
+    { key: 'nse', label: 'NSE' },
+    { key: 'bse', label: 'BSE' },
+    { key: 'mcx', label: 'MCX' },
+  ];
+
+  // Check if any data loaded
+  const anyData = exchanges.some(ex => MARKET_DATA[ex.key]?.summary_total);
+  if (!anyData) {
+    el.innerHTML = '<div class="chart-panel" style="padding:40px;text-align:center;color:var(--color-text-muted)">Loading market data…</div>';
+    return;
+  }
+
+  // ── Summary comparison table at top ────────────────────────────────────────
+  const getVal = (exKey, period) => {
+    const st = MARKET_DATA[exKey]?.summary_total;
+    if (!st) return null;
+    if (period === 'fy')  return st.fy?.current;
+    if (period === 'q')   return st.quarterly?.current?.value;
+    if (period === 'm')   return st.monthly?.current?.value;
+    if (period === 'w5')  return st.weekly?.last5?.value;
+    if (period === 'w45') return st.weekly?.last45?.value;
+    return null;
+  };
+
+  const nseEd = MARKET_DATA.nse?.summary_total;
+  const periods = [
+    { key: 'fy',  label: nseEd?.quarterly?.current?.label?.match(/FY \d{4}/)?.[0] || 'Current FY' },
+    { key: 'q',   label: nseEd?.quarterly?.current?.label  || 'Current Q' },
+    { key: 'm',   label: nseEd?.monthly?.current?.label    || 'Current Month' },
+    { key: 'w5',  label: 'Last 5 Days' },
+    { key: 'w45', label: 'Last 45 Days' },
+  ];
+
+  // Compute totals for market share
+  const totals = {};
+  periods.forEach(p => {
+    totals[p.key] = exchanges.reduce((sum, ex) => sum + (getVal(ex.key, p.key) || 0), 0);
+  });
+
+  const pctBar = (val, total) => {
+    if (!val || !total) return '';
+    const pct = (val / total * 100);
+    return `<div class="ms-bar-wrap"><div class="ms-bar-fill" style="width:${pct.toFixed(1)}%"></div><span class="ms-bar-label">${pct.toFixed(1)}%</span></div>`;
+  };
+
+  const summaryRows = exchanges.map(ex => {
+    const cells = periods.map(p => {
+      const v = getVal(ex.key, p.key);
+      return `<td>${v != null ? fmt(v) : '—'}</td><td>${pctBar(v, totals[p.key])}</td>`;
+    }).join('');
+    return `<tr class="ov-row-${ex.key}">
+      <td class="ov-exchange"><span class="ov-ex-badge ov-ex-${ex.key}">${ex.label}</span></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  const totalRow = `<tr class="ov-row-total">
+    <td class="ov-exchange"><strong>Total</strong></td>
+    ${periods.map(p => `<td>${totals[p.key] ? fmt(totals[p.key]) : '—'}</td><td></td>`).join('')}
+  </tr>`;
+
+  const headerCols = periods.map(p => `<th colspan="2">${p.label}</th>`).join('');
+  const subCols = periods.map(() => `<th>Daily Avg</th><th>Share</th>`).join('');
+
+  const summaryTable = `
+    <div class="ov-summary-panel">
+      <div class="ov-summary-title">Exchange Comparison <span class="chart-badge">Daily Avg ₹ Cr</span></div>
+      <div style="overflow-x:auto">
+        <table class="ov-table">
+          <thead>
+            <tr class="xl-sec-hdr"><td></td>${headerCols}</tr>
+            <tr class="xl-col-hdr"><td>Exchange</td>${subCols}</tr>
+          </thead>
+          <tbody>
+            ${summaryRows}
+            ${totalRow}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+  // ── Per-exchange static xl-segment blocks ──────────────────────────────────
+  const blocks = exchanges.map(ex => {
+    const ed = MARKET_DATA[ex.key];
+    if (!ed?.summary_total) return '';
+    return xlStaticSegmentBlock(ed.summary_total, ex.label + ' — Total Revenue');
+  }).join('');
+
+  el.innerHTML = summaryTable + `<div style="padding:0 var(--space-4) var(--space-6)">${blocks}</div>`;
 }
 
 function buildRevenueSummary() {
@@ -2744,6 +2936,8 @@ async function init() {
   initExchangeSwitcher();
   buildSidebarNav('nse');
   toggleExchangeContent('nse');
+  // Preload all 3 enriched JSONs in parallel — used by Market Overview
+  preloadMarketData().then(() => buildOverview());
   await loadExchangeData('nse');
   updateHeaderInfo();
   rebuildAll();
