@@ -2292,11 +2292,8 @@ span.pr-neg {
    MARKET OVERVIEW
    ========================= */
 
-#tab-overview .sub-content {
+#overviewContent {
   padding: var(--space-3) var(--space-4) var(--space-6);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
 .ov-summary-panel {

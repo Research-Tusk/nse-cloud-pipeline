@@ -1016,30 +1016,106 @@ function xlStaticSegmentBlock(st, label) {
     </div>`;
 }
 
-// ── Market Overview — all 3 exchanges ────────────────────────────────────────
-function buildOverview() {
-  const exchanges = [
-    { key: 'nse', label: 'NSE — Total Revenue' },
-    { key: 'bse', label: 'BSE — Total Revenue' },
-    { key: 'mcx', label: 'MCX — Total Revenue' },
-  ];
+// ── Combine summary_total objects across exchanges by summing values ──────────
+function combineMarketSummaries() {
+  const sts = ['nse', 'bse', 'mcx'].map(ex => MARKET_DATA[ex]?.summary_total).filter(Boolean);
+  if (!sts.length) return null;
 
-  const anyData = exchanges.some(ex => MARKET_DATA[ex.key]?.summary_total);
+  const sum  = (...vals) => vals.reduce((a, v) => a + (v || 0), 0);
+  const chg  = (cur, prev) => prev ? (cur - prev) / prev : null;
 
-  exchanges.forEach(ex => {
-    const el = document.getElementById('subtab-ov-' + ex.key);
-    if (!el) return;
-    if (!anyData) {
-      el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-muted)">Loading market data…</div>';
-      return;
-    }
-    const ed = MARKET_DATA[ex.key];
-    if (!ed?.summary_total) {
-      el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-muted)">Data not available</div>';
-      return;
-    }
-    el.innerHTML = xlStaticSegmentBlock(ed.summary_total, ex.label);
+  // FY
+  const fyCur  = sum(...sts.map(s => s.fy?.current));
+  const fyPrev = sum(...sts.map(s => s.fy?.previous));
+
+  // Quarter
+  const qCur   = sum(...sts.map(s => s.quarterly?.current?.value));
+  const qPrev  = sum(...sts.map(s => s.quarterly?.previous?.value));
+  const qPrev2 = sum(...sts.map(s => s.quarterly?.prev2?.value));
+  // YoY: same-quarter prior year — use the label's preceding FY if present
+  const qYoyLabel = sts[0]?.quarterly?.prev2?.label;
+  const qYoyVal   = qPrev2;
+
+  // Month
+  const mCur   = sum(...sts.map(s => s.monthly?.current?.value));
+  const mPrev  = sum(...sts.map(s => s.monthly?.previous?.value));
+  const mAvg6m = sum(...sts.map(s => s.monthly?.avg_6m?.value));
+
+  // Week
+  const w5Val  = sum(...sts.map(s => s.weekly?.last5?.value));
+  const wp5Val = sum(...sts.map(s => s.weekly?.prev5?.value));
+  const w45Val = sum(...sts.map(s => s.weekly?.last45?.value));
+
+  // DoW — sum each day
+  const dayFull = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const dow = {};
+  dayFull.forEach(d => {
+    const latest  = sum(...sts.map(s => s.day_of_week?.[d]?.latest));
+    const avg3d   = sum(...sts.map(s => s.day_of_week?.[d]?.avg_3d));
+    const avg10d  = sum(...sts.map(s => s.day_of_week?.[d]?.avg_10d));
+    dow[d] = {
+      latest,
+      avg_3d:  avg3d,
+      avg_10d: avg10d,
+      do3d:    chg(latest, avg3d),
+      do10d:   chg(latest, avg10d),
+    };
   });
+
+  // Previous week
+  const pw = {};
+  dayFull.forEach(d => {
+    const v = sum(...sts.map(s => s.previous_week?.[d]));
+    pw[d] = v || null;
+  });
+
+  // Use NSE labels as the reference for period labels
+  const ref = sts[0];
+
+  return {
+    fy: {
+      current:  fyCur,
+      previous: fyPrev,
+      yoy:      chg(fyCur, fyPrev),
+    },
+    quarterly: {
+      current:  { label: ref.quarterly?.current?.label,  value: qCur,   qoq: chg(qCur, qPrev), yoy: chg(qCur, qYoyVal) },
+      previous: { label: ref.quarterly?.previous?.label, value: qPrev  },
+      prev2:    qYoyLabel ? { label: qYoyLabel,            value: qPrev2 } : null,
+    },
+    monthly: {
+      current:  { label: ref.monthly?.current?.label,  value: mCur,  mom: chg(mCur, mPrev), mo6m: chg(mCur, mAvg6m) },
+      previous: { label: ref.monthly?.previous?.label, value: mPrev  },
+      avg_6m:   { label: ref.monthly?.avg_6m?.label,   value: mAvg6m },
+    },
+    weekly: {
+      last5:  { value: w5Val,  wow:  chg(w5Val, wp5Val), wo10w: chg(w5Val, w45Val) },
+      prev5:  { value: wp5Val },
+      last45: { value: w45Val },
+    },
+    day_of_week:   dow,
+    previous_week: pw,
+  };
+}
+
+// ── Market Overview — all 3 exchanges combined ────────────────────────────────
+function buildOverview() {
+  const el = document.getElementById('overviewContent');
+  if (!el) return;
+
+  const anyData = ['nse', 'bse', 'mcx'].some(ex => MARKET_DATA[ex]?.summary_total);
+  if (!anyData) {
+    el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-muted)">Loading market data…</div>';
+    return;
+  }
+
+  const combined = combineMarketSummaries();
+  if (!combined) {
+    el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-muted)">Data not available</div>';
+    return;
+  }
+
+  el.innerHTML = xlStaticSegmentBlock(combined, 'Total — NSE + BSE + MCX');
 }
 
 function buildRevenueSummary() {
