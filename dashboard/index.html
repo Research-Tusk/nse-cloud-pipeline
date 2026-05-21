@@ -41,10 +41,10 @@
 
     <!-- Exchange Switcher Pill -->
     <div class="exchange-pill">
+      <button class="exchange-btn" data-exchange="all">All</button>
       <button class="exchange-btn active" data-exchange="nse">NSE</button>
       <button class="exchange-btn" data-exchange="bse">BSE</button>
       <button class="exchange-btn" data-exchange="mcx">MCX</button>
-      <button class="exchange-btn" data-exchange="all">All</button>
     </div>
 
     <nav class="sidebar-nav" id="sidebarNav">
@@ -306,7 +306,14 @@
 
     <!-- TAB: Market Overview (all 3 exchanges) -->
     <section class="tab-content" id="tab-overview">
-      <div id="overviewInner"></div>
+      <div class="sub-tabs" id="ovSubTabs">
+        <button class="sub-tab active" data-subtab="ov-nse">NSE</button>
+        <button class="sub-tab" data-subtab="ov-bse">BSE</button>
+        <button class="sub-tab" data-subtab="ov-mcx">MCX</button>
+      </div>
+      <div class="sub-content active" id="subtab-ov-nse"></div>
+      <div class="sub-content" id="subtab-ov-bse"></div>
+      <div class="sub-content" id="subtab-ov-mcx"></div>
     </section>
 
   </main>

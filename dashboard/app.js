@@ -1018,99 +1018,28 @@ function xlStaticSegmentBlock(st, label) {
 
 // ── Market Overview — all 3 exchanges ────────────────────────────────────────
 function buildOverview() {
-  const el = document.getElementById('overviewInner');
-  if (!el) return;
-
   const exchanges = [
-    { key: 'nse', label: 'NSE' },
-    { key: 'bse', label: 'BSE' },
-    { key: 'mcx', label: 'MCX' },
+    { key: 'nse', label: 'NSE — Total Revenue' },
+    { key: 'bse', label: 'BSE — Total Revenue' },
+    { key: 'mcx', label: 'MCX — Total Revenue' },
   ];
 
-  // Check if any data loaded
   const anyData = exchanges.some(ex => MARKET_DATA[ex.key]?.summary_total);
-  if (!anyData) {
-    el.innerHTML = '<div class="chart-panel" style="padding:40px;text-align:center;color:var(--color-text-muted)">Loading market data…</div>';
-    return;
-  }
 
-  // ── Summary comparison table at top ────────────────────────────────────────
-  const getVal = (exKey, period) => {
-    const st = MARKET_DATA[exKey]?.summary_total;
-    if (!st) return null;
-    if (period === 'fy')  return st.fy?.current;
-    if (period === 'q')   return st.quarterly?.current?.value;
-    if (period === 'm')   return st.monthly?.current?.value;
-    if (period === 'w5')  return st.weekly?.last5?.value;
-    if (period === 'w45') return st.weekly?.last45?.value;
-    return null;
-  };
-
-  const nseEd = MARKET_DATA.nse?.summary_total;
-  const periods = [
-    { key: 'fy',  label: nseEd?.quarterly?.current?.label?.match(/FY \d{4}/)?.[0] || 'Current FY' },
-    { key: 'q',   label: nseEd?.quarterly?.current?.label  || 'Current Q' },
-    { key: 'm',   label: nseEd?.monthly?.current?.label    || 'Current Month' },
-    { key: 'w5',  label: 'Last 5 Days' },
-    { key: 'w45', label: 'Last 45 Days' },
-  ];
-
-  // Compute totals for market share
-  const totals = {};
-  periods.forEach(p => {
-    totals[p.key] = exchanges.reduce((sum, ex) => sum + (getVal(ex.key, p.key) || 0), 0);
-  });
-
-  const pctBar = (val, total) => {
-    if (!val || !total) return '';
-    const pct = (val / total * 100);
-    return `<div class="ms-bar-wrap"><div class="ms-bar-fill" style="width:${pct.toFixed(1)}%"></div><span class="ms-bar-label">${pct.toFixed(1)}%</span></div>`;
-  };
-
-  const summaryRows = exchanges.map(ex => {
-    const cells = periods.map(p => {
-      const v = getVal(ex.key, p.key);
-      return `<td>${v != null ? fmt(v) : '—'}</td><td>${pctBar(v, totals[p.key])}</td>`;
-    }).join('');
-    return `<tr class="ov-row-${ex.key}">
-      <td class="ov-exchange"><span class="ov-ex-badge ov-ex-${ex.key}">${ex.label}</span></td>
-      ${cells}
-    </tr>`;
-  }).join('');
-
-  const totalRow = `<tr class="ov-row-total">
-    <td class="ov-exchange"><strong>Total</strong></td>
-    ${periods.map(p => `<td>${totals[p.key] ? fmt(totals[p.key]) : '—'}</td><td></td>`).join('')}
-  </tr>`;
-
-  const headerCols = periods.map(p => `<th colspan="2">${p.label}</th>`).join('');
-  const subCols = periods.map(() => `<th>Daily Avg</th><th>Share</th>`).join('');
-
-  const summaryTable = `
-    <div class="ov-summary-panel">
-      <div class="ov-summary-title">Exchange Comparison <span class="chart-badge">Daily Avg ₹ Cr</span></div>
-      <div style="overflow-x:auto">
-        <table class="ov-table">
-          <thead>
-            <tr class="xl-sec-hdr"><td></td>${headerCols}</tr>
-            <tr class="xl-col-hdr"><td>Exchange</td>${subCols}</tr>
-          </thead>
-          <tbody>
-            ${summaryRows}
-            ${totalRow}
-          </tbody>
-        </table>
-      </div>
-    </div>`;
-
-  // ── Per-exchange static xl-segment blocks ──────────────────────────────────
-  const blocks = exchanges.map(ex => {
+  exchanges.forEach(ex => {
+    const el = document.getElementById('subtab-ov-' + ex.key);
+    if (!el) return;
+    if (!anyData) {
+      el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-muted)">Loading market data…</div>';
+      return;
+    }
     const ed = MARKET_DATA[ex.key];
-    if (!ed?.summary_total) return '';
-    return xlStaticSegmentBlock(ed.summary_total, ex.label + ' — Total Revenue');
-  }).join('');
-
-  el.innerHTML = summaryTable + `<div style="padding:0 var(--space-4) var(--space-6)">${blocks}</div>`;
+    if (!ed?.summary_total) {
+      el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-muted)">Data not available</div>';
+      return;
+    }
+    el.innerHTML = xlStaticSegmentBlock(ed.summary_total, ex.label);
+  });
 }
 
 function buildRevenueSummary() {
@@ -2949,7 +2878,7 @@ async function init() {
   initExchangeSwitcher();
   buildSidebarNav('nse');
   toggleExchangeContent('nse');
-  preloadMarketData();  // background fetch — MARKET_DATA ready before user clicks All
+  preloadMarketData().then(() => { if (currentExchange === 'all') buildOverview(); });
   await loadExchangeData('nse');
   updateHeaderInfo();
   rebuildAll();
