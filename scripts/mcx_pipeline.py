@@ -344,6 +344,16 @@ def main():
     print("MCX Pipeline")
     print("=" * 60)
 
+    # Read existing latest date before overwriting
+    existing_latest = None
+    existing_json = DASHBOARD_DIR / "mcx_dashboard_data.json"
+    if existing_json.exists():
+        try:
+            with open(existing_json) as f:
+                existing_latest = json.load(f).get("summary", {}).get("last_date")
+        except Exception:
+            pass
+
     print("Fetching MCX daily revenue from Supabase…")
     try:
         raw = fetch_mcx_daily()
@@ -362,9 +372,19 @@ def main():
     summary   = compute_summary(daily, quarterly)
     enriched  = compute_enriched(daily, quarterly)
 
-    print(f"  Latest date: {summary['last_date']}")
+    new_latest = summary["last_date"]
+    print(f"  Latest date: {new_latest}")
     print(f"  Total daily records: {len(daily)}")
     print(f"  Current quarter: {summary['current_quarter']}")
+
+    # Count new days added vs previous run
+    new_count = 0
+    if existing_latest and new_latest > existing_latest:
+        # Approximate count by date comparison
+        new_count = sum(1 for d in daily if d["date"] > existing_latest)
+    elif not existing_latest:
+        new_count = len(daily)
+    print(f"  New days this run: {new_count}")
 
     # dashboard_data.json
     dashboard_data = {
@@ -383,6 +403,10 @@ def main():
     print("MCX pipeline complete.")
     print("=" * 60)
 
+    return new_count
+
 
 if __name__ == "__main__":
-    main()
+    count = main()
+    count_file = PROJECT_ROOT / ".new_mcx_days_count"
+    count_file.write_text(str(count or 0))

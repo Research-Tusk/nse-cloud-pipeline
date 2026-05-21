@@ -8,6 +8,7 @@
 let DATA = {};
 let ENRICHED_DATA = {};
 let SHARE_DATA = null;   // BSE Ltd share price analysis
+let MARKET_DATA = {};    // Preloaded enriched data for all 3 exchanges
 let currentExchange = 'nse';
 const charts = {};
 
@@ -217,6 +218,7 @@ const NAV_ICONS = {
   prediction: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   advanced: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+  overview: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
 };
 
 // ========================
@@ -227,16 +229,19 @@ const EXCHANGE_TABS = {
   nse: [
     { id: 'revenue',    label: 'Revenue Summary',    icon: 'revenue' },
     { id: 'prediction', label: 'PAT Prediction',      icon: 'prediction' },
+    { id: 'overview',   label: 'Market Overview',     icon: 'overview' },
   ],
   bse: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
+    { id: 'overview',   label: 'Market Overview',      icon: 'overview' },
   ],
   mcx: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
+    { id: 'overview',   label: 'Market Overview',      icon: 'overview' },
   ],
 };
 
@@ -244,16 +249,19 @@ const TAB_TITLES = {
   nse: {
     revenue: 'Revenue Summary',
     prediction: 'PAT Prediction Engine',
+    overview: 'Market Overview',
   },
   bse: {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
     share: 'Share Price Analytics',
+    overview: 'Market Overview',
   },
   mcx: {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
     share: 'Share Price Analytics',
+    overview: 'Market Overview',
   },
 };
 
@@ -420,6 +428,16 @@ async function loadExchangeData(exchange) {
   } else {
     SHARE_DATA = null;
   }
+}
+
+async function preloadMarketData() {
+  const exchanges = ['nse', 'bse', 'mcx'];
+  const results = await Promise.allSettled(
+    exchanges.map(ex => fetch(`./data/${ex}_enriched_data.json`).then(r => r.json()))
+  );
+  exchanges.forEach((ex, i) => {
+    if (results[i].status === 'fulfilled') MARKET_DATA[ex] = results[i].value;
+  });
 }
 
 // ========================

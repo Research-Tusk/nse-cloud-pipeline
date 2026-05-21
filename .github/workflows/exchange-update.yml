@@ -11,19 +11,20 @@ on:
       exchange:
         description: 'Which exchange to update'
         required: false
-        default: 'both'
+        default: 'all'
         type: choice
         options:
-          - both
+          - all
           - nse
           - bse
+          - mcx
 
 permissions:
   contents: write
 
 jobs:
   nse-update:
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.exchange == 'both' || github.event.inputs.exchange == 'nse' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.exchange == 'all' || github.event.inputs.exchange == 'nse' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -75,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [nse-update]
-    if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.exchange == 'both' || github.event.inputs.exchange == 'bse') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.exchange == 'all' || github.event.inputs.exchange == 'bse') }}
     outputs:
       new_days: ${{ steps.check_new.outputs.new_days }}
 
@@ -122,6 +123,55 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add data/bse_dashboard_data.json data/bse_enriched_data.json dashboard/data/bse_dashboard_data.json dashboard/data/bse_enriched_data.json
           git commit -m "📊 BSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
+          git push
+
+  mcx-update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [bse-update]
+    if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.exchange == 'all' || github.event.inputs.exchange == 'mcx') }}
+    outputs:
+      new_days: ${{ steps.check_new.outputs.new_days }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run MCX pipeline
+        run: python scripts/mcx_pipeline.py
+
+      - name: Check if new data was added
+        id: check_new
+        run: |
+          NEW_DAYS=$(cat .new_mcx_days_count 2>/dev/null || echo "0")
+          echo "new_days=$NEW_DAYS" >> $GITHUB_OUTPUT
+          echo "MCX new trading days: $NEW_DAYS"
+
+      - name: Commit MCX data
+        if: steps.check_new.outputs.new_days != '0'
+        run: |
+          git config user.name "Research-Tusk"
+          git config user.email "research@tuskinvest.com"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git add data/mcx_dashboard_data.json data/mcx_enriched_data.json dashboard/data/mcx_dashboard_data.json dashboard/data/mcx_enriched_data.json
+          git commit -m "📊 MCX update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
           git push
 
   excel-sync:
@@ -200,8 +250,8 @@ jobs:
           git push
 
   deploy:
-    needs: [nse-update, bse-update, bse-share-analysis]
-    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0') }}
+    needs: [nse-update, bse-update, mcx-update, bse-share-analysis]
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0' || needs.mcx-update.outputs.new_days != '0') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -216,4 +266,5 @@ jobs:
           echo "- **Date:** $(date +%Y-%m-%d)" >> $GITHUB_STEP_SUMMARY
           echo "- **NSE new days:** ${{ needs.nse-update.outputs.new_days || '0' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **BSE new days:** ${{ needs.bse-update.outputs.new_days || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **MCX new days:** ${{ needs.mcx-update.outputs.new_days || '0' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Status:** ✅ Data updated, Vercel deploying" >> $GITHUB_STEP_SUMMARY
