@@ -229,19 +229,19 @@ const EXCHANGE_TABS = {
   nse: [
     { id: 'revenue',    label: 'Revenue Summary',    icon: 'revenue' },
     { id: 'prediction', label: 'PAT Prediction',      icon: 'prediction' },
-    { id: 'overview',   label: 'Market Overview',     icon: 'overview' },
   ],
   bse: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
-    { id: 'overview',   label: 'Market Overview',      icon: 'overview' },
   ],
   mcx: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
-    { id: 'overview',   label: 'Market Overview',      icon: 'overview' },
+  ],
+  all: [
+    { id: 'overview',   label: 'Market Overview',     icon: 'overview' },
   ],
 };
 
@@ -249,19 +249,19 @@ const TAB_TITLES = {
   nse: {
     revenue: 'Revenue Summary',
     prediction: 'PAT Prediction Engine',
-    overview: 'Market Overview',
   },
   bse: {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
     share: 'Share Price Analytics',
-    overview: 'Market Overview',
   },
   mcx: {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
     share: 'Share Price Analytics',
-    overview: 'Market Overview',
+  },
+  all: {
+    overview: 'Market Overview — NSE + BSE + MCX',
   },
 };
 
@@ -361,7 +361,8 @@ async function switchExchange(exchange) {
   Object.keys(charts).forEach(k => delete charts[k]);
   currentExchange = exchange;
   // Update logo
-  document.getElementById('logoText').textContent = exchange.toUpperCase() + ' Analytics';
+  const logoLabels = { nse: 'NSE Analytics', bse: 'BSE Analytics', mcx: 'MCX Analytics', all: 'All Exchanges' };
+  document.getElementById('logoText').textContent = logoLabels[exchange] || exchange.toUpperCase() + ' Analytics';
   // Update sidebar nav
   buildSidebarNav(exchange);
   // Show/hide exchange-specific content sections
@@ -413,6 +414,13 @@ function toggleExchangeContent(exchange) {
 // ========================
 
 async function loadExchangeData(exchange) {
+  if (exchange === 'all') {
+    DATA = {};
+    ENRICHED_DATA = {};
+    SHARE_DATA = null;
+    if (!Object.keys(MARKET_DATA).length) await preloadMarketData();
+    return;
+  }
   const fetches = [
     fetch(`./data/${exchange}_dashboard_data.json`),
     fetch(`./data/${exchange}_enriched_data.json`),
@@ -556,8 +564,13 @@ async function updateLatestRevBanner() {
 
 function rebuildAll() {
   applyChartDefaults();
+
+  if (currentExchange === 'all') {
+    buildOverview();
+    return;
+  }
+
   buildRevenueSummary();
-  buildOverview();
 
   if (currentExchange === 'nse') {
     buildNSEExtrapolationKPIs();
@@ -2936,8 +2949,7 @@ async function init() {
   initExchangeSwitcher();
   buildSidebarNav('nse');
   toggleExchangeContent('nse');
-  // Preload all 3 enriched JSONs in parallel — used by Market Overview
-  preloadMarketData().then(() => buildOverview());
+  preloadMarketData();  // background fetch — MARKET_DATA ready before user clicks All
   await loadExchangeData('nse');
   updateHeaderInfo();
   rebuildAll();
