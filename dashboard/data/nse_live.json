@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-05-22T12:38:50",
+  "updated_at": "2026-05-22T13:23:58",
   "market_status": {
     "marketState": [
       {
@@ -53,8 +53,8 @@
         "marketStatusMessage": "Market is Closed",
         "expiryDate": "22-May-2026",
         "underlying": "USDINR",
-        "updated_time": "22-May-2026 12:28",
-        "tradeDateFormatted": "22-May-2026 12:28",
+        "updated_time": "22-May-2026 17:00",
+        "tradeDateFormatted": "22-May-2026 17:00",
         "slickclass": "slick-item"
       }
     ],
@@ -87,11 +87,11 @@
       "EXPIRYDATE": "26-May-2026",
       "OPTIONTYPE": "-",
       "STRIKEPRICE": 0,
-      "LASTPRICE": 23770.5,
-      "DAYCHANGE": 5.5,
-      "PERCHANGE": 0.02,
-      "CONTRACTSTRADED": 112933,
-      "TIMESTMP": "22-May-2026 18:07"
+      "LASTPRICE": 23811,
+      "DAYCHANGE": 46,
+      "PERCHANGE": 0.19,
+      "CONTRACTSTRADED": 114493,
+      "TIMESTMP": "22-May-2026 18:51"
     }
   },
   "revenue": {
