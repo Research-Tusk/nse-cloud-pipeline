@@ -468,46 +468,49 @@ async function preloadMarketData() {
 }
 
 // ── Build combined DATA.quarterly + DATA.monthly by summing across exchanges ─
+// Each exchange's revenue is divided by its own trading days before summing,
+// so the combined value is a true sum-of-daily-averages regardless of each
+// exchange having a different number of trading days in a period.
+// days=1 is stored so computeQuarterMetrics / getMAvg return the value as-is.
 function buildCombinedRawData(exList) {
   const raws = exList.map(ex => MARKET_RAW[ex]).filter(Boolean);
   if (!raws.length) return { quarterly: [], monthly: [], daily: [], daily_all: [] };
 
-  // Use the exchange with the most complete trading days as the days reference
-  const refRaw = raws.find(r => r.quarterly?.length >= Math.max(...raws.map(r => r.quarterly?.length || 0))) || raws[0];
+  const segFields = ['total_rev', 'opt_rev', 'fut_rev', 'cash_rev'];
 
-  const qMap = {};
+  // Collect all unique quarter/month keys across all exchanges
+  const qKeys = new Set(), mKeys = new Set();
   raws.forEach(raw => {
-    (raw.quarterly || []).forEach(q => {
-      if (!qMap[q.quarter]) qMap[q.quarter] = { quarter: q.quarter, total_rev: 0, opt_rev: 0, fut_rev: 0, cash_rev: 0, days: 0 };
-      qMap[q.quarter].total_rev += (q.total_rev || 0);
-      qMap[q.quarter].opt_rev   += (q.opt_rev   || 0);
-      qMap[q.quarter].fut_rev   += (q.fut_rev   || 0);
-      qMap[q.quarter].cash_rev  += (q.cash_rev  || 0);
-    });
+    (raw.quarterly || []).forEach(q => qKeys.add(q.quarter));
+    (raw.monthly   || []).forEach(m => mKeys.add(m.month));
   });
-  // Set days from reference exchange
-  (refRaw.quarterly || []).forEach(q => {
-    if (qMap[q.quarter]) qMap[q.quarter].days = q.days || q.trading_days || 1;
-  });
-  const quarterly = Object.values(qMap).sort((a, b) => a.quarter.localeCompare(b.quarter));
 
-  const mMap = {};
-  raws.forEach(raw => {
-    (raw.monthly || []).forEach(m => {
-      const k = m.month;
-      if (!mMap[k]) mMap[k] = { month: k, total_rev: 0, opt_rev: 0, fut_rev: 0, cash_rev: 0, trading_days: 0 };
-      mMap[k].total_rev += (m.total_rev || 0);
-      mMap[k].opt_rev   += (m.opt_rev   || 0);
-      mMap[k].fut_rev   += (m.fut_rev   || 0);
-      mMap[k].cash_rev  += (m.cash_rev  || 0);
+  // For each period: sum (rev / own_days) across exchanges → combined daily avg, days=1
+  const quarterly = [...qKeys].sort().map(key => {
+    const out = { quarter: key, days: 1 };
+    segFields.forEach(f => {
+      out[f] = raws.reduce((sum, raw) => {
+        const q = (raw.quarterly || []).find(x => x.quarter === key);
+        if (!q) return sum;
+        return sum + (q[f] || 0) / (q.days || q.trading_days || 1);
+      }, 0);
     });
+    return out;
   });
-  (refRaw.monthly || []).forEach(m => {
-    if (mMap[m.month]) mMap[m.month].trading_days = m.trading_days || m.days || 1;
-  });
-  const monthly = Object.values(mMap).sort((a, b) => a.month.localeCompare(b.month));
 
-  return { quarterly, monthly, daily: [], daily_all: [] };
+  const monthly = [...mKeys].sort().map(key => {
+    const out = { month: key, trading_days: 1, days: 1 };
+    segFields.forEach(f => {
+      out[f] = raws.reduce((sum, raw) => {
+        const m = (raw.monthly || []).find(x => x.month === key);
+        if (!m) return sum;
+        return sum + (m[f] || 0) / (m.trading_days || m.days || 1);
+      }, 0);
+    });
+    return out;
+  });
+
+  return { quarterly, monthly, daily: [], daily_all: []};
 }
 
 // ── Build combined ENRICHED_DATA from pre-loaded enriched JSONs ───────────────
