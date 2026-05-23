@@ -1497,19 +1497,13 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 .ms-table td:first-child {
   color: var(--color-text-secondary);
   font-size: 11px;
-  min-width: 90px;
+  min-width: 100px;
 }
 
-.ms-table td:nth-child(2),
-.ms-table td:nth-child(4) {
+.ms-table td:not(:first-child) {
   text-align: right;
+  min-width: 46px;
   font-variant-numeric: tabular-nums;
-}
-
-.ms-table td:nth-child(3),
-.ms-table td:nth-child(5) {
-  text-align: right;
-  min-width: 44px;
 }
 
 .ms-pct {
@@ -1521,6 +1515,7 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 
 .ms-nse { color: #2563eb; }
 .ms-bse { color: #c0392b; }
+.ms-mcx { color: #16a34a; }
 
 /* =========================
    REVENUE SUMMARY (legacy — kept for reference)

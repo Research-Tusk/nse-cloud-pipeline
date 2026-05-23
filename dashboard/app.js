@@ -415,8 +415,8 @@ function toggleExchangeContent(exchange) {
   show('mcxPredictionContent', isMCX);
   show('mcx-share-inner',      isMCX);
 
-  // NSE+BSE market share panel — only visible for nsebse exchange
-  show('marketSharePanel', exchange === 'nsebse');
+  // Market share panel — visible for nsebse (NSE+BSE) and all (NSE+BSE+MCX)
+  show('marketSharePanel', exchange === 'nsebse' || exchange === 'all');
 }
 
 // ========================
@@ -678,11 +678,14 @@ function rebuildAll() {
   buildRevenueSummary();
 
   if (currentExchange === 'nsebse') {
-    buildNSEBSESharePanel();
+    buildMarketSharePanel(['nse', 'bse']);
     return;
   }
 
-  if (currentExchange === 'all') return;
+  if (currentExchange === 'all') {
+    buildMarketSharePanel(['nse', 'bse', 'mcx']);
+    return;
+  }
 
   if (currentExchange === 'nse') {
     buildNSEExtrapolationKPIs();
@@ -1324,58 +1327,107 @@ function buildRevenueSummary() {
 }
 
 // ========================
-// NSE+BSE MARKET SHARE PANEL
+// MARKET SHARE PANEL  (generalised — works for any set of exchanges)
 // ========================
 
-function buildNSEBSESharePanel() {
+const MS_META = {
+  nse: { label: 'NSE', color: '#2563eb', cls: 'ms-nse' },
+  bse: { label: 'BSE', color: '#c0392b', cls: 'ms-bse' },
+  mcx: { label: 'MCX', color: '#16a34a', cls: 'ms-mcx' },
+};
+
+// Map enriched segment key → raw quarterly/monthly revenue field
+const MS_SEG_FIELD = {
+  summary_total: 'total_rev',
+  seg_options:   'opt_rev',
+  seg_futures:   'fut_rev',
+  seg_cash:      'cash_rev',
+};
+
+function buildMarketSharePanel(exList) {
   const el = document.getElementById('marketSharePanel');
   if (!el) return;
-  const nseED = MARKET_DATA.nse;
-  const bseED = MARKET_DATA.bse;
-  if (!nseED || !bseED) { el.innerHTML = ''; return; }
 
-  const pct = (n, d) => d > 0 ? (n / d * 100).toFixed(1) + ' %' : '—';
-  const fmtV = v => v != null ? fmt(v) : '—';
+  for (const ex of exList) {
+    if (!MARKET_DATA[ex] || !MARKET_RAW[ex]) { el.innerHTML = ''; return; }
+  }
 
-  const segs = [
-    { key: 'total',   label: 'Total',   nse: nseED.summary_total, bse: bseED.summary_total },
-    { key: 'options', label: 'Options', nse: nseED.seg_options,   bse: bseED.seg_options   },
-    { key: 'futures', label: 'Futures', nse: nseED.seg_futures,   bse: bseED.seg_futures   },
-    { key: 'cash',    label: 'Cash',    nse: nseED.seg_cash,      bse: bseED.seg_cash      },
+  // Use NSE as label reference (same quarters as the main revenue table dropdowns)
+  const refEx  = exList.includes('nse') ? 'nse' : exList[0];
+  const allQ   = MARKET_RAW[refEx].quarterly || [];
+  const nQ     = allQ.length;
+
+  const curQLabel   = allQ[nQ - 1]?.quarter || '';
+  const prevQLabel  = allQ[nQ - 2]?.quarter || '';
+  const prev2QLabel = allQ[nQ - 3]?.quarter || '';   // e.g. Q3 FY 2026
+  const curQNum     = curQLabel.match(/^Q(\d)/)?.[1] || '';
+  let   yoyQLabel   = '';
+  for (let i = nQ - 2; i >= 0; i--) {
+    if (allQ[i].quarter.startsWith('Q' + curQNum + ' ')) { yoyQLabel = allQ[i].quarter; break; }
+  }
+  const curFYLabel = curQLabel.match(/FY \d{4}/)?.[0] || '';
+
+  // Daily avg for a specific quarter from raw data
+  const qAvg = (ex, qLabel, segKey) => {
+    if (!qLabel) return 0;
+    const q = (MARKET_RAW[ex].quarterly || []).find(x => x.quarter === qLabel);
+    if (!q) return 0;
+    return (q[MS_SEG_FIELD[segKey]] || 0) / (q.days || q.trading_days || 1);
+  };
+
+  const pct  = (n, d) => d > 0 ? Math.round(n / d * 100) + ' %' : '—';
+  const ed   = ex => MARKET_DATA[ex];
+
+  const SEGS = [
+    { label: 'Total',   key: 'summary_total' },
+    { label: 'Options', key: 'seg_options'   },
+    { label: 'Futures', key: 'seg_futures'   },
+    { label: 'Cash',    key: 'seg_cash'      },
   ];
 
-  const segHTML = segs.map(({ key, label, nse, bse }) => {
-    if (!nse || !bse) return '';
+  const hdrCells = exList.map(ex =>
+    `<th style="color:${MS_META[ex].color}">${MS_META[ex].label} %</th>`
+  ).join('');
+
+  const segHTML = SEGS.map(({ label: segLabel, key }) => {
+    if (exList.some(ex => !ed(ex)[key])) return '';
+    const refED = ed(refEx)[key];
+
+    // Build period rows — quarterly from raw (correct per-exchange days), rest from enriched
     const periods = [
-      { label: nse.quarterly?.current?.label  || 'Current Q',  nseVal: nse.quarterly?.current?.value,  bseVal: bse.quarterly?.current?.value,  cur: true },
-      { label: nse.quarterly?.previous?.label || 'Prev Q',     nseVal: nse.quarterly?.previous?.value, bseVal: bse.quarterly?.previous?.value  },
-      { label: nse.monthly?.current?.label    || 'Current M',  nseVal: nse.monthly?.current?.value,    bseVal: bse.monthly?.current?.value     },
-      { label: nse.monthly?.previous?.label   || 'Prev M',     nseVal: nse.monthly?.previous?.value,   bseVal: bse.monthly?.previous?.value    },
-      { label: 'Last 5 Days',                                   nseVal: nse.weekly?.last5?.value,       bseVal: bse.weekly?.last5?.value        },
-      { label: 'Prev 5 Days',                                   nseVal: nse.weekly?.prev5?.value,       bseVal: bse.weekly?.prev5?.value        },
+      ...(curFYLabel  ? [{ lbl: curFYLabel,   vals: exList.map(ex => ed(ex)[key]?.fy?.current         || 0) }] : []),
+      ...(curQLabel   ? [{ lbl: curQLabel,    vals: exList.map(ex => qAvg(ex, curQLabel,   key)), cur: true }] : []),
+      ...(prevQLabel  ? [{ lbl: prevQLabel,   vals: exList.map(ex => qAvg(ex, prevQLabel,  key)) }] : []),
+      ...(prev2QLabel && prev2QLabel !== prevQLabel ? [{ lbl: prev2QLabel, vals: exList.map(ex => qAvg(ex, prev2QLabel, key)) }] : []),
+      ...(yoyQLabel && yoyQLabel !== prevQLabel && yoyQLabel !== prev2QLabel ? [{ lbl: yoyQLabel, vals: exList.map(ex => qAvg(ex, yoyQLabel, key)) }] : []),
+      { lbl: refED.monthly?.current?.label  || 'Cur Month',  vals: exList.map(ex => ed(ex)[key]?.monthly?.current?.value  || 0) },
+      { lbl: refED.monthly?.previous?.label || 'Prev Month', vals: exList.map(ex => ed(ex)[key]?.monthly?.previous?.value || 0) },
+      { lbl: 'Avg 6 Months',  vals: exList.map(ex => ed(ex)[key]?.monthly?.avg_6m?.value  || 0) },
+      { lbl: 'Last 5 Days',   vals: exList.map(ex => ed(ex)[key]?.weekly?.last5?.value    || 0) },
+      { lbl: 'Prev 5 Days',   vals: exList.map(ex => ed(ex)[key]?.weekly?.prev5?.value    || 0) },
+      { lbl: 'Last 45 Days',  vals: exList.map(ex => ed(ex)[key]?.weekly?.last45?.value   || 0) },
     ];
-    const rows = periods.map(({ label: pLabel, nseVal, bseVal, cur }) => {
-      const total = (nseVal || 0) + (bseVal || 0);
-      return `<tr${cur ? ' class="xl-r-cur"' : ''}>
-        <td>${pLabel}</td>
-        <td>${fmtV(nseVal)}</td>
-        <td><span class="ms-pct ms-nse">${pct(nseVal || 0, total)}</span></td>
-        <td>${fmtV(bseVal)}</td>
-        <td><span class="ms-pct ms-bse">${pct(bseVal || 0, total)}</span></td>
-      </tr>`;
+
+    const rows = periods.map(({ lbl, vals, cur }) => {
+      const total = vals.reduce((a, b) => a + b, 0);
+      const cells = exList.map((ex, i) =>
+        `<td><span class="ms-pct ${MS_META[ex].cls}">${pct(vals[i], total)}</span></td>`
+      ).join('');
+      return `<tr${cur ? ' class="xl-r-cur"' : ''}><td>${lbl}</td>${cells}</tr>`;
     }).join('');
 
     return `<div class="ms-seg">
-      <div class="ms-seg-label">${label}</div>
+      <div class="ms-seg-label">${segLabel}</div>
       <table class="ms-table">
-        <thead><tr class="xl-col-hdr"><th>Period</th><th>NSE</th><th>NSE %</th><th>BSE</th><th>BSE %</th></tr></thead>
+        <thead><tr class="xl-col-hdr"><th>Period</th>${hdrCells}</tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
   }).join('');
 
+  const title = exList.map(ex => MS_META[ex].label).join(' + ') + ' Market Share';
   el.innerHTML = `<div class="ms-panel">
-    <div class="ms-header">Market Share — NSE vs BSE <span class="xl-seg-unit">daily avg rev · ₹ Cr</span></div>
+    <div class="ms-header">${title} <span class="xl-seg-unit">% of combined daily avg rev</span></div>
     <div class="ms-segs-row">${segHTML}</div>
   </div>`;
 }
