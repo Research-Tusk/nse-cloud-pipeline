@@ -6,6 +6,8 @@ on:
     - cron: '30 0 * * 1-5'
     # 6:00 PM IST = 12:30 UTC — picks up today's data after market close (3:30 PM IST)
     - cron: '30 12 * * 1-5'
+    # 9:00 PM IST = 15:30 UTC — late retry in case MCX Supabase data arrives after 6 PM run
+    - cron: '30 15 * * 1-5'
   workflow_dispatch:
     inputs:
       exchange:
