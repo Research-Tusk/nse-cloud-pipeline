@@ -27,7 +27,7 @@ SEED_FILE       = REPO_ROOT / "dashboard" / "data" / "bse_revenue_seed.csv"
 REVENUE_FILE    = REPO_ROOT / "dashboard" / "data" / "bse_dashboard_data.json"
 OUTPUT_FILE     = REPO_ROOT / "dashboard" / "data" / "bse_share_analysis.json"
 
-REGRESSION_START = "2024-11-01"
+REGRESSION_START = "2025-03-01"
 MA_WINDOWS       = [20, 30, 45, 50, 60, 90]
 PREFERRED_MA     = 45
 FIXED_MA         = 45   # always use this window regardless of R²
