@@ -2769,7 +2769,7 @@ function buildBSECharts(viewSer, reg, maWin) {
     type: 'scatter',
     data: {
       datasets: [
-        { label: 'Trading Days',  data: scatterData, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3 },
+        { label: 'Price vs Rev MA',  data: scatterData, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3 },
         { label: 'Regression Line', data: regLine, type: 'line', borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 3], pointRadius: 0 },
       ]
     },
@@ -3042,7 +3042,7 @@ function buildMCXCharts(viewSer, reg, maWin) {
     type: 'scatter',
     data: {
       datasets: [
-        { label: 'Trading Days',  data: scatterData, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3 },
+        { label: 'Price vs Rev MA',  data: scatterData, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3 },
         { label: 'Regression Line', data: regLine, type: 'line', borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 3], pointRadius: 0 },
       ]
     },
