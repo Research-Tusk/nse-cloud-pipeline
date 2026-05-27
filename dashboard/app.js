@@ -2801,7 +2801,7 @@ function buildBSEShareAnalysis() {
   const lat      = SHARE_DATA.latest;
   const ser      = SHARE_DATA.series || [];
   const maWin    = SHARE_DATA.ma_window;
-  const regStart = SHARE_DATA.regression_start || '2024-11-01';
+  const regStart = SHARE_DATA.regression_start || '2025-03-01';
   const r2pct    = Math.round(reg.r_squared * 100);
   const errDiff  = lat.price_pred - lat.price_actual;
 
@@ -2824,11 +2824,12 @@ function buildBSEShareAnalysis() {
     </div>
   </div>`;
 
+  const regLabel = new Date(regStart + 'T00:00:00').toLocaleString('en-IN', { month: 'short', year: 'numeric' }) + '+';
   const ranges = [
     { key: '1m',      label: '1M' },
     { key: '3m',      label: '3M' },
     { key: '6m',      label: '6M' },
-    { key: 'nov2024', label: 'Nov 2024+' },
+    { key: 'nov2024', label: regLabel },
     { key: '1y',      label: '1Y' },
     { key: '2y',      label: '2Y' },
   ];
@@ -3073,7 +3074,7 @@ function buildMCXShareAnalysis() {
   const lat      = SHARE_DATA.latest;
   const ser      = SHARE_DATA.series || [];
   const maWin    = SHARE_DATA.ma_window;
-  const regStart = SHARE_DATA.regression_start || '2024-11-01';
+  const regStart = SHARE_DATA.regression_start || '2025-03-01';
   const r2pct    = Math.round(reg.r_squared * 100);
   const errDiff  = lat.price_pred - lat.price_actual;
 
