@@ -2610,7 +2610,7 @@ function filterShareSeries(ser, range, regStart) {
 }
 
 function buildBSECharts(viewSer, reg, maWin) {
-  ['bseSharePrice', 'bseRevMA50', 'bseRevMaVsPrice', 'bseRatioSD', 'bseShareScatter'].forEach(k => {
+  ['bseSharePrice', 'bseRevMaVsPrice', 'bseRatioSD', 'bseShareScatter'].forEach(k => {
     if (charts[k]) { charts[k].destroy(); charts[k] = null; }
   });
   if (!viewSer.length) return;
@@ -2642,28 +2642,7 @@ function buildBSECharts(viewSer, reg, maWin) {
     }
   });
 
-  // ── Chart 2: Revenue — daily + MA ──
-  setCanvasHeight('chartBseRevMA50', 280);
-  charts.bseRevMA50 = new Chart(document.getElementById('chartBseRevMA50'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Daily Revenue', data: revRaw, borderColor: CHART_COLORS[3], backgroundColor: 'transparent', borderWidth: 1, pointRadius: 0, tension: 0.2 },
-        { label: maWin + '-Day MA', data: revMA, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
-      ]
-    },
-    options: {
-      interaction: { mode: 'index', intersect: false },
-      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 2) + ' Cr' } } },
-      scales: {
-        x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
-        y: { ticks: { callback: v => '₹' + fmtNum(v, 1) + ' Cr' } }
-      }
-    }
-  });
-
-  // ── Chart 3: Dual-axis — Rev MA vs Share Price ──
+  // ── Chart 2: Dual-axis — Rev MA vs Share Price ──
   setCanvasHeight('chartBseRevMaVsPrice', 300);
   charts.bseRevMaVsPrice = new Chart(document.getElementById('chartBseRevMaVsPrice'), {
     type: 'line',
@@ -2840,15 +2819,9 @@ function buildBSEShareAnalysis() {
 
   const chartsHTML = `
   <div style="margin-top:var(--space-4)">
-    <div class="chart-grid chart-grid-2" style="margin-bottom:var(--space-4)">
-      <div class="chart-panel">
-        <div class="chart-title">BSE Share Price: Actual vs Model</div>
-        <div class="chart-wrapper"><canvas id="chartBseSharePrice"></canvas></div>
-      </div>
-      <div class="chart-panel">
-        <div class="chart-title">${maWin}-Day MA Revenue (₹ Cr)</div>
-        <div class="chart-wrapper"><canvas id="chartBseRevMA50"></canvas></div>
-      </div>
+    <div class="chart-panel" style="margin-bottom:var(--space-4)">
+      <div class="chart-title">BSE Share Price: Actual vs Model</div>
+      <div class="chart-wrapper"><canvas id="chartBseSharePrice"></canvas></div>
     </div>
     <div class="chart-panel" style="margin-bottom:var(--space-4)">
       <div class="chart-title">${maWin}-Day MA Revenue vs BSE Share Price</div>
@@ -2889,7 +2862,7 @@ function buildBSEShareAnalysis() {
 }
 
 function buildMCXCharts(viewSer, reg, maWin) {
-  ['mcxSharePrice', 'mcxRevMA50', 'mcxRevMaVsPrice', 'mcxRatioSD', 'mcxShareScatter'].forEach(k => {
+  ['mcxSharePrice', 'mcxRevMaVsPrice', 'mcxRatioSD', 'mcxShareScatter'].forEach(k => {
     if (charts[k]) { charts[k].destroy(); charts[k] = null; }
   });
   if (!viewSer.length) return;
@@ -2916,26 +2889,6 @@ function buildMCXCharts(viewSer, reg, maWin) {
       scales: {
         x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
         y: { ticks: { callback: v => '₹' + fmtNum(v, 0) } }
-      }
-    }
-  });
-
-  setCanvasHeight('chartMcxRevMA50', 280);
-  charts.mcxRevMA50 = new Chart(document.getElementById('chartMcxRevMA50'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Daily Revenue', data: revRaw, borderColor: CHART_COLORS[3], backgroundColor: 'transparent', borderWidth: 1, pointRadius: 0, tension: 0.2 },
-        { label: maWin + '-Day MA', data: revMA, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
-      ]
-    },
-    options: {
-      interaction: { mode: 'index', intersect: false },
-      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 2) + ' Cr' } } },
-      scales: {
-        x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
-        y: { ticks: { callback: v => '₹' + fmtNum(v, 1) + ' Cr' } }
       }
     }
   });
@@ -3113,15 +3066,9 @@ function buildMCXShareAnalysis() {
 
   const chartsHTML = `
   <div style="margin-top:var(--space-4)">
-    <div class="chart-grid chart-grid-2" style="margin-bottom:var(--space-4)">
-      <div class="chart-panel">
-        <div class="chart-title">MCX Share Price: Actual vs Model</div>
-        <div class="chart-wrapper"><canvas id="chartMcxSharePrice"></canvas></div>
-      </div>
-      <div class="chart-panel">
-        <div class="chart-title">${maWin}-Day MA Revenue (₹ Cr)</div>
-        <div class="chart-wrapper"><canvas id="chartMcxRevMA50"></canvas></div>
-      </div>
+    <div class="chart-panel" style="margin-bottom:var(--space-4)">
+      <div class="chart-title">MCX Share Price: Actual vs Model</div>
+      <div class="chart-wrapper"><canvas id="chartMcxSharePrice"></canvas></div>
     </div>
     <div class="chart-panel" style="margin-bottom:var(--space-4)">
       <div class="chart-title">${maWin}-Day MA Revenue vs MCX Share Price</div>
