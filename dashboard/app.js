@@ -3190,7 +3190,7 @@ async function downloadWeeklyReport() {
       if (!s) return '';
       const wl5 = s.weekly.last5 || {};
       const wp5 = s.weekly.prev5 || {};
-      const w50 = s.weekly.last50 || {};
+      const w50 = s.weekly.last45 || {};
       const mc = s.monthly.current || {};
       const mp = s.monthly.previous || {};
       const m6 = s.monthly.avg_6m || {};
@@ -3204,7 +3204,7 @@ async function downloadWeeklyReport() {
           <tr class="pr-group-label"><td colspan="3">Weekly</td></tr>
           <tr><td>L5 – This Week</td><td>${n(wl5.value)}</td><td>${prFmt(wl5.wow)}</td></tr>
           <tr><td>Prev5 – Last Week</td><td>${n(wp5.value)}</td><td>—</td></tr>
-          <tr><td>L50 – 10-Week Avg</td><td>${n(w50.value)}</td><td>${prFmt(wl5.wo10w)}</td></tr>
+          <tr><td>L45 – 45-Day Avg</td><td>${n(w50.value)}</td><td>${prFmt(wl5.wo10w)}</td></tr>
           <tr class="pr-separator"><td colspan="3"></td></tr>
           <tr class="pr-group-label"><td colspan="3">Monthly</td></tr>
           <tr><td>${mc.label || 'Current Month'}</td><td>${n(mc.value)}</td><td>${prFmt(mc.mom)}</td></tr>
