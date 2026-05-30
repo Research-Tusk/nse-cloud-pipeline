@@ -3440,4 +3440,231 @@ async function downloadWeeklyReport() {
   }
 }
 
+// ========================
+// MOBILE REPORT DOWNLOAD
+// ========================
+
+async function downloadMobileReport() {
+  const btn = document.getElementById('btnMobileReport');
+  if (btn) { btn.textContent = 'Building…'; btn.disabled = true; }
+
+  try {
+    const [nseEnrich, bseEnrich, nseDash, bseDash, bseShare, mcxShare] = await Promise.all([
+      fetch('./data/nse_enriched_data.json').then(r => r.json()),
+      fetch('./data/bse_enriched_data.json').then(r => r.json()),
+      fetch('./data/nse_dashboard_data.json').then(r => r.json()),
+      fetch('./data/bse_dashboard_data.json').then(r => r.json()),
+      fetch('./data/bse_share_analysis.json').then(r => r.json()).catch(() => null),
+      fetch('./data/mcx_share_analysis.json').then(r => r.json()).catch(() => null),
+    ]);
+
+    const nseDaily = nseDash.daily_all || nseDash.daily || [];
+    const latestDateStr = nseDaily.length > 0 ? nseDaily[nseDaily.length - 1].date : '';
+    const genTime = new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    function n(v) { return (v == null || isNaN(v)) ? '—' : fmtNum(v); }
+    function pct(v, decimals) {
+      if (v == null || isNaN(v)) return '—';
+      const p = (v * 100).toFixed(decimals != null ? decimals : 1);
+      return (v > 0.0001 ? '+' : '') + p + '%';
+    }
+    function pctColor(v) {
+      if (v == null || isNaN(v)) return '#666';
+      return v > 0.0001 ? '#16a34a' : v < -0.0001 ? '#dc2626' : '#666';
+    }
+
+    // ── KPI card for weekly/quarterly headline ──
+    function kpiCard(label, value, change, changeLabel) {
+      const col = pctColor(change);
+      const chgStr = change != null ? `<div style="font-size:11px;color:${col};font-weight:600;margin-top:2px">${pct(change)} ${changeLabel || ''}</div>` : '';
+      return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;flex:1;min-width:130px">
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${label}</div>
+        <div style="font-size:20px;font-weight:700;color:#111;letter-spacing:-.02em">₹${n(value)}<span style="font-size:11px;font-weight:400;color:#6b7280"> Cr</span></div>
+        ${chgStr}
+      </div>`;
+    }
+
+    // ── DoW table rows ──
+    function dowRows(enriched) {
+      const dow = (enriched.summary_total || {}).day_of_week || {};
+      const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+      return days.map(d => {
+        const dd = dow[d] || {};
+        const col = pctColor(dd.do3d);
+        return `<tr>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;font-weight:600;color:#374151">${d.slice(0,3)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right">₹${n(dd.latest)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right;color:${col};font-weight:600">${pct(dd.do3d)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right;color:#6b7280">${n(dd.avg_10d)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function exchangeSection(name, color, enriched) {
+      const s   = enriched.summary_total || {};
+      const wl5 = s.weekly?.last5 || {};
+      const wp5 = s.weekly?.prev5 || {};
+      const w45 = s.weekly?.last45 || {};
+      const qc  = s.quarterly?.current || {};
+      const qp  = s.quarterly?.previous || {};
+      const mc  = s.monthly?.current || {};
+      const m6  = s.monthly?.avg_6m || {};
+
+      const segs = [
+        { label: 'Options', d: enriched.seg_options },
+        { label: 'Futures', d: enriched.seg_futures },
+        { label: 'Cash',    d: enriched.seg_cash },
+      ];
+      const segRows = segs.map(sg => {
+        const l5 = sg.d?.weekly?.last5 || {};
+        return `<tr>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#374151">${sg.label}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right">₹${n(l5.value)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right;color:${pctColor(l5.wow)};font-weight:600">${pct(l5.wow)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right;color:${pctColor(l5.wo10w)};font-weight:600">${pct(l5.wo10w)}</td>
+        </tr>`;
+      }).join('');
+
+      return `
+      <div style="margin-bottom:20px">
+        <div style="background:${color};color:#fff;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 16px;border-radius:10px 10px 0 0">${name}</div>
+        <div style="background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:14px 14px 6px">
+
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            ${kpiCard('This Week (L5)', wl5.value, wl5.wow, 'WoW')}
+            ${kpiCard('Last Week (P5)', wp5.value, null)}
+            ${kpiCard('45-Day Avg', w45.value, wl5.wo10w, 'Wo45')}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            ${kpiCard(qc.label || 'Current Q', qc.value, qc.qoq, 'QoQ')}
+            ${kpiCard(qp.label || 'Prev Q', qp.value, qc.yoy, 'YoY')}
+            ${kpiCard(mc.label || 'Current Month', mc.value, mc.mom, 'MoM')}
+          </div>
+
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;letter-spacing:.05em;margin:10px 0 6px">Day of Week (₹ Cr daily avg)</div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="background:#f9fafb">
+                <th style="padding:6px 10px;text-align:left;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase">Day</th>
+                <th style="padding:6px 10px;text-align:right;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase">Latest</th>
+                <th style="padding:6px 10px;text-align:right;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase">Do3D</th>
+                <th style="padding:6px 10px;text-align:right;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase">10D Avg</th>
+              </tr></thead>
+              <tbody>${dowRows(enriched)}</tbody>
+            </table>
+          </div>
+
+          ${segs[0].d ? `
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;letter-spacing:.05em;margin:12px 0 6px">Segments (L5 Daily Avg)</div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="background:#f9fafb">
+                <th style="padding:6px 10px;text-align:left;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase">Segment</th>
+                <th style="padding:6px 10px;text-align:right;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase">₹ Cr</th>
+                <th style="padding:6px 10px;text-align:right;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase">WoW</th>
+                <th style="padding:6px 10px;text-align:right;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase">Wo45</th>
+              </tr></thead>
+              <tbody>${segRows}</tbody>
+            </table>
+          </div>` : ''}
+
+        </div>
+      </div>`;
+    }
+
+    function regressionSection(shareData, exchangeName, color) {
+      if (!shareData) return '';
+      const reg = shareData.regression || {};
+      const lat = shareData.latest || {};
+      const maW = shareData.ma_window || 45;
+
+      // Build charts at mobile width (380px)
+      const origDefs = shareData;
+      const chartResults = buildAllRegressionChartImgs(shareData, exchangeName);
+
+      const statPills = [
+        { l: 'R²',         v: reg.r_squared?.toFixed(4) || '—' },
+        { l: 'Pearson r',  v: reg.pearson_r?.toFixed(4)  || '—' },
+        { l: 'MA Window',  v: maW + '-day' },
+        { l: 'Fit',        v: reg.fit || '—' },
+      ].map(s => `<div style="background:#f0f4f0;border-radius:6px;padding:8px 10px;flex:1;min-width:70px;text-align:center">
+        <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">${s.l}</div>
+        <div style="font-size:13px;font-weight:700;color:#1a1a1a;text-transform:capitalize">${s.v}</div>
+      </div>`).join('');
+
+      const latRows = [
+        ['Date', lat.date || '—'],
+        ['Actual Price', lat.price_actual != null ? '₹' + fmtNum(lat.price_actual, 0) : '—'],
+        ['Predicted',    lat.price_pred   != null ? '₹' + fmtNum(lat.price_pred,   0) : '—'],
+        ['Error %',      lat.error_pct != null ? lat.error_pct + '%' : '—'],
+        ['Rev MA' + maW, lat.rev_ma    != null ? '₹' + fmtNum(lat.rev_ma, 2) + ' Cr' : '—'],
+      ].map(([l, v]) => `<tr>
+        <td style="padding:7px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:12px">${l}</td>
+        <td style="padding:7px 12px;border-bottom:1px solid #f3f4f6;font-weight:600;text-align:right;font-size:12px">${v}</td>
+      </tr>`).join('');
+
+      const chartImgs = chartResults.map(c =>
+        `<div style="margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;letter-spacing:.04em;margin-bottom:4px">${c.label}</div>
+          <img src="${c.img}" alt="${c.label}" style="width:100%;border-radius:6px;border:1px solid #e5e7eb">
+        </div>`
+      ).join('');
+
+      return `
+      <div style="margin-bottom:20px">
+        <div style="background:${color};color:#fff;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 16px;border-radius:10px 10px 0 0">${exchangeName} Share Price Regression</div>
+        <div style="background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:14px">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${statPills}</div>
+          <div style="font-size:10px;font-family:monospace;background:#f0f4f0;border-left:3px solid ${color};padding:6px 10px;border-radius:0 4px 4px 0;color:#374151;margin-bottom:12px">${reg.equation || '—'}</div>
+          <table style="width:100%;border-collapse:collapse;margin-bottom:14px"><tbody>${latRows}</tbody></table>
+          ${chartImgs}
+        </div>
+      </div>`;
+    }
+
+    const body = `
+      ${exchangeSection('NSE Update', '#1d4ed8', nseEnrich)}
+      ${exchangeSection('BSE Update', '#0f766e', bseEnrich)}
+      ${regressionSection(bseShare, 'BSE', '#0f766e')}
+      ${regressionSection(mcxShare, 'MCX', '#7c3aed')}
+    `;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>NSE/BSE Weekly Report — ${latestDateStr}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+         background: #f3f4f6; color: #111; padding: 12px; max-width: 480px; margin: 0 auto; }
+  @media (min-width: 480px) { body { padding: 20px; } }
+</style>
+</head>
+<body>
+<div style="background:#1e3a2f;color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px">
+  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px">NSE/BSE Weekly Update</div>
+  <div style="font-size:12px;color:#86efac">As of ${latestDateStr} &nbsp;·&nbsp; Generated ${genTime}</div>
+</div>
+${body}
+<div style="text-align:center;font-size:10px;color:#9ca3af;margin-top:16px;padding-top:12px;border-top:1px solid #e5e7eb">
+  NSE/BSE/MCX Analytics Dashboard — Auto-generated report
+</div>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `nse-bse-report-${latestDateStr || 'latest'}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+  } finally {
+    if (btn) { btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Mobile'; btn.disabled = false; }
+  }
+}
+
 init();

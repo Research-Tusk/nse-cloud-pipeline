@@ -2140,6 +2140,29 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
   background: var(--color-primary-hover);
 }
 
+.btn-download-mobile {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--transition-interactive), color var(--transition-interactive);
+  white-space: nowrap;
+}
+.btn-download-mobile:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
 /* =========================
    PRINT REPORT STYLES
    ========================= */
