@@ -3261,52 +3261,119 @@ async function downloadWeeklyReport() {
       </div>`;
     }
 
-    // ── Regression section (always renders scatter off-screen from JSON data) ──
-    function buildScatterImg(shareData, exchangeName) {
-      const reg   = shareData.regression || {};
-      const maW   = shareData.ma_window || 45;
+    // ── Render all 4 regression charts off-screen from JSON data ──
+    function buildAllRegressionChartImgs(shareData, exchangeName) {
+      const reg      = shareData.regression || {};
+      const maW      = shareData.ma_window || 45;
       const regStart = shareData.regression_start || '';
-      const series = (shareData.series || []).filter(r => r.date >= regStart);
-      if (!series.length) return null;
+      const series   = (shareData.series || []).filter(r => r.date >= regStart);
+      if (!series.length) return [];
 
-      const slope = reg.slope, intercept = reg.intercept;
-      const scatterData = series.map(r => ({ x: r.rev_ma, y: r.price }));
-      const xVals = scatterData.map(p => p.x);
+      const labels  = series.map(r => r.date.slice(5));
+      const actuals = series.map(r => r.price);
+      const preds   = series.map(r => r.price_pred);
+      const revMA   = series.map(r => r.rev_ma);
+      const slope   = reg.slope, intercept = reg.intercept;
+
+      // Ratio/SD pre-computation
+      const ratios = series.map(r => r.price / r.rev_ma);
+      const rN     = ratios.length;
+      const mean   = ratios.reduce((a, b) => a + b, 0) / rN;
+      const std    = Math.sqrt(ratios.reduce((a, b) => a + (b - mean) ** 2, 0) / rN);
+      const flat   = v => series.map(() => v);
+
+      // Scatter data
+      const scatterPts = series.map(r => ({ x: r.rev_ma, y: r.price }));
+      const xVals      = scatterPts.map(p => p.x);
       const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
-      const regLine = [
-        { x: xMin, y: slope * xMin + intercept },
-        { x: xMax, y: slope * xMax + intercept },
+      const regLine = [{ x: xMin, y: slope * xMin + intercept }, { x: xMax, y: slope * xMax + intercept }];
+
+      const sdBandOuter = CHART_COLORS[0] + '18';
+      const sdBandInner = CHART_COLORS[0] + '30';
+      const sdLineOuter = CHART_COLORS[0] + '55';
+      const sdLineInner = CHART_COLORS[0] + '80';
+
+      const chartDefs = [
+        {
+          label: 'Share Price: Actual vs Model',
+          w: 700, h: 260,
+          config: {
+            type: 'line',
+            data: { labels, datasets: [
+              { label: 'Actual Price',     data: actuals, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+              { label: 'Model Prediction', data: preds,   borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, borderDash: [5, 3] },
+            ]},
+            options: { animation: false, plugins: { legend: { labels: { font: { size: 10 } } } },
+              scales: { x: { ticks: { maxTicksLimit: 8, font: { size: 9 } } }, y: { ticks: { callback: v => '₹' + fmtNum(v, 0), font: { size: 9 } } } } }
+          }
+        },
+        {
+          label: `Rev MA${maW} vs ${exchangeName} Share Price`,
+          w: 700, h: 260,
+          config: {
+            type: 'line',
+            data: { labels, datasets: [
+              { label: maW + '-Day MA Revenue (₹ Cr)', data: revMA,   borderColor: CHART_COLORS[4], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'yRev' },
+              { label: exchangeName + ' Share Price (₹)', data: actuals, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'yPrice' },
+            ]},
+            options: { animation: false, plugins: { legend: { labels: { font: { size: 10 } } } },
+              scales: {
+                x: { ticks: { maxTicksLimit: 10, font: { size: 9 } } },
+                yRev:   { type: 'linear', position: 'left',  title: { display: true, text: maW + '-Day MA Rev (₹ Cr)', font: { size: 9 } }, ticks: { callback: v => '₹' + fmtNum(v, 1) + ' Cr', font: { size: 9 } } },
+                yPrice: { type: 'linear', position: 'right', title: { display: true, text: 'Share Price (₹)', font: { size: 9 } }, ticks: { callback: v => '₹' + fmtNum(v, 0), font: { size: 9 } }, grid: { drawOnChartArea: false } },
+              }
+            }
+          }
+        },
+        {
+          label: `Price ÷ Rev MA${maW} Ratio — Mean ± SD`,
+          w: 700, h: 260,
+          config: {
+            type: 'line',
+            data: { labels, datasets: [
+              { label: '+2σ',            data: flat(mean + 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 4 }, backgroundColor: sdBandOuter },
+              { label: '+1σ',            data: flat(mean + std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 3 }, backgroundColor: sdBandInner },
+              { label: 'Mean',           data: flat(mean),           borderColor: CHART_COLORS[4], borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+              { label: '−1σ',            data: flat(mean - std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+              { label: '−2σ',            data: flat(mean - 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+              { label: 'Price / Rev MA', data: ratios, borderColor: CHART_COLORS[1], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
+            ]},
+            options: { animation: false, plugins: { legend: { labels: { font: { size: 10 } } } },
+              scales: { x: { ticks: { maxTicksLimit: 10, font: { size: 9 } } }, y: { ticks: { callback: v => v.toFixed(0), font: { size: 9 } }, title: { display: true, text: 'Price ÷ Rev MA' + maW, font: { size: 9 } } } } }
+          }
+        },
+        {
+          label: `Price vs ${maW}-Day Revenue MA — Scatter`,
+          w: 700, h: 300,
+          config: {
+            type: 'scatter',
+            data: { datasets: [
+              { label: 'Price vs Rev MA', data: scatterPts, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3 },
+              { label: 'Regression Line', data: regLine, type: 'line', borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 3], pointRadius: 0 },
+            ]},
+            options: { animation: false, plugins: { legend: { labels: { font: { size: 10 } } } },
+              scales: {
+                x: { title: { display: true, text: maW + '-Day MA Revenue (₹ Cr)', font: { size: 10 } }, ticks: { callback: v => '₹' + fmtNum(v, 1), font: { size: 9 } } },
+                y: { title: { display: true, text: exchangeName + ' Share Price (₹)', font: { size: 10 } }, ticks: { callback: v => '₹' + fmtNum(v, 0), font: { size: 9 } } },
+              }
+            }
+          }
+        },
       ];
 
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:560px;height:280px;';
-      const canvas = document.createElement('canvas');
-      canvas.width = 560; canvas.height = 280;
-      wrap.appendChild(canvas);
-      document.body.appendChild(wrap);
-
-      const tempChart = new Chart(canvas, {
-        type: 'scatter',
-        data: {
-          datasets: [
-            { label: 'Price vs Rev MA',  data: scatterData, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3, pointHoverRadius: 4 },
-            { label: 'Regression Line', data: regLine, type: 'line', borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 3], pointRadius: 0 },
-          ]
-        },
-        options: {
-          animation: false,
-          plugins: { legend: { labels: { font: { size: 10 } } } },
-          scales: {
-            x: { title: { display: true, text: `${maW}-Day MA Revenue (₹ Cr)`, font: { size: 10 } }, ticks: { callback: v => '₹' + fmtNum(v, 1), font: { size: 9 } } },
-            y: { title: { display: true, text: `${exchangeName} Share Price (₹)`, font: { size: 10 } }, ticks: { callback: v => '₹' + fmtNum(v, 0), font: { size: 9 } } },
-          }
-        }
+      return chartDefs.map(def => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = `position:fixed;left:-9999px;top:-9999px;width:${def.w}px;height:${def.h}px;`;
+        const canvas = document.createElement('canvas');
+        canvas.width = def.w; canvas.height = def.h;
+        wrap.appendChild(canvas);
+        document.body.appendChild(wrap);
+        const tempChart = new Chart(canvas, def.config);
+        const img = tempChart.toBase64Image();
+        tempChart.destroy();
+        document.body.removeChild(wrap);
+        return { label: def.label, img };
       });
-
-      const img = tempChart.toBase64Image();
-      tempChart.destroy();
-      document.body.removeChild(wrap);
-      return img;
     }
 
     function buildRegressionSection(shareData, exchangeName) {
@@ -3318,25 +3385,13 @@ async function downloadWeeklyReport() {
 
       const statsHTML = `
       <div class="pr-regression-stats">
-        <div class="pr-reg-stat">
-          <div class="pr-reg-stat-label">R²</div>
-          <div class="pr-reg-stat-value">${reg.r_squared != null ? reg.r_squared.toFixed(4) : '—'}</div>
-        </div>
-        <div class="pr-reg-stat">
-          <div class="pr-reg-stat-label">Pearson r</div>
-          <div class="pr-reg-stat-value">${reg.pearson_r != null ? reg.pearson_r.toFixed(4) : '—'}</div>
-        </div>
-        <div class="pr-reg-stat">
-          <div class="pr-reg-stat-label">MA Window</div>
-          <div class="pr-reg-stat-value">${maW}-day</div>
-        </div>
-        <div class="pr-reg-stat">
-          <div class="pr-reg-stat-label">Fit Quality</div>
-          <div class="pr-reg-stat-value" style="text-transform:capitalize">${reg.fit || '—'}</div>
-        </div>
+        <div class="pr-reg-stat"><div class="pr-reg-stat-label">R²</div><div class="pr-reg-stat-value">${reg.r_squared != null ? reg.r_squared.toFixed(4) : '—'}</div></div>
+        <div class="pr-reg-stat"><div class="pr-reg-stat-label">Pearson r</div><div class="pr-reg-stat-value">${reg.pearson_r != null ? reg.pearson_r.toFixed(4) : '—'}</div></div>
+        <div class="pr-reg-stat"><div class="pr-reg-stat-label">MA Window</div><div class="pr-reg-stat-value">${maW}-day</div></div>
+        <div class="pr-reg-stat"><div class="pr-reg-stat-label">Fit Quality</div><div class="pr-reg-stat-value" style="text-transform:capitalize">${reg.fit || '—'}</div></div>
       </div>
       <div class="pr-reg-equation">${reg.equation || '—'}</div>
-      <table class="pr-table" style="max-width:360px;margin-bottom:8px">
+      <table class="pr-table" style="max-width:360px;margin-bottom:10px">
         <thead><tr><th>Latest (${lat.date || '—'})</th><th>Value</th></tr></thead>
         <tbody>
           <tr><td>Actual Price</td><td>₹${lat.price_actual != null ? fmtNum(lat.price_actual, 0) : '—'}</td></tr>
@@ -3348,30 +3403,18 @@ async function downloadWeeklyReport() {
         </tbody>
       </table>`;
 
-      // Always render scatter off-screen; capture other charts if tab was visited
-      const scatterImg = buildScatterImg(shareData, exchangeName);
-      const ex = exchangeName.toLowerCase();
-      const liveCharts = [
-        { key: `${ex}SharePrice`,   label: 'Share Price: Actual vs Model' },
-        { key: `${ex}RevMaVsPrice`, label: `Rev MA${maW} vs Share Price (time series)` },
-        { key: `${ex}RatioSD`,      label: `Price ÷ Rev MA Ratio — Mean ± SD` },
-      ];
-      const liveImgs = liveCharts
-        .filter(c => charts[c.key])
-        .map(c => `<div class="pr-chart-item"><div class="pr-chart-label">${c.label}</div><img src="${charts[c.key].toBase64Image()}" alt="${c.label}"></div>`)
-        .join('');
-
-      const scatterHTML = scatterImg
-        ? `<div class="pr-chart-item" style="grid-column:1/-1"><div class="pr-chart-label">Price vs ${maW}-Day Revenue MA — Scatter</div><img src="${scatterImg}" alt="Scatter"></div>`
-        : '';
-
-      const chartsSection = `<div class="pr-chart-grid">${liveImgs}${scatterHTML}</div>`;
+      const chartResults = buildAllRegressionChartImgs(shareData, exchangeName);
+      const chartsHTML = chartResults.map((c, i) => {
+        // Scatter (last chart) spans full width
+        const span = i === chartResults.length - 1 ? ' style="grid-column:1/-1"' : '';
+        return `<div class="pr-chart-item"${span}><div class="pr-chart-label">${c.label}</div><img src="${c.img}" alt="${c.label}"></div>`;
+      }).join('');
 
       return `<div class="pr-section">
         <div class="pr-section-header">${exchangeName} Share Price Regression</div>
         <div class="pr-section-body">
           ${statsHTML}
-          ${chartsSection}
+          <div class="pr-chart-grid">${chartsHTML}</div>
         </div>
       </div>`;
     }
