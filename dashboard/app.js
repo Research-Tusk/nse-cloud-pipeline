@@ -3139,4 +3139,215 @@ async function init() {
 }
 
 
+// ========================
+// WEEKLY REPORT PDF DOWNLOAD
+// ========================
+
+async function downloadWeeklyReport() {
+  const btn = document.getElementById('btnDownloadReport');
+  if (btn) { btn.textContent = 'Building…'; btn.disabled = true; }
+
+  try {
+    const [nseEnrich, bseEnrich, nseDash, bseDash, bseShare, mcxShare] = await Promise.all([
+      fetch('./data/nse_enriched_data.json').then(r => r.json()),
+      fetch('./data/bse_enriched_data.json').then(r => r.json()),
+      fetch('./data/nse_dashboard_data.json').then(r => r.json()),
+      fetch('./data/bse_dashboard_data.json').then(r => r.json()),
+      fetch('./data/bse_share_analysis.json').then(r => r.json()).catch(() => null),
+      fetch('./data/mcx_share_analysis.json').then(r => r.json()).catch(() => null),
+    ]);
+
+    // ── Week range from latest NSE daily date ──
+    const nseDaily = nseDash.daily_all || nseDash.daily || [];
+    const latestDateStr = nseDaily.length > 0 ? nseDaily[nseDaily.length - 1].date : null;
+    function getWeekRange(dateStr) {
+      if (!dateStr) return 'N/A';
+      const d = new Date(dateStr + 'T00:00:00');
+      const day = d.getDay();
+      const daysToMon = day === 0 ? -6 : 1 - day;
+      const mon = new Date(d); mon.setDate(d.getDate() + daysToMon);
+      const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+      function ordinal(n) { const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+      const monMonth = mon.toLocaleString('en-IN', { month: 'short' });
+      const friStr = ordinal(fri.getDate()) + ' ' + fri.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+      if (mon.getMonth() !== fri.getMonth()) return `${ordinal(mon.getDate())} ${monMonth} – ${friStr}`;
+      return `${ordinal(mon.getDate())} – ${friStr}`;
+    }
+    const weekRange = getWeekRange(latestDateStr);
+    const genTime = new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    function n(num) { if (num == null || isNaN(num)) return '—'; return fmtNum(num); }
+    function prFmt(val) {
+      if (val == null || isNaN(val)) return '—';
+      const pct = (val * 100).toFixed(1);
+      if (val > 0.0001) return `<span class="pr-pos">+${pct}%</span>`;
+      if (val < -0.0001) return `<span class="pr-neg">${pct}%</span>`;
+      return '0.0%';
+    }
+
+    function buildTotalRevenueTable(enriched) {
+      const s = enriched.summary_total;
+      if (!s) return '';
+      const wl5 = s.weekly.last5 || {};
+      const wp5 = s.weekly.prev5 || {};
+      const w50 = s.weekly.last50 || {};
+      const mc = s.monthly.current || {};
+      const mp = s.monthly.previous || {};
+      const m6 = s.monthly.avg_6m || {};
+      const qc = s.quarterly.current || {};
+      const qp = s.quarterly.previous || {};
+      const q2 = s.quarterly.prev2 || {};
+      return `<div class="pr-sub-header">Total Revenue (Daily Avg, ₹ Cr)</div>
+      <table class="pr-table">
+        <thead><tr><th>Metric</th><th>₹ Cr</th><th>% Change</th></tr></thead>
+        <tbody>
+          <tr class="pr-group-label"><td colspan="3">Weekly</td></tr>
+          <tr><td>L5 – This Week</td><td>${n(wl5.value)}</td><td>${prFmt(wl5.wow)}</td></tr>
+          <tr><td>Prev5 – Last Week</td><td>${n(wp5.value)}</td><td>—</td></tr>
+          <tr><td>L50 – 10-Week Avg</td><td>${n(w50.value)}</td><td>${prFmt(wl5.wo10w)}</td></tr>
+          <tr class="pr-separator"><td colspan="3"></td></tr>
+          <tr class="pr-group-label"><td colspan="3">Monthly</td></tr>
+          <tr><td>${mc.label || 'Current Month'}</td><td>${n(mc.value)}</td><td>${prFmt(mc.mom)}</td></tr>
+          <tr><td>${mp.label || 'Prev Month'}</td><td>${n(mp.value)}</td><td>—</td></tr>
+          <tr><td>6-Month Avg</td><td>${n(m6.value)}</td><td>${prFmt(mc.mo6m)}</td></tr>
+          <tr class="pr-separator"><td colspan="3"></td></tr>
+          <tr class="pr-group-label"><td colspan="3">Quarterly</td></tr>
+          <tr><td>${qc.label || 'Current Q'}</td><td>${n(qc.value)}</td><td>${prFmt(qc.qoq)}</td></tr>
+          <tr><td>${qp.label || 'Prev Q'}</td><td>${n(qp.value)}</td><td>—</td></tr>
+          <tr><td>${q2.label || 'YoY Q'}</td><td>${n(q2.value)}</td><td>${prFmt(qc.yoy)}</td></tr>
+        </tbody>
+      </table>`;
+    }
+
+    function buildDowTable(enriched) {
+      const dow = (enriched.summary_total || {}).day_of_week || {};
+      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      const rows = dayNames.map(day => {
+        const dd = dow[day] || {};
+        return `<tr><td>${day}</td><td>${n(dd.latest)}</td><td>${n(dd.avg_3d)}</td><td>${prFmt(dd.do3d)}</td><td>${n(dd.avg_10d)}</td><td>${prFmt(dd.do10d)}</td></tr>`;
+      }).join('');
+      return `<div class="pr-sub-header">Day-of-Week Performance</div>
+      <table class="pr-table">
+        <thead><tr><th>Day</th><th>This Week (₹ Cr)</th><th>L3 Avg</th><th>Do3D</th><th>L10 Avg</th><th>Do10D</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function buildSegmentTable(enriched) {
+      const segs = [
+        { label: 'Options', data: enriched.seg_options },
+        { label: 'Futures', data: enriched.seg_futures },
+        { label: 'Cash',    data: enriched.seg_cash },
+      ];
+      const rows = segs.map(seg => {
+        const l5 = ((seg.data || {}).weekly || {}).last5 || {};
+        return `<tr><td>${seg.label}</td><td>${n(l5.value)}</td><td>${prFmt(l5.wow)}</td><td>${prFmt(l5.wo10w)}</td></tr>`;
+      }).join('');
+      return `<div class="pr-sub-header">Segment Revenue (L5 Daily Avg, ₹ Cr)</div>
+      <table class="pr-table">
+        <thead><tr><th>Segment</th><th>L5 Avg</th><th>WoW</th><th>Wo10W</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function buildExchangeSection(label, enriched, includeSegments) {
+      return `<div class="pr-section">
+        <div class="pr-section-header">${label}</div>
+        <div class="pr-section-body">
+          ${buildTotalRevenueTable(enriched)}
+          ${buildDowTable(enriched)}
+          ${includeSegments ? buildSegmentTable(enriched) : ''}
+        </div>
+      </div>`;
+    }
+
+    // ── BSE Regression section ──
+    function buildRegressionSection(shareData, exchangeName, chartKeys) {
+      if (!shareData) return '';
+      const reg  = shareData.regression || {};
+      const lat  = shareData.latest || {};
+      const maW  = shareData.ma_window || 45;
+      const regStart = shareData.regression_start || '';
+
+      const statsHTML = `
+      <div class="pr-regression-stats">
+        <div class="pr-reg-stat">
+          <div class="pr-reg-stat-label">R²</div>
+          <div class="pr-reg-stat-value">${reg.r_squared != null ? reg.r_squared.toFixed(4) : '—'}</div>
+        </div>
+        <div class="pr-reg-stat">
+          <div class="pr-reg-stat-label">Pearson r</div>
+          <div class="pr-reg-stat-value">${reg.pearson_r != null ? reg.pearson_r.toFixed(4) : '—'}</div>
+        </div>
+        <div class="pr-reg-stat">
+          <div class="pr-reg-stat-label">MA Window</div>
+          <div class="pr-reg-stat-value">${maW}-day</div>
+        </div>
+        <div class="pr-reg-stat">
+          <div class="pr-reg-stat-label">Fit Quality</div>
+          <div class="pr-reg-stat-value" style="text-transform:capitalize">${reg.fit || '—'}</div>
+        </div>
+      </div>
+      <div class="pr-reg-equation">${reg.equation || '—'}</div>
+      <table class="pr-table" style="max-width:360px;margin-bottom:8px">
+        <thead><tr><th>Latest (${lat.date || '—'})</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Actual Price</td><td>₹${lat.price_actual != null ? fmtNum(lat.price_actual, 0) : '—'}</td></tr>
+          <tr><td>Model Predicted</td><td>₹${lat.price_pred != null ? fmtNum(lat.price_pred, 0) : '—'}</td></tr>
+          <tr><td>Error %</td><td>${lat.error_pct != null ? lat.error_pct + '%' : '—'}</td></tr>
+          <tr><td>Rev MA${maW} (₹ Cr)</td><td>${lat.rev_ma != null ? fmtNum(lat.rev_ma, 2) : '—'}</td></tr>
+          <tr><td>Regression from</td><td>${regStart}</td></tr>
+          <tr><td>N (trading days)</td><td>${shareData.n_days || '—'}</td></tr>
+        </tbody>
+      </table>`;
+
+      // Capture chart images if rendered
+      const chartLabels = {
+        [`${exchangeName.toLowerCase()}SharePrice`]:    'Share Price: Actual vs Model',
+        [`${exchangeName.toLowerCase()}RevMaVsPrice`]:  `Rev MA${maW} vs Share Price`,
+        [`${exchangeName.toLowerCase()}RatioSD`]:       `Price ÷ Rev MA Ratio — Mean ± SD`,
+        [`${exchangeName.toLowerCase()}ShareScatter`]:  'Revenue → Price Scatter',
+      };
+      const chartImgs = Object.entries(chartLabels)
+        .filter(([key]) => charts[key])
+        .map(([key, label]) => `
+          <div class="pr-chart-item">
+            <div class="pr-chart-label">${label}</div>
+            <img src="${charts[key].toBase64Image()}" alt="${label}">
+          </div>`).join('');
+
+      const chartsSection = chartImgs
+        ? `<div class="pr-chart-grid">${chartImgs}</div>`
+        : `<p class="pr-summary" style="color:#888;font-style:italic">Navigate to the ${exchangeName} → Regression tab to include charts in the report.</p>`;
+
+      return `<div class="pr-section">
+        <div class="pr-section-header">${exchangeName} Share Price Regression</div>
+        <div class="pr-section-body">
+          ${statsHTML}
+          ${chartsSection}
+        </div>
+      </div>`;
+    }
+
+    const html = `<div class="pr-wrapper">
+      <div class="pr-header">
+        <span class="pr-title">NSE/BSE Weekly Update – Week of ${weekRange}</span>
+        <span class="pr-subtitle">Generated: ${genTime}</span>
+      </div>
+      ${buildExchangeSection('NSE Update', nseEnrich, true)}
+      ${buildExchangeSection('BSE Update', bseEnrich, false)}
+      ${buildRegressionSection(bseShare, 'BSE', ['bseSharePrice','bseRevMaVsPrice','bseRatioSD','bseShareScatter'])}
+      ${buildRegressionSection(mcxShare, 'MCX', ['mcxSharePrice','mcxRevMaVsPrice','mcxRatioSD','mcxShareScatter'])}
+      <div class="pr-footer">NSE/BSE/MCX Analytics Dashboard — Auto-generated report</div>
+    </div>`;
+
+    const el = document.getElementById('print-report');
+    el.innerHTML = html;
+    el.style.display = 'block';
+    setTimeout(() => { window.print(); el.style.display = 'none'; }, 150);
+  } finally {
+    if (btn) { btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Report'; btn.disabled = false; }
+  }
+}
+
 init();
