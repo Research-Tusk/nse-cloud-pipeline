@@ -3261,12 +3261,59 @@ async function downloadWeeklyReport() {
       </div>`;
     }
 
-    // ── BSE Regression section ──
-    function buildRegressionSection(shareData, exchangeName, chartKeys) {
+    // ── Regression section (always renders scatter off-screen from JSON data) ──
+    function buildScatterImg(shareData, exchangeName) {
+      const reg   = shareData.regression || {};
+      const maW   = shareData.ma_window || 45;
+      const regStart = shareData.regression_start || '';
+      const series = (shareData.series || []).filter(r => r.date >= regStart);
+      if (!series.length) return null;
+
+      const slope = reg.slope, intercept = reg.intercept;
+      const scatterData = series.map(r => ({ x: r.rev_ma, y: r.price }));
+      const xVals = scatterData.map(p => p.x);
+      const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
+      const regLine = [
+        { x: xMin, y: slope * xMin + intercept },
+        { x: xMax, y: slope * xMax + intercept },
+      ];
+
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:560px;height:280px;';
+      const canvas = document.createElement('canvas');
+      canvas.width = 560; canvas.height = 280;
+      wrap.appendChild(canvas);
+      document.body.appendChild(wrap);
+
+      const tempChart = new Chart(canvas, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            { label: 'Price vs Rev MA',  data: scatterData, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3, pointHoverRadius: 4 },
+            { label: 'Regression Line', data: regLine, type: 'line', borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 3], pointRadius: 0 },
+          ]
+        },
+        options: {
+          animation: false,
+          plugins: { legend: { labels: { font: { size: 10 } } } },
+          scales: {
+            x: { title: { display: true, text: `${maW}-Day MA Revenue (₹ Cr)`, font: { size: 10 } }, ticks: { callback: v => '₹' + fmtNum(v, 1), font: { size: 9 } } },
+            y: { title: { display: true, text: `${exchangeName} Share Price (₹)`, font: { size: 10 } }, ticks: { callback: v => '₹' + fmtNum(v, 0), font: { size: 9 } } },
+          }
+        }
+      });
+
+      const img = tempChart.toBase64Image();
+      tempChart.destroy();
+      document.body.removeChild(wrap);
+      return img;
+    }
+
+    function buildRegressionSection(shareData, exchangeName) {
       if (!shareData) return '';
-      const reg  = shareData.regression || {};
-      const lat  = shareData.latest || {};
-      const maW  = shareData.ma_window || 45;
+      const reg      = shareData.regression || {};
+      const lat      = shareData.latest || {};
+      const maW      = shareData.ma_window || 45;
       const regStart = shareData.regression_start || '';
 
       const statsHTML = `
@@ -3301,24 +3348,24 @@ async function downloadWeeklyReport() {
         </tbody>
       </table>`;
 
-      // Capture chart images if rendered
-      const chartLabels = {
-        [`${exchangeName.toLowerCase()}SharePrice`]:    'Share Price: Actual vs Model',
-        [`${exchangeName.toLowerCase()}RevMaVsPrice`]:  `Rev MA${maW} vs Share Price`,
-        [`${exchangeName.toLowerCase()}RatioSD`]:       `Price ÷ Rev MA Ratio — Mean ± SD`,
-        [`${exchangeName.toLowerCase()}ShareScatter`]:  'Revenue → Price Scatter',
-      };
-      const chartImgs = Object.entries(chartLabels)
-        .filter(([key]) => charts[key])
-        .map(([key, label]) => `
-          <div class="pr-chart-item">
-            <div class="pr-chart-label">${label}</div>
-            <img src="${charts[key].toBase64Image()}" alt="${label}">
-          </div>`).join('');
+      // Always render scatter off-screen; capture other charts if tab was visited
+      const scatterImg = buildScatterImg(shareData, exchangeName);
+      const ex = exchangeName.toLowerCase();
+      const liveCharts = [
+        { key: `${ex}SharePrice`,   label: 'Share Price: Actual vs Model' },
+        { key: `${ex}RevMaVsPrice`, label: `Rev MA${maW} vs Share Price (time series)` },
+        { key: `${ex}RatioSD`,      label: `Price ÷ Rev MA Ratio — Mean ± SD` },
+      ];
+      const liveImgs = liveCharts
+        .filter(c => charts[c.key])
+        .map(c => `<div class="pr-chart-item"><div class="pr-chart-label">${c.label}</div><img src="${charts[c.key].toBase64Image()}" alt="${c.label}"></div>`)
+        .join('');
 
-      const chartsSection = chartImgs
-        ? `<div class="pr-chart-grid">${chartImgs}</div>`
-        : `<p class="pr-summary" style="color:#888;font-style:italic">Navigate to the ${exchangeName} → Regression tab to include charts in the report.</p>`;
+      const scatterHTML = scatterImg
+        ? `<div class="pr-chart-item" style="grid-column:1/-1"><div class="pr-chart-label">Price vs ${maW}-Day Revenue MA — Scatter</div><img src="${scatterImg}" alt="Scatter"></div>`
+        : '';
+
+      const chartsSection = `<div class="pr-chart-grid">${liveImgs}${scatterHTML}</div>`;
 
       return `<div class="pr-section">
         <div class="pr-section-header">${exchangeName} Share Price Regression</div>
@@ -3336,8 +3383,8 @@ async function downloadWeeklyReport() {
       </div>
       ${buildExchangeSection('NSE Update', nseEnrich, true)}
       ${buildExchangeSection('BSE Update', bseEnrich, false)}
-      ${buildRegressionSection(bseShare, 'BSE', ['bseSharePrice','bseRevMaVsPrice','bseRatioSD','bseShareScatter'])}
-      ${buildRegressionSection(mcxShare, 'MCX', ['mcxSharePrice','mcxRevMaVsPrice','mcxRatioSD','mcxShareScatter'])}
+      ${buildRegressionSection(bseShare, 'BSE')}
+      ${buildRegressionSection(mcxShare, 'MCX')}
       <div class="pr-footer">NSE/BSE/MCX Analytics Dashboard — Auto-generated report</div>
     </div>`;
 
