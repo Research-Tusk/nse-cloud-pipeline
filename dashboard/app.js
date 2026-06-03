@@ -3450,9 +3450,10 @@ async function downloadMobileReport() {
   if (btn) { btn.textContent = 'Building…'; btn.disabled = true; }
 
   try {
-    const [nseEnrich, bseEnrich, nseDash, bseDash, bseShare, mcxShare] = await Promise.all([
+    const [nseEnrich, bseEnrich, mcxEnrich, nseDash, bseDash, bseShare, mcxShare] = await Promise.all([
       fetch('./data/nse_enriched_data.json').then(r => r.json()),
       fetch('./data/bse_enriched_data.json').then(r => r.json()),
+      fetch('./data/mcx_enriched_data.json').then(r => r.json()).catch(() => null),
       fetch('./data/nse_dashboard_data.json').then(r => r.json()),
       fetch('./data/bse_dashboard_data.json').then(r => r.json()),
       fetch('./data/bse_share_analysis.json').then(r => r.json()).catch(() => null),
@@ -3626,6 +3627,7 @@ async function downloadMobileReport() {
     const body = `
       ${exchangeSection('NSE Update', '#1d4ed8', nseEnrich)}
       ${exchangeSection('BSE Update', '#0f766e', bseEnrich)}
+      ${mcxEnrich ? exchangeSection('MCX Update', '#7c3aed', mcxEnrich) : ''}
       ${regressionSection(bseShare, 'BSE', '#0f766e')}
       ${regressionSection(mcxShare, 'MCX', '#7c3aed')}
     `;
