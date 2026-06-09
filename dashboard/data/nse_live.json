@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-06-09T10:34:28",
+  "updated_at": "2026-06-09T13:31:19",
   "market_status": {
     "marketState": [
       {
@@ -14,13 +14,13 @@
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "09-Jun-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -34,27 +34,27 @@
       },
       {
         "market": "Debt",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "09-Jun-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "09-Jun-2026",
         "index": "",
-        "last": "95.4700",
+        "last": "95.3725",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "25-Jun-2026",
         "underlying": "USDINR",
-        "updated_time": "09-Jun-2026 16:04",
-        "tradeDateFormatted": "09-Jun-2026 16:04",
+        "updated_time": "09-Jun-2026 17:00",
+        "tradeDateFormatted": "09-Jun-2026 17:00",
         "slickclass": "slick-item"
       }
     ],
@@ -81,16 +81,16 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 1,
-      "DAYCHANGE": 0,
+      "CONTRACTSTRADED": 51306,
+      "DAYCHANGE": 37,
       "EXPIRYDATE": "30-Jun-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 23303,
+      "LASTPRICE": 23340,
       "OPTIONTYPE": "-",
-      "PERCHANGE": 0,
+      "PERCHANGE": 0.16,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "09-Jun-2026 15:49",
+      "TIMESTMP": "09-Jun-2026 18:59",
       "id": "0/NIFTYFUTIDX30-Jun-2026--"
     }
   },
@@ -225,6 +225,25 @@
         "options_revenue": 49.0808,
         "cash_revenue": 6.4883,
         "total_revenue": 58.1993,
+        "source": "historical"
+      }
+    },
+    {
+      "timestamp": "09-Jun-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "09-Jun-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 123202.8,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 7.3182,
+        "total_revenue": 7.3182,
         "source": "historical"
       }
     },
