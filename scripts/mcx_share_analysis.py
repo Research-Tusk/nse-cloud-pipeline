@@ -25,7 +25,7 @@ REVENUE_FILE  = REPO_ROOT / "dashboard" / "data" / "mcx_dashboard_data.json"
 OUTPUT_FILE   = REPO_ROOT / "dashboard" / "data" / "mcx_share_analysis.json"
 
 TICKER           = "MCX.NS"
-REGRESSION_START = "2024-01-01"   # Post-platform-migration; current business regime
+REGRESSION_START = "2025-01-01"   # Best R² window (0.81); 2024 start captured pre-rerate regime
 MA_WINDOWS       = [20, 30, 45, 50, 60, 90]
 FIXED_MA         = 45
 

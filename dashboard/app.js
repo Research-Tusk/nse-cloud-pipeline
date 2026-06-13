@@ -3027,7 +3027,7 @@ function buildMCXShareAnalysis() {
   const lat      = SHARE_DATA.latest;
   const ser      = SHARE_DATA.series || [];
   const maWin    = SHARE_DATA.ma_window;
-  const regStart = SHARE_DATA.regression_start || '2025-03-01';
+  const regStart = SHARE_DATA.regression_start || '2025-01-01';
   const r2pct    = Math.round(reg.r_squared * 100);
   const errDiff  = lat.price_pred - lat.price_actual;
 
