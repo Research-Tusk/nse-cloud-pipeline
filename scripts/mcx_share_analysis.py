@@ -11,6 +11,7 @@ Run:  python scripts/mcx_share_analysis.py
 """
 
 import json
+import math
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,21 @@ from pathlib import Path
 import numpy as np
 
 warnings.filterwarnings("ignore")
+
+
+class _SafeEncoder(json.JSONEncoder):
+    """Convert float NaN/Inf to null so the output is valid JSON."""
+    def iterencode(self, o, _one_shot=False):
+        return super().iterencode(self._sanitize(o), _one_shot)
+
+    def _sanitize(self, obj):
+        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+            return None
+        if isinstance(obj, dict):
+            return {k: self._sanitize(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._sanitize(v) for v in obj]
+        return obj
 
 SCRIPT_DIR    = Path(__file__).parent
 REPO_ROOT     = SCRIPT_DIR.parent
@@ -47,13 +63,15 @@ def load_revenue(path):
 
 
 def fetch_yfinance_prices(start_date_str):
-    """Returns {date_str: close_price} from yfinance MCX.NS."""
+    """Returns {date_str: close_price} from yfinance MCX.NS (NaN rows excluded)."""
     import yfinance as yf
     hist = yf.Ticker(TICKER).history(start=start_date_str)
-    return {
-        str(d)[:10]: round(float(c), 2)
-        for d, c in zip(hist.index, hist["Close"])
-    }
+    result = {}
+    for d, c in zip(hist.index, hist["Close"]):
+        price = float(c)
+        if not math.isnan(price):
+            result[str(d)[:10]] = round(price, 2)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -154,6 +172,10 @@ def main():
         return
 
     best        = window_results[FIXED_MA]
+
+    if math.isnan(best["slope"]) or math.isnan(best["intercept"]):
+        print(f"ERROR: OLS returned NaN (likely NaN prices in input) — aborting")
+        return
     best_window = FIXED_MA
     print(f"\nUsing MA{best_window} (R²={best['r2']:.4f})")
 
@@ -216,7 +238,7 @@ def main():
     }
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_FILE.write_text(json.dumps(output, indent=2))
+    OUTPUT_FILE.write_text(json.dumps(output, indent=2, cls=_SafeEncoder))
     print(
         f"\nWrote {OUTPUT_FILE.name} "
         f"({len(series)} total rows, {len(reg_series)} in regression window)"
