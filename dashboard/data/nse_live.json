@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-06-25T10:13:07",
+  "updated_at": "2026-06-25T12:33:56",
   "market_status": {
     "marketState": [
       {
@@ -10,17 +10,17 @@
         "last": 24056,
         "variation": 34.349999999998545,
         "percentChange": 0.14,
-        "marketStatusMessage": "Market in Post-Close Session"
+        "marketStatusMessage": "Normal Market has Closed"
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "25-Jun-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -34,23 +34,23 @@
       },
       {
         "market": "Debt",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "25-Jun-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "25-Jun-2026",
         "index": "",
         "last": "94.4400",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "25-Jun-2026",
         "underlying": "USDINR",
         "updated_time": "25-Jun-2026 12:29",
@@ -81,16 +81,16 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 116134,
-      "DAYCHANGE": 13.5,
+      "CONTRACTSTRADED": 117041,
+      "DAYCHANGE": 12.5,
       "EXPIRYDATE": "30-Jun-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 24108,
+      "LASTPRICE": 24127.5,
       "OPTIONTYPE": "-",
-      "PERCHANGE": 0.06,
+      "PERCHANGE": 0.05,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "25-Jun-2026 15:39",
+      "TIMESTMP": "25-Jun-2026 18:01",
       "id": "0/NIFTYFUTIDX30-Jun-2026--"
     }
   },
@@ -102,14 +102,14 @@
     "index_options_premium": 31566.75,
     "stock_options_premium": 7624.62,
     "options_premium": 39191.37,
-    "cash_traded_value": 135751.81,
+    "cash_traded_value": 135791.77,
     "take_rate_futures": 3.46e-05,
     "take_rate_options": 0.0007006,
     "take_rate_cash": 5.94e-05,
     "futures_revenue": 14.4919,
     "options_revenue": 27.4575,
-    "cash_revenue": 8.0637,
-    "total_revenue": 50.0131,
+    "cash_revenue": 8.066,
+    "total_revenue": 50.0154,
     "has_data": true,
     "source": "live"
   },
@@ -409,14 +409,14 @@
         "index_options_premium": 31566.75,
         "stock_options_premium": 7624.62,
         "options_premium": 39191.37,
-        "cash_traded_value": 135751.81,
+        "cash_traded_value": 135791.77,
         "take_rate_futures": 3.46e-05,
         "take_rate_options": 0.0007006,
         "take_rate_cash": 5.94e-05,
         "futures_revenue": 14.4919,
         "options_revenue": 27.4575,
-        "cash_revenue": 8.0637,
-        "total_revenue": 50.0131,
+        "cash_revenue": 8.066,
+        "total_revenue": 50.0154,
         "has_data": true,
         "source": "live"
       }
@@ -475,6 +475,25 @@
         "options_revenue": 32.1635,
         "cash_revenue": 7.2929,
         "total_revenue": 52.1876,
+        "source": "historical"
+      }
+    },
+    {
+      "timestamp": "25-Jun-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "25-Jun-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 136051.69,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 8.0815,
+        "total_revenue": 8.0815,
         "source": "historical"
       }
     }
