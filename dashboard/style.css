@@ -867,6 +867,21 @@ span.neutral {
   color: #fff;
 }
 
+.share-dma-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.share-dma-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-faint);
+  margin-right: 2px;
+}
+
 /* =========================
    PAT PREDICTION ENGINE
    ========================= */

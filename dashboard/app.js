@@ -2593,6 +2593,50 @@ function buildBSEMonthlyAnalysis() {
 // BSE SHARE ANALYTICS
 // ========================
 
+function computeRollingMA(arr, window) {
+  return arr.map((_, i) =>
+    i < window - 1 ? null : arr.slice(i - window + 1, i + 1).reduce((a, b) => a + b, 0) / window
+  );
+}
+
+function computeOLS(xs, ys) {
+  const n     = xs.length;
+  const xMean = xs.reduce((a, b) => a + b) / n;
+  const yMean = ys.reduce((a, b) => a + b) / n;
+  const num   = xs.reduce((s, x, i) => s + (x - xMean) * (ys[i] - yMean), 0);
+  const den   = xs.reduce((s, x) => s + (x - xMean) ** 2, 0);
+  const slope = num / den;
+  const intercept = yMean - slope * xMean;
+  const ss_res = xs.reduce((s, x, i) => s + (ys[i] - (slope * x + intercept)) ** 2, 0);
+  const ss_tot = ys.reduce((s, y) => s + (y - yMean) ** 2, 0);
+  const r2 = 1 - ss_res / ss_tot;
+  return { slope, intercept, r2, r: Math.sqrt(Math.abs(r2)) * (slope >= 0 ? 1 : -1) };
+}
+
+function buildSeriesWithDMA(rawSeries, dmaWindow, regStart) {
+  const mas = computeRollingMA(rawSeries.map(r => r.revenue_cr), dmaWindow);
+  const withMA = rawSeries.map((r, i) => mas[i] != null ? { ...r, rev_ma: mas[i] } : null).filter(Boolean);
+  if (!withMA.length) return null;
+  const regRows = withMA.filter(r => r.date >= regStart);
+  if (regRows.length < 5) return null;
+  const ols = computeOLS(regRows.map(r => r.rev_ma), regRows.map(r => r.price));
+  const series = withMA.map(r => ({
+    ...r,
+    price_pred: Math.round((ols.slope * r.rev_ma + ols.intercept) * 100) / 100,
+  }));
+  return {
+    series,
+    reg: {
+      slope:     ols.slope,
+      intercept: ols.intercept,
+      r_squared: ols.r2,
+      pearson_r: ols.r,
+      equation:  `Price = ${ols.slope.toFixed(2)} × Rev_MA${dmaWindow} + ${ols.intercept.toFixed(2)}`,
+      fit:       ols.r2 > 0.7 ? 'strong' : ols.r2 > 0.4 ? 'moderate' : 'weak',
+    },
+  };
+}
+
 function filterShareSeries(ser, range, regStart) {
   const last = new Date(ser[ser.length - 1].date);
   let cutoff;
@@ -2812,9 +2856,15 @@ function buildBSEShareAnalysis() {
     { key: '1y',      label: '1Y' },
     { key: '2y',      label: '2Y' },
   ];
-  const toggleHTML = `
+  const rangeToggleHTML = `
   <div class="share-range-toggle">
-    ${ranges.map(r => `<button class="share-range-btn${r.key === 'nov2024' ? ' active' : ''}" data-range="${r.key}">${r.label}</button>`).join('')}
+    ${ranges.map(r => `<button class="share-range-btn bse-range-btn${r.key === 'nov2024' ? ' active' : ''}" data-range="${r.key}">${r.label}</button>`).join('')}
+  </div>`;
+
+  const dmaToggleHTML = `
+  <div class="share-dma-toggle">
+    <span class="share-dma-label">DMA</span>
+    ${[10, 20, 45].map(w => `<button class="share-range-btn bse-dma-btn${w === 45 ? ' active' : ''}" data-dma="${w}">${w}D</button>`).join('')}
   </div>`;
 
   const chartsHTML = `
@@ -2824,11 +2874,11 @@ function buildBSEShareAnalysis() {
       <div class="chart-wrapper"><canvas id="chartBseSharePrice"></canvas></div>
     </div>
     <div class="chart-panel" style="margin-bottom:var(--space-4)">
-      <div class="chart-title">${maWin}-Day MA Revenue vs BSE Share Price</div>
+      <div class="chart-title" id="bseDmaChartTitle">${maWin}-Day MA Revenue vs BSE Share Price</div>
       <div class="chart-wrapper"><canvas id="chartBseRevMaVsPrice"></canvas></div>
     </div>
     <div class="chart-panel" style="margin-bottom:var(--space-4)">
-      <div class="chart-title">Price ÷ Rev MA${maWin} Ratio — Mean ± SD</div>
+      <div class="chart-title" id="bseRatioChartTitle">Price ÷ Rev MA${maWin} Ratio — Mean ± SD</div>
       <div class="chart-wrapper"><canvas id="chartBseRatioSD"></canvas></div>
     </div>
     <div class="chart-panel">
@@ -2839,24 +2889,55 @@ function buildBSEShareAnalysis() {
 
   const sectionHTML = `
   <div style="margin-top:var(--space-5)">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--color-border)">
-      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)">Charts</span>
-      ${toggleHTML}
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--color-border)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)">Charts</span>
+        ${dmaToggleHTML}
+      </div>
+      ${rangeToggleHTML}
     </div>
     ${chartsHTML}
   </div>`;
 
   el.innerHTML = kpiHTML + eqHTML + sectionHTML;
 
-  // Initial render
-  buildBSECharts(filterShareSeries(ser, 'nov2024', regStart), reg, maWin);
+  let bseActiveDma   = 45;
+  let bseActiveRange = 'nov2024';
+  const bseDmaCache  = { 45: { series: ser, reg } };
 
-  // Toggle listeners
-  el.querySelectorAll('.share-range-btn').forEach(btn => {
+  function getBseDmaData(w) {
+    if (!bseDmaCache[w]) bseDmaCache[w] = buildSeriesWithDMA(ser, w, regStart);
+    return bseDmaCache[w];
+  }
+
+  function refreshBSECharts() {
+    const d = getBseDmaData(bseActiveDma);
+    if (!d) return;
+    buildBSECharts(filterShareSeries(d.series, bseActiveRange, regStart), d.reg, bseActiveDma);
+    const t1 = document.getElementById('bseDmaChartTitle');
+    if (t1) t1.textContent = `${bseActiveDma}-Day MA Revenue vs BSE Share Price`;
+    const t2 = document.getElementById('bseRatioChartTitle');
+    if (t2) t2.textContent = `Price ÷ Rev MA${bseActiveDma} Ratio — Mean ± SD`;
+  }
+
+  // Initial render
+  refreshBSECharts();
+
+  el.querySelectorAll('.bse-dma-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      el.querySelectorAll('.share-range-btn').forEach(b => b.classList.remove('active'));
+      el.querySelectorAll('.bse-dma-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      buildBSECharts(filterShareSeries(ser, btn.dataset.range, regStart), reg, maWin);
+      bseActiveDma = parseInt(btn.dataset.dma);
+      refreshBSECharts();
+    });
+  });
+
+  el.querySelectorAll('.bse-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.bse-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      bseActiveRange = btn.dataset.range;
+      refreshBSECharts();
     });
   });
 }
@@ -3059,9 +3140,15 @@ function buildMCXShareAnalysis() {
     { key: '1y',      label: '1Y' },
     { key: '2y',      label: '2Y' },
   ];
-  const toggleHTML = `
+  const rangeToggleHTML = `
   <div class="share-range-toggle">
-    ${ranges.map(r => `<button class="share-range-btn${r.key === 'nov2024' ? ' active' : ''}" data-range="${r.key}">${r.label}</button>`).join('')}
+    ${ranges.map(r => `<button class="share-range-btn mcx-range-btn${r.key === 'nov2024' ? ' active' : ''}" data-range="${r.key}">${r.label}</button>`).join('')}
+  </div>`;
+
+  const dmaToggleHTML = `
+  <div class="share-dma-toggle">
+    <span class="share-dma-label">DMA</span>
+    ${[10, 20, 45].map(w => `<button class="share-range-btn mcx-dma-btn${w === 45 ? ' active' : ''}" data-dma="${w}">${w}D</button>`).join('')}
   </div>`;
 
   const chartsHTML = `
@@ -3071,11 +3158,11 @@ function buildMCXShareAnalysis() {
       <div class="chart-wrapper"><canvas id="chartMcxSharePrice"></canvas></div>
     </div>
     <div class="chart-panel" style="margin-bottom:var(--space-4)">
-      <div class="chart-title">${maWin}-Day MA Revenue vs MCX Share Price</div>
+      <div class="chart-title" id="mcxDmaChartTitle">${maWin}-Day MA Revenue vs MCX Share Price</div>
       <div class="chart-wrapper"><canvas id="chartMcxRevMaVsPrice"></canvas></div>
     </div>
     <div class="chart-panel" style="margin-bottom:var(--space-4)">
-      <div class="chart-title">Price ÷ Rev MA${maWin} Ratio — Mean ± SD</div>
+      <div class="chart-title" id="mcxRatioChartTitle">Price ÷ Rev MA${maWin} Ratio — Mean ± SD</div>
       <div class="chart-wrapper"><canvas id="chartMcxRatioSD"></canvas></div>
     </div>
     <div class="chart-panel">
@@ -3086,22 +3173,54 @@ function buildMCXShareAnalysis() {
 
   const sectionHTML = `
   <div style="margin-top:var(--space-5)">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--color-border)">
-      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)">Charts</span>
-      ${toggleHTML}
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--color-border)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)">Charts</span>
+        ${dmaToggleHTML}
+      </div>
+      ${rangeToggleHTML}
     </div>
     ${chartsHTML}
   </div>`;
 
   el.innerHTML = kpiHTML + eqHTML + sectionHTML;
 
-  buildMCXCharts(filterShareSeries(ser, 'nov2024', regStart), reg, maWin);
+  let mcxActiveDma   = 45;
+  let mcxActiveRange = 'nov2024';
+  const mcxDmaCache  = { 45: { series: ser, reg } };
 
-  el.querySelectorAll('.share-range-btn').forEach(btn => {
+  function getMcxDmaData(w) {
+    if (!mcxDmaCache[w]) mcxDmaCache[w] = buildSeriesWithDMA(ser, w, regStart);
+    return mcxDmaCache[w];
+  }
+
+  function refreshMCXCharts() {
+    const d = getMcxDmaData(mcxActiveDma);
+    if (!d) return;
+    buildMCXCharts(filterShareSeries(d.series, mcxActiveRange, regStart), d.reg, mcxActiveDma);
+    const t1 = document.getElementById('mcxDmaChartTitle');
+    if (t1) t1.textContent = `${mcxActiveDma}-Day MA Revenue vs MCX Share Price`;
+    const t2 = document.getElementById('mcxRatioChartTitle');
+    if (t2) t2.textContent = `Price ÷ Rev MA${mcxActiveDma} Ratio — Mean ± SD`;
+  }
+
+  refreshMCXCharts();
+
+  el.querySelectorAll('.mcx-dma-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      el.querySelectorAll('.share-range-btn').forEach(b => b.classList.remove('active'));
+      el.querySelectorAll('.mcx-dma-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      buildMCXCharts(filterShareSeries(ser, btn.dataset.range, regStart), reg, maWin);
+      mcxActiveDma = parseInt(btn.dataset.dma);
+      refreshMCXCharts();
+    });
+  });
+
+  el.querySelectorAll('.mcx-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.mcx-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      mcxActiveRange = btn.dataset.range;
+      refreshMCXCharts();
     });
   });
 }
