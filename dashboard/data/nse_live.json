@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-01T10:50:37",
+  "updated_at": "2026-07-01T13:30:50",
   "market_status": {
     "marketState": [
       {
@@ -14,13 +14,13 @@
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "01-Jul-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -34,27 +34,27 @@
       },
       {
         "market": "Debt",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "01-Jul-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "01-Jul-2026",
         "index": "",
-        "last": "95.4125",
+        "last": "95.4000",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "29-Jul-2026",
         "underlying": "USDINR",
-        "updated_time": "01-Jul-2026 16:20",
-        "tradeDateFormatted": "01-Jul-2026 16:20",
+        "updated_time": "01-Jul-2026 17:00",
+        "tradeDateFormatted": "01-Jul-2026 17:00",
         "slickclass": "slick-item"
       }
     ],
@@ -81,16 +81,16 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 45373,
-      "DAYCHANGE": 12.5,
+      "CONTRACTSTRADED": 46271,
+      "DAYCHANGE": 3,
       "EXPIRYDATE": "28-Jul-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 24056.5,
+      "LASTPRICE": 24047,
       "OPTIONTYPE": "-",
-      "PERCHANGE": 0.05,
+      "PERCHANGE": 0.01,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "01-Jul-2026 16:17",
+      "TIMESTMP": "01-Jul-2026 18:57",
       "id": "0/NIFTYFUTIDX28-Jul-2026--"
     }
   },
