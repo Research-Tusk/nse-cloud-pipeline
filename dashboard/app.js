@@ -530,6 +530,7 @@ function buildCombinedEnrichedData(exList) {
     const mAvg6m = sum(...sts.map(s => s.monthly?.avg_6m?.value));
     const w5     = sum(...sts.map(s => s.weekly?.last5?.value));
     const wp5    = sum(...sts.map(s => s.weekly?.prev5?.value));
+    const w20    = sum(...sts.map(s => s.weekly?.last20?.value));
     const w45    = sum(...sts.map(s => s.weekly?.last45?.value));
     const dayFull = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
     const dow = {}, pw = {};
@@ -545,7 +546,7 @@ function buildCombinedEnrichedData(exList) {
       fy:        { current: fyCur,  previous: fyPrev,  yoy: chg(fyCur, fyPrev) },
       quarterly: { current: { label: ref.quarterly?.current?.label,  value: qCur,  qoq: chg(qCur, qPrev), yoy: chg(qCur, qPrev2) }, previous: { label: ref.quarterly?.previous?.label, value: qPrev }, prev2: ref.quarterly?.prev2 ? { label: ref.quarterly.prev2.label, value: qPrev2 } : null },
       monthly:   { current: { label: ref.monthly?.current?.label,    value: mCur,  mom: chg(mCur, mPrev), mo6m: chg(mCur, mAvg6m) }, previous: { label: ref.monthly?.previous?.label, value: mPrev }, avg_6m: { label: ref.monthly?.avg_6m?.label, value: mAvg6m } },
-      weekly:    { last5: { value: w5, wow: chg(w5, wp5), wo10w: chg(w5, w45) }, prev5: { value: wp5 }, last45: { value: w45 } },
+      weekly:    { last5: { value: w5, wow: chg(w5, wp5), wo10w: chg(w5, w45) }, prev5: { value: wp5 }, last20: { value: w20 }, last45: { value: w45 } },
       day_of_week:   dow,
       previous_week: pw,
     };
@@ -926,6 +927,7 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const s   = segData;
   const wl5 = s.weekly.last5;
   const wp5 = s.weekly.prev5;
+  const w20 = s.weekly.last20 || {};
   const w50 = s.weekly.last45;
   const dow = s.day_of_week;
   const pw  = s.previous_week || {};
@@ -934,6 +936,7 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const wRows = [
     `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>`,
     `<tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td></td><td></td></tr>`,
+    `<tr><td>Last 20 Days</td><td>${xlVal(w20.value)}</td><td></td><td></td></tr>`,
     `<tr><td>Last 45 Days</td><td>${xlVal(w50.value)}</td><td></td><td></td></tr>`,
   ].join('');
 
@@ -1045,6 +1048,7 @@ function xlStaticSegmentBlock(st, label) {
   const m   = st.monthly   || {};
   const wl5 = (st.weekly || {}).last5  || {};
   const wp5 = (st.weekly || {}).prev5  || {};
+  const w20 = (st.weekly || {}).last20 || {};
   const w45 = (st.weekly || {}).last45 || {};
   const dow = st.day_of_week   || {};
   const pw  = st.previous_week || {};
@@ -1072,6 +1076,7 @@ function xlStaticSegmentBlock(st, label) {
   const wRows = `
     <tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>
     <tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td></td><td></td></tr>
+    <tr><td>Last 20 Days</td><td>${xlVal(w20.value)}</td><td></td><td></td></tr>
     <tr><td>Last 45 Days</td><td>${xlVal(w45.value)}</td><td></td><td></td></tr>`;
 
   const dowRows = dayFull.map((d, i) => {
@@ -1159,6 +1164,7 @@ function combineMarketSummaries() {
   // Week
   const w5Val  = sum(...sts.map(s => s.weekly?.last5?.value));
   const wp5Val = sum(...sts.map(s => s.weekly?.prev5?.value));
+  const w20Val = sum(...sts.map(s => s.weekly?.last20?.value));
   const w45Val = sum(...sts.map(s => s.weekly?.last45?.value));
 
   // DoW — sum each day
@@ -1206,6 +1212,7 @@ function combineMarketSummaries() {
     weekly: {
       last5:  { value: w5Val,  wow:  chg(w5Val, wp5Val), wo10w: chg(w5Val, w45Val) },
       prev5:  { value: wp5Val },
+      last20: { value: w20Val },
       last45: { value: w45Val },
     },
     day_of_week:   dow,
@@ -1260,6 +1267,22 @@ function buildRevenueSummary() {
     const idx = nM - 1 - ri;
     return `<option value="${idx}">${m.month}</option>`;
   }).join('');
+
+  // Inject last20 from daily data if pipeline hasn't computed it yet (e.g. NSE)
+  const REV_KEYS = { total: 'total_rev', options: 'opt_rev', futures: 'fut_rev', cash: 'cash_rev' };
+  const d20 = (DATA.daily || []).slice(-20);
+  [
+    { key: 'total',   data: ed.summary_total },
+    { key: 'options', data: ed.seg_options   },
+    { key: 'futures', data: ed.seg_futures   },
+    { key: 'cash',    data: ed.seg_cash      },
+  ].forEach(({ key, data }) => {
+    if (data && data.weekly && !data.weekly.last20) {
+      const rk = REV_KEYS[key];
+      const avg = d20.length ? d20.reduce((s, r) => s + (r[rk] || 0), 0) / d20.length : 0;
+      data.weekly.last20 = { label: 'Last 20 Trading Days', value: Math.round(avg * 10000) / 10000 };
+    }
+  });
 
   // Render each segment into its own sub-tab container
   [
@@ -3425,6 +3448,7 @@ async function downloadWeeklyReport() {
       if (!s) return '';
       const wl5 = s.weekly.last5 || {};
       const wp5 = s.weekly.prev5 || {};
+      const w20r = s.weekly.last20 || {};
       const w50 = s.weekly.last45 || {};
       const mc = s.monthly.current || {};
       const mp = s.monthly.previous || {};
@@ -3439,6 +3463,7 @@ async function downloadWeeklyReport() {
           <tr class="pr-group-label"><td colspan="3">Weekly</td></tr>
           <tr><td>L5 – This Week</td><td>${n(wl5.value)}</td><td>${prFmt(wl5.wow)}</td></tr>
           <tr><td>Prev5 – Last Week</td><td>${n(wp5.value)}</td><td>—</td></tr>
+          <tr><td>L20 – 20-Day Avg</td><td>${n(w20r.value)}</td><td>—</td></tr>
           <tr><td>L45 – 45-Day Avg</td><td>${n(w50.value)}</td><td>${prFmt(wl5.wo10w)}</td></tr>
           <tr class="pr-separator"><td colspan="3"></td></tr>
           <tr class="pr-group-label"><td colspan="3">Monthly</td></tr>
@@ -3625,6 +3650,7 @@ async function downloadMobileReport() {
       const s   = enriched.summary_total || {};
       const wl5 = s.weekly?.last5 || {};
       const wp5 = s.weekly?.prev5 || {};
+      const w20 = s.weekly?.last20 || {};
       const w45 = s.weekly?.last45 || {};
       const qc  = s.quarterly?.current || {};
       const qp  = s.quarterly?.previous || {};
@@ -3654,6 +3680,7 @@ async function downloadMobileReport() {
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
             ${kpiCard('This Week (L5)', wl5.value, wl5.wow, 'WoW')}
             ${kpiCard('Last Week (P5)', wp5.value, null)}
+            ${kpiCard('20-Day Avg', w20.value, null)}
             ${kpiCard('45-Day Avg', w45.value, wl5.wo10w, 'Wo45')}
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">

@@ -509,9 +509,11 @@ def seg_summary(daily_data, rev_key):
 
     last5 = daily_data[-5:] if len(daily_data) >= 5 else daily_data
     prev5 = daily_data[-10:-5] if len(daily_data) >= 10 else []
+    last20 = daily_data[-20:] if len(daily_data) >= 20 else daily_data
     last45 = daily_data[-45:] if len(daily_data) >= 45 else daily_data
     l5_avg = sum(float(d[rev_key]) for d in last5) / max(len(last5), 1)
     p5_avg = sum(float(d[rev_key]) for d in prev5) / max(len(prev5), 1) if prev5 else 0
+    l20_avg = sum(float(d[rev_key]) for d in last20) / max(len(last20), 1)
     l45_avg = sum(float(d[rev_key]) for d in last45) / max(len(last45), 1)
 
     weekly_data = {
@@ -519,6 +521,7 @@ def seg_summary(daily_data, rev_key):
                    "wow": round((l5_avg - p5_avg) / p5_avg, 4) if p5_avg else 0,
                    "wo10w": round((l5_avg - l45_avg) / l45_avg, 4) if l45_avg else 0},
         "prev5":  {"label": "Previous 5 Trading Days", "value": round(p5_avg, 4)},
+        "last20": {"label": "Last 20 Trading Days", "value": round(l20_avg, 4)},
         "last45": {"label": "Last 45 Trading Days", "value": round(l45_avg, 4)},
     }
 
