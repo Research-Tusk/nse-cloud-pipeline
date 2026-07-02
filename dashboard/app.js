@@ -235,6 +235,7 @@ const EXCHANGE_TABS = {
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
+    { id: 'valuation',  label: 'Valuation Model',       icon: 'advanced' },
   ],
   mcx: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
@@ -258,6 +259,7 @@ const TAB_TITLES = {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
     share: 'Share Price Analytics',
+    valuation: 'BSE Valuation Model',
   },
   mcx: {
     revenue: 'Revenue Summary',
@@ -697,6 +699,7 @@ function rebuildAll() {
   } else if (currentExchange === 'bse') {
     buildBSERevenuePredictor();
     buildBSEShareAnalysis();
+    buildBSEValuation();
   } else if (currentExchange === 'mcx') {
     buildMCXRevenuePredictor();
     buildMCXShareAnalysis();
@@ -2961,6 +2964,388 @@ function buildBSEShareAnalysis() {
       btn.classList.add('active');
       bseActiveRange = btn.dataset.range;
       refreshBSECharts();
+    });
+  });
+}
+
+// ========================
+// BSE VALUATION MODEL — mirrors Excel "BSE" sheet, 7-part layout
+// ========================
+
+const BSE_VALUATION_DEFAULTS = {
+  fy27TotalTradingDays:   247,
+  q1TotalTradingDays:      61,
+  adrGrowthPct:             5,     // Bear −x %, Base 0 %, Bull +x %
+  otherIncomeAnnualCr:  2055.39,
+  otherIncomeQuarterlyCr: 472.16,
+  patMarginAnnualPct:      52,
+  patMarginQuarterlyPct:   50,
+  peBear:                  40,
+  peBase:                  45,
+  peBull:                  50,
+  discountPct:             18,
+  sharesOutstandingCr:   40.73,
+};
+const BSE_VALUATION_STORAGE_KEY = 'bseValuationAssumptions_v1';
+
+function loadBSEValuationAssumptions() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BSE_VALUATION_STORAGE_KEY) || '{}');
+    return { ...BSE_VALUATION_DEFAULTS, ...saved };
+  } catch {
+    return { ...BSE_VALUATION_DEFAULTS };
+  }
+}
+
+function saveBSEValuationAssumptions(a) {
+  try { localStorage.setItem(BSE_VALUATION_STORAGE_KEY, JSON.stringify(a)); } catch {}
+}
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function bseDailySeries(rawData) {
+  return (rawData?.daily_all || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Combined NSE+BSE total-market ADR and BSE's share of it, over BSE's last N trading days
+function combinedMarketADR(bseSeries, nseSeries, n) {
+  const nseByDate = new Map(nseSeries.map(r => [r.date, r.total_rev]));
+  const slice = bseSeries.slice(-n);
+  let bseSum = 0, totalSum = 0;
+  slice.forEach(r => {
+    const nseRev = nseByDate.get(r.date) || 0;
+    bseSum   += r.total_rev || 0;
+    totalSum += (r.total_rev || 0) + nseRev;
+  });
+  return { totalMarketADR: totalSum / (slice.length || 1), bseShare: totalSum ? bseSum / totalSum : 0 };
+}
+
+function computeBSEAnnualPredictor(a, mkt) {
+  const growth = { bear: -a.adrGrowthPct / 100, base: 0, bull: a.adrGrowthPct / 100 };
+  const cmp = SHARE_DATA?.latest?.price_actual ?? null;
+  const scenarios = {};
+  ['bear', 'base', 'bull'].forEach(key => {
+    const projectedTotalMarketADR = mkt.totalMarketADR45 * (1 + growth[key]);
+    const remainingDays = a.fy27TotalTradingDays - mkt.daysElapsed;
+    const targetADR = (
+      (mkt.bseADRFYTodate * mkt.daysElapsed) +
+      (projectedTotalMarketADR * mkt.bseShare20 * remainingDays)
+    ) / a.fy27TotalTradingDays;
+    const totalIncome = targetADR * a.fy27TotalTradingDays + a.otherIncomeAnnualCr;
+    const pat          = totalIncome * a.patMarginAnnualPct / 100;
+    const eps           = pat / a.sharesOutstandingCr;
+    const pe            = key === 'bear' ? a.peBear : key === 'bull' ? a.peBull : a.peBase;
+    const priceTarget   = eps * pe;
+    const targetPrice   = priceTarget / (1 + a.discountPct / 100);
+    const upside        = cmp ? targetPrice / cmp - 1 : null;
+    scenarios[key] = { targetADR, totalIncome, pat, eps, pe, priceTarget, targetPrice, upside };
+  });
+  return scenarios;
+}
+
+function computeBSEQuarterlyPredictor(a, mkt) {
+  const transactionRev = mkt.bseADRQtdToDate * a.q1TotalTradingDays;
+  const totalRevenue   = transactionRev + a.otherIncomeQuarterlyCr;
+  const pat            = totalRevenue * a.patMarginQuarterlyPct / 100;
+  return { transactionRev, otherIncome: a.otherIncomeQuarterlyCr, totalRevenue, pat };
+}
+
+function computeBSETriangulatedTarget(a, annualBase, analystTargets) {
+  const cmp = SHARE_DATA?.latest?.price_actual ?? null;
+  const regressionTarget = SHARE_DATA?.latest?.price_pred ?? null;
+  const adrModel = annualBase?.targetPrice ?? null;
+  const analystAvgRaw = analystTargets.length
+    ? analystTargets.reduce((s, t) => s + t.target_price, 0) / analystTargets.length
+    : null;
+  const analystTarget = analystAvgRaw != null ? analystAvgRaw / (1 + a.discountPct / 100) : null;
+  const values  = [adrModel, regressionTarget, analystTarget].filter(v => v != null);
+  const average = values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
+  const upside  = (average != null && cmp) ? average / cmp - 1 : null;
+  return { cmp, adrModel, regressionTarget, analystAvgRaw, analystTarget, average, upside };
+}
+
+let BSE_ANALYST_TARGETS_CACHE = null;
+
+async function loadBSEAnalystTargets() {
+  if (BSE_ANALYST_TARGETS_CACHE) return BSE_ANALYST_TARGETS_CACHE;
+  try {
+    const r = await fetch('./data/bse_analyst_targets.json');
+    const j = await r.json();
+    BSE_ANALYST_TARGETS_CACHE = j.targets || [];
+  } catch {
+    BSE_ANALYST_TARGETS_CACHE = [];
+  }
+  return BSE_ANALYST_TARGETS_CACHE;
+}
+
+function bseAssumptionRow(label, key, value, suffix, step) {
+  return `<div class="param-row">
+    <label>${label}</label>
+    <input type="number" step="${step ?? '0.1'}" class="param-input" data-bse-assump="${key}" value="${value}">
+    ${suffix ? `<span class="param-suffix">${suffix}</span>` : ''}
+  </div>`;
+}
+
+async function buildBSEValuation() {
+  const el = document.getElementById('bseValuationContent');
+  if (!el) return;
+
+  if (!SHARE_DATA) {
+    el.innerHTML = `<div class="chart-panel" style="text-align:center;padding:48px;color:var(--color-text-muted)">
+      <div style="font-size:14px;font-weight:600">Valuation model needs share analysis data</div>
+      <div style="font-size:12px;margin-top:6px">Run scripts/bse_share_analysis.py to generate bse_share_analysis.json</div>
+    </div>`;
+    return;
+  }
+  if (!MARKET_RAW.nse || !MARKET_RAW.bse) await preloadMarketData();
+
+  const bseSeries = bseDailySeries(DATA);
+  const nseSeries = bseDailySeries(MARKET_RAW.nse || {});
+  const analystTargets = await loadBSEAnalystTargets();
+  if (!bseSeries.length) { el.innerHTML = ''; return; }
+
+  const latestFY = bseSeries[bseSeries.length - 1].fy;
+  const latestQ  = bseSeries[bseSeries.length - 1].fy_quarter;
+  const fyRows   = bseSeries.filter(r => r.fy === latestFY);
+  const qRows    = bseSeries.filter(r => r.fy_quarter === latestQ);
+  const mkt45    = combinedMarketADR(bseSeries, nseSeries, 45);
+  const mkt20    = combinedMarketADR(bseSeries, nseSeries, 20);
+
+  const mkt = {
+    daysElapsed:      fyRows.length,
+    bseADRFYTodate:   fyRows.length ? fyRows.reduce((s, r) => s + (r.total_rev || 0), 0) / fyRows.length : 0,
+    totalMarketADR45: mkt45.totalMarketADR,
+    bseShare20:       mkt20.bseShare,
+    bseADRQtdToDate:  qRows.length ? qRows.reduce((s, r) => s + (r.total_rev || 0), 0) / qRows.length : 0,
+  };
+
+  let assumptions = loadBSEValuationAssumptions();
+  let annual, quarterly, tri;
+  function recompute() {
+    annual    = computeBSEAnnualPredictor(assumptions, mkt);
+    quarterly = computeBSEQuarterlyPredictor(assumptions, mkt);
+    tri       = computeBSETriangulatedTarget(assumptions, annual.base, analystTargets);
+  }
+  recompute();
+
+  function updateOutputs() {
+    const set = (id, html) => { const e = document.getElementById(id); if (e) e.innerHTML = html; };
+    set('triAdrModel',   tri.adrModel        != null ? fmtPrice(tri.adrModel)        : '—');
+    set('triRegression', tri.regressionTarget != null ? fmtPrice(tri.regressionTarget) : '—');
+    set('triAnalyst',    tri.analystTarget    != null ? fmtPrice(tri.analystTarget)    : '—');
+    set('triAverage',    tri.average          != null ? fmtPrice(tri.average)          : '—');
+    set('triCmp',        tri.cmp              != null ? fmtPrice(tri.cmp)              : '—');
+    set('triUpside',     fmtPctSigned(tri.upside));
+
+    ['bear', 'base', 'bull'].forEach(k => {
+      const s = annual[k];
+      set(`annAdr-${k}`,    fmtNum(s.targetADR, 2) + ' Cr/day');
+      set(`annIncome-${k}`, fmt(s.totalIncome));
+      set(`annPat-${k}`,    fmt(s.pat));
+      set(`annEps-${k}`,    '₹' + fmtNum(s.eps, 2));
+      set(`annPriceT-${k}`, fmtPrice(s.priceTarget));
+      set(`annTarget-${k}`, fmtPrice(s.targetPrice));
+      set(`annUpside-${k}`, fmtPctSigned(s.upside));
+    });
+
+    set('qtrTxnRev',   fmt(quarterly.transactionRev));
+    set('qtrOtherInc', fmt(quarterly.otherIncome));
+    set('qtrTotalRev', fmt(quarterly.totalRevenue));
+    set('qtrPat',      fmt(quarterly.pat));
+  }
+
+  const analystRows = analystTargets.map(t => `
+    <tr>
+      <td>${t.broker}</td>
+      <td>${t.rating}</td>
+      <td>₹ ${fmtNum(t.target_price, 0)}</td>
+      <td>${t.date}</td>
+      <td style="color:var(--color-text-muted);font-size:11.5px">${t.methodology}</td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div class="chart-title">1 · Triangulated Target Price <span class="chart-badge">Live</span></div>
+    <p class="section-desc">Average of the ADR (Annual Predictor Base case), 45-day regression, and analyst-consensus target prices, shown against CMP.</p>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--space-3);margin-top:var(--space-3)">
+      ${kpi('ADR Model', `<span id="triAdrModel"></span>`, 'Annual Predictor · Base', '')}
+      ${kpi('Regression', `<span id="triRegression"></span>`, '45-day DMA model', '')}
+      ${kpi('Analyst Target', `<span id="triAnalyst"></span>`, `avg of ${analystTargets.length} brokers, discounted`, '')}
+      ${kpi('Average Target', `<span id="triAverage"></span>`, `<span id="triUpside"></span> vs CMP`, '')}
+      ${kpi('CMP', `<span id="triCmp"></span>`, 'latest close', '')}
+    </div>
+  </div>
+
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div class="chart-title">2 &amp; 3 · Annual Predictor — FY${(latestFY || '').replace('FY ', '')} <span class="chart-badge">Bear / Base / Bull</span></div>
+    <p class="section-desc">ADR → Total Income → PAT → EPS → PE-based Price Target → discounted Target Price. Edit any assumption below — your inputs are saved and shown to anyone who opens this dashboard.</p>
+    <div class="predictor-params" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin:var(--space-3) 0">
+      ${bseAssumptionRow('FY Total Trading Days', 'fy27TotalTradingDays', assumptions.fy27TotalTradingDays, '', '1')}
+      ${bseAssumptionRow('ADR Growth (Bear −x / Bull +x)', 'adrGrowthPct', assumptions.adrGrowthPct, '%', '0.5')}
+      ${bseAssumptionRow('Other Income (Annual)', 'otherIncomeAnnualCr', assumptions.otherIncomeAnnualCr, '₹ Cr', '1')}
+      ${bseAssumptionRow('PAT Margin', 'patMarginAnnualPct', assumptions.patMarginAnnualPct, '%', '0.5')}
+      ${bseAssumptionRow('Shares Outstanding', 'sharesOutstandingCr', assumptions.sharesOutstandingCr, 'Cr', '0.01')}
+      ${bseAssumptionRow('Discount Rate', 'discountPct', assumptions.discountPct, '%', '0.5')}
+      ${bseAssumptionRow('PE — Bear', 'peBear', assumptions.peBear, 'x', '1')}
+      ${bseAssumptionRow('PE — Base', 'peBase', assumptions.peBase, 'x', '1')}
+      ${bseAssumptionRow('PE — Bull', 'peBull', assumptions.peBull, 'x', '1')}
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Metric</th><th>Bear</th><th>Base</th><th>Bull</th></tr></thead>
+        <tbody>
+          <tr><td>Target ADR (₹ Cr/day)</td><td id="annAdr-bear"></td><td id="annAdr-base"></td><td id="annAdr-bull"></td></tr>
+          <tr><td>Total Income</td><td id="annIncome-bear"></td><td id="annIncome-base"></td><td id="annIncome-bull"></td></tr>
+          <tr><td>PAT</td><td id="annPat-bear"></td><td id="annPat-base"></td><td id="annPat-bull"></td></tr>
+          <tr><td>EPS</td><td id="annEps-bear"></td><td id="annEps-base"></td><td id="annEps-bull"></td></tr>
+          <tr><td>Price Target FY27</td><td id="annPriceT-bear"></td><td id="annPriceT-base"></td><td id="annPriceT-bull"></td></tr>
+          <tr style="font-weight:600"><td>Target Price (discounted)</td><td id="annTarget-bear"></td><td id="annTarget-base"></td><td id="annTarget-bull"></td></tr>
+          <tr><td>Upside vs CMP</td><td id="annUpside-bear"></td><td id="annUpside-base"></td><td id="annUpside-bull"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <button class="share-range-btn" id="bseValuationReset" style="margin-top:var(--space-3)">Reset to Excel defaults</button>
+  </div>
+
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div class="chart-title">4 · Quarterly Predictor — ${latestQ || ''}</div>
+    <p class="section-desc">Current-quarter-to-date ADR extrapolated for the remainder of the quarter. Excel does not carry this through to EPS/PE — it stops at PAT.</p>
+    <div class="predictor-params" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin:var(--space-3) 0">
+      ${bseAssumptionRow('Quarter Total Trading Days', 'q1TotalTradingDays', assumptions.q1TotalTradingDays, '', '1')}
+      ${bseAssumptionRow('Other Income (Quarter)', 'otherIncomeQuarterlyCr', assumptions.otherIncomeQuarterlyCr, '₹ Cr', '1')}
+      ${bseAssumptionRow('PAT Margin (Quarter)', 'patMarginQuarterlyPct', assumptions.patMarginQuarterlyPct, '%', '0.5')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3)">
+      ${kpi('Transaction Revenue', `<span id="qtrTxnRev"></span>`, 'ADR × trading days', '')}
+      ${kpi('Other Income', `<span id="qtrOtherInc"></span>`, '', '')}
+      ${kpi('Total Revenue', `<span id="qtrTotalRev"></span>`, '', '')}
+      ${kpi('PAT', `<span id="qtrPat"></span>`, '', '')}
+    </div>
+  </div>
+
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div class="chart-title">1 (cont.) · Analyst Targets</div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Broker</th><th>Rating</th><th>Target</th><th>Date</th><th>Methodology</th></tr></thead>
+        <tbody>${analystRows || '<tr><td colspan="5" style="color:var(--color-text-muted)">No analyst targets on file — add to dashboard/data/bse_analyst_targets.json</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div class="chart-title">5 · Revenue Trend Tables</div>
+    <p class="section-desc">FY / Quarterly / Monthly / Weekly, YoY / QoQ / MoM / WoW — see also the Revenue Summary tab.</p>
+    <div id="bseValTrendTables"></div>
+  </div>
+
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div class="chart-title">6 &amp; 7 · 10-Day vs 45-Day DMA Revenue</div>
+    <p class="section-desc">See the Regression tab for the 45/20/10-day DMA regression, Price÷DMA ratio bands, and scatter charts.</p>
+    <div class="chart-wrapper"><canvas id="chartBse10v45"></canvas></div>
+  </div>
+
+  <div class="chart-panel">
+    <div class="chart-title">6 (cont.) · Log-Scale DMA Revenue vs Share Price</div>
+    <div class="chart-grid chart-grid-2">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--color-text-muted);margin-bottom:6px">Jun 2023 onwards</div>
+        <div class="chart-wrapper"><canvas id="chartBseLogLog1"></canvas></div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--color-text-muted);margin-bottom:6px">Apr 2024 onwards</div>
+        <div class="chart-wrapper"><canvas id="chartBseLogLog2"></canvas></div>
+      </div>
+    </div>
+  </div>`;
+
+  updateOutputs();
+  el.querySelector('#bseValTrendTables').innerHTML =
+    xlStaticSegmentBlock(ENRICHED_DATA.summary_total, 'Total') +
+    xlStaticSegmentBlock(ENRICHED_DATA.seg_options, 'Options') +
+    xlStaticSegmentBlock(ENRICHED_DATA.seg_cash, 'Cash');
+
+  const debouncedSave = debounce(() => saveBSEValuationAssumptions(assumptions), 500);
+  el.querySelectorAll('[data-bse-assump]').forEach(input => {
+    input.addEventListener('input', () => {
+      assumptions[input.dataset.bseAssump] = parseFloat(input.value) || 0;
+      recompute();
+      updateOutputs();
+      debouncedSave();
+    });
+  });
+  const resetBtn = document.getElementById('bseValuationReset');
+  if (resetBtn) resetBtn.addEventListener('click', () => {
+    assumptions = { ...BSE_VALUATION_DEFAULTS };
+    saveBSEValuationAssumptions(assumptions);
+    buildBSEValuation();
+  });
+
+  buildBSEDMADiagnosticCharts(bseSeries);
+}
+
+function buildBSEDMADiagnosticCharts(bseSeries) {
+  const regStart = SHARE_DATA.regression_start || '2025-03-01';
+  const d10 = buildSeriesWithDMA(SHARE_DATA.series, 10, regStart);
+  const d45 = buildSeriesWithDMA(SHARE_DATA.series, 45, regStart);
+  if (!d10 || !d45) return;
+
+  ['bse10v45', 'bseLogLog1', 'bseLogLog2'].forEach(k => {
+    if (charts[k]) { charts[k].destroy(); charts[k] = null; }
+  });
+
+  // ── 10-vs-45 DMA revenue overlay ──
+  const byDate10 = new Map(d10.series.map(r => [r.date, r.rev_ma]));
+  const merged = d45.series.filter(r => byDate10.has(r.date));
+  setCanvasHeight('chartBse10v45', 280);
+  charts.bse10v45 = new Chart(document.getElementById('chartBse10v45'), {
+    type: 'line',
+    data: {
+      labels: merged.map(r => r.date.slice(5)),
+      datasets: [
+        { label: '45-Day MA Revenue', data: merged.map(r => r.rev_ma), borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.25 },
+        { label: '10-Day MA Revenue', data: merged.map(r => byDate10.get(r.date)), borderColor: CHART_COLORS[4], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.25 },
+      ]
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 2) + ' Cr' } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+        y: { ticks: { callback: v => '₹' + fmtNum(v, 0) + ' Cr' } }
+      }
+    }
+  });
+
+  // ── Log-scale DMA Revenue vs Price, two eras ──
+  const eras = [
+    { key: 'bseLogLog1', canvasId: 'chartBseLogLog1', start: '2023-06-01' },
+    { key: 'bseLogLog2', canvasId: 'chartBseLogLog2', start: '2024-04-01' },
+  ];
+  eras.forEach(era => {
+    const ser = d45.series.filter(r => r.date >= era.start);
+    if (!ser.length) return;
+    setCanvasHeight(era.canvasId, 260);
+    charts[era.key] = new Chart(document.getElementById(era.canvasId), {
+      type: 'line',
+      data: {
+        labels: ser.map(r => r.date.slice(2)),
+        datasets: [
+          { label: '45-Day MA Revenue (₹ Cr)', data: ser.map(r => r.rev_ma), borderColor: CHART_COLORS[4], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, yAxisID: 'yRev' },
+          { label: 'Share Price (₹)', data: ser.map(r => r.price), borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, yAxisID: 'yPrice' },
+        ]
+      },
+      options: {
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: { ticks: { maxTicksLimit: 8, font: { size: 9 } } },
+          yRev:   { type: 'logarithmic', position: 'left',  ticks: { font: { size: 9 }, callback: v => fmtNum(v, 0) } },
+          yPrice: { type: 'logarithmic', position: 'right', ticks: { font: { size: 9 }, callback: v => fmtNum(v, 0) }, grid: { drawOnChartArea: false } },
+        }
+      }
     });
   });
 }
