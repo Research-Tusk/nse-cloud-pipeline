@@ -2685,7 +2685,7 @@ function buildBSECharts(viewSer, reg, maWin) {
   });
   if (!viewSer.length) return;
 
-  const labels  = viewSer.map(r => r.date.slice(5));
+  const labels  = viewSer.map(r => fmtChartDate(r.date));
   const actuals = viewSer.map(r => r.price);
   const preds   = viewSer.map(r => r.price_pred);
   const revMA   = viewSer.map(r => r.rev_ma);
@@ -2973,19 +2973,38 @@ function buildBSEShareAnalysis() {
 // ========================
 
 const BSE_VALUATION_DEFAULTS = {
-  fy27TotalTradingDays:   247,
-  q1TotalTradingDays:      61,
-  adrGrowthPct:             5,     // Bear −x %, Base 0 %, Bull +x %
-  otherIncomeAnnualCr:  2055.39,
-  otherIncomeQuarterlyCr: 472.16,
-  patMarginAnnualPct:      52,
-  patMarginQuarterlyPct:   50,
-  peBear:                  40,
-  peBase:                  45,
-  peBull:                  50,
-  discountPct:             18,
+  fy27TotalTradingDays:    247,
+  adrGrowthBearPct:         -5,    // D30/E30/F30 in Excel — independent per scenario
+  adrGrowthBasePct:          0,
+  adrGrowthBullPct:          5,
+  marketShareShiftPct:       1,    // Target BSE market share ± this many points (Method 1, informational)
+  otherIncomeAnnualCr: 2055.39,
+  patMarginAnnualPct:       52,
+  peBear:                   40,
+  peBase:                   45,
+  peBull:                   50,
+  discountPct:              18,
   sharesOutstandingCr:   40.73,
+
+  q1TotalTradingDays:       61,
+  otherIncomeQuarterlyCr: 472.16,
+  patMarginQuarterlyPct:    50,
 };
+
+// Indian FY convention: Apr-Jun=Q1, Jul-Sep=Q2, Oct-Dec=Q3, Jan-Mar=Q4, FY named for the March-ending year
+function currentFYQuarterLabel(d) {
+  const month = d.getMonth(); // 0 = Jan
+  const year  = d.getFullYear();
+  const fyYear = month >= 3 ? year + 1 : year;
+  const q = month >= 3 && month <= 5 ? 1 : month >= 6 && month <= 8 ? 2 : month >= 9 && month <= 11 ? 3 : 4;
+  return { fy: `FY ${fyYear}`, quarter: `Q${q} FY ${fyYear}` };
+}
+
+function fmtChartDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleString('en-IN', { month: 'short', year: '2-digit' }).replace(' ', '-');
+}
 const BSE_VALUATION_STORAGE_KEY = 'bseValuationAssumptions_v1';
 
 function loadBSEValuationAssumptions() {
@@ -3010,47 +3029,62 @@ function bseDailySeries(rawData) {
   return (rawData?.daily_all || []).slice().sort((a, b) => a.date.localeCompare(b.date));
 }
 
-// Combined NSE+BSE total-market ADR and BSE's share of it, over BSE's last N trading days
-function combinedMarketADR(bseSeries, nseSeries, n) {
+// Combined NSE+BSE total-market ADR and BSE's share of it, over a given set of BSE trading rows
+function combinedMarketADRForRows(bseRows, nseSeries) {
   const nseByDate = new Map(nseSeries.map(r => [r.date, r.total_rev]));
-  const slice = bseSeries.slice(-n);
   let bseSum = 0, totalSum = 0;
-  slice.forEach(r => {
+  bseRows.forEach(r => {
     const nseRev = nseByDate.get(r.date) || 0;
     bseSum   += r.total_rev || 0;
     totalSum += (r.total_rev || 0) + nseRev;
   });
-  return { totalMarketADR: totalSum / (slice.length || 1), bseShare: totalSum ? bseSum / totalSum : 0 };
+  return { totalMarketADR: totalSum / (bseRows.length || 1), bseShare: totalSum ? bseSum / totalSum : 0 };
+}
+
+function combinedMarketADR(bseSeries, nseSeries, n) {
+  return combinedMarketADRForRows(bseSeries.slice(-n), nseSeries);
 }
 
 function computeBSEAnnualPredictor(a, mkt) {
-  const growth = { bear: -a.adrGrowthPct / 100, base: 0, bull: a.adrGrowthPct / 100 };
+  const growth     = { bear: a.adrGrowthBearPct / 100, base: a.adrGrowthBasePct / 100, bull: a.adrGrowthBullPct / 100 };
+  const shareShift = { bear: -a.marketShareShiftPct / 100, base: 0, bull: a.marketShareShiftPct / 100 };
   const cmp = SHARE_DATA?.latest?.price_actual ?? null;
+  const remainingDays = a.fy27TotalTradingDays - mkt.daysElapsed;
   const scenarios = {};
   ['bear', 'base', 'bull'].forEach(key => {
     const projectedTotalMarketADR = mkt.totalMarketADR45 * (1 + growth[key]);
-    const remainingDays = a.fy27TotalTradingDays - mkt.daysElapsed;
-    const targetADR = (
-      (mkt.bseADRFYTodate * mkt.daysElapsed) +
-      (projectedTotalMarketADR * mkt.bseShare20 * remainingDays)
-    ) / a.fy27TotalTradingDays;
-    const totalIncome = targetADR * a.fy27TotalTradingDays + a.otherIncomeAnnualCr;
+    const targetShare       = mkt.bseShare20 + shareShift[key];
+    // Method 1 — target-market-share based (informational; Excel does not carry this forward)
+    const targetADRMethod1 = ((mkt.bseADRFYTodate * mkt.daysElapsed) + (projectedTotalMarketADR * targetShare * remainingDays)) / a.fy27TotalTradingDays;
+    // Method 2 — last-20-day-share based (used downstream, matches Excel row 37)
+    const targetADRMethod2 = ((mkt.bseADRFYTodate * mkt.daysElapsed) + (projectedTotalMarketADR * mkt.bseShare20 * remainingDays)) / a.fy27TotalTradingDays;
+    const totalIncome = targetADRMethod2 * a.fy27TotalTradingDays + a.otherIncomeAnnualCr;
     const pat          = totalIncome * a.patMarginAnnualPct / 100;
     const eps           = pat / a.sharesOutstandingCr;
     const pe            = key === 'bear' ? a.peBear : key === 'bull' ? a.peBull : a.peBase;
     const priceTarget   = eps * pe;
     const targetPrice   = priceTarget / (1 + a.discountPct / 100);
     const upside        = cmp ? targetPrice / cmp - 1 : null;
-    scenarios[key] = { targetADR, totalIncome, pat, eps, pe, priceTarget, targetPrice, upside };
+    scenarios[key] = {
+      growthPct: growth[key] * 100, projectedTotalMarketADR, targetShare,
+      targetADRMethod1, targetADRMethod2, totalIncome, pat, eps, pe, priceTarget, targetPrice, upside,
+    };
   });
   return scenarios;
 }
 
 function computeBSEQuarterlyPredictor(a, mkt) {
-  const transactionRev = mkt.bseADRQtdToDate * a.q1TotalTradingDays;
+  // Method 1 — flat extrapolation of quarter-to-date ADR (used downstream, matches Excel row 76/80)
+  const method1ADR = mkt.bseADRQtdToDate;
+  // Method 2 — blend of quarter-to-date actual with last-20-day ADR for remaining days (informational, Excel row 78)
+  const remainingDays = Math.max(a.q1TotalTradingDays - mkt.qDaysElapsed, 0);
+  const method2ADR = mkt.qDaysElapsed || remainingDays
+    ? ((mkt.bseADRQtdToDate * mkt.qDaysElapsed) + (mkt.bseADRLast20 * remainingDays)) / (mkt.qDaysElapsed + remainingDays || 1)
+    : 0;
+  const transactionRev = method1ADR * a.q1TotalTradingDays;
   const totalRevenue   = transactionRev + a.otherIncomeQuarterlyCr;
   const pat            = totalRevenue * a.patMarginQuarterlyPct / 100;
-  return { transactionRev, otherIncome: a.otherIncomeQuarterlyCr, totalRevenue, pat };
+  return { method1ADR, method2ADR, transactionRev, otherIncome: a.otherIncomeQuarterlyCr, totalRevenue, pat };
 }
 
 function computeBSETriangulatedTarget(a, annualBase, analystTargets) {
@@ -3089,6 +3123,15 @@ function bseAssumptionRow(label, key, value, suffix, step) {
   </div>`;
 }
 
+// Inline <input> for use directly inside an Excel-replica table cell
+function bseCellInput(key, value, step) {
+  return `<input type="number" step="${step ?? '0.1'}" class="param-input" style="width:80px;text-align:right" data-bse-assump="${key}" value="${value}">`;
+}
+
+function bseContextRow(label, valueHtml) {
+  return `<tr><td>${label}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${valueHtml}</td></tr>`;
+}
+
 async function buildBSEValuation() {
   const el = document.getElementById('bseValuationContent');
   if (!el) return;
@@ -3107,19 +3150,32 @@ async function buildBSEValuation() {
   const analystTargets = await loadBSEAnalystTargets();
   if (!bseSeries.length) { el.innerHTML = ''; return; }
 
-  const latestFY = bseSeries[bseSeries.length - 1].fy;
-  const latestQ  = bseSeries[bseSeries.length - 1].fy_quarter;
+  // Current FY/quarter is derived from today's real date, not the latest data row —
+  // a quarter with data through its last trading day is a COMPLETED quarter, not the one in progress.
+  const today    = currentFYQuarterLabel(new Date());
+  const latestFY = today.fy;
+  const latestQ  = today.quarter;
   const fyRows   = bseSeries.filter(r => r.fy === latestFY);
   const qRows    = bseSeries.filter(r => r.fy_quarter === latestQ);
+  const avg      = (rows) => rows.length ? rows.reduce((s, r) => s + (r.total_rev || 0), 0) / rows.length : 0;
+  const mktFY    = combinedMarketADRForRows(fyRows, nseSeries);
   const mkt45    = combinedMarketADR(bseSeries, nseSeries, 45);
   const mkt20    = combinedMarketADR(bseSeries, nseSeries, 20);
 
   const mkt = {
-    daysElapsed:      fyRows.length,
-    bseADRFYTodate:   fyRows.length ? fyRows.reduce((s, r) => s + (r.total_rev || 0), 0) / fyRows.length : 0,
-    totalMarketADR45: mkt45.totalMarketADR,
-    bseShare20:       mkt20.bseShare,
-    bseADRQtdToDate:  qRows.length ? qRows.reduce((s, r) => s + (r.total_rev || 0), 0) / qRows.length : 0,
+    daysElapsed:         fyRows.length,
+    bseADRFYTodate:      avg(fyRows),
+    bseADR45:            avg(bseSeries.slice(-45)),
+    bseADR20:            avg(bseSeries.slice(-20)),
+    totalMarketADRFY:    mktFY.totalMarketADR,
+    totalMarketADR45:    mkt45.totalMarketADR,
+    totalMarketADR20:    mkt20.totalMarketADR,
+    bseShareFY:          mktFY.bseShare,
+    bseShare45:          mkt45.bseShare,
+    bseShare20:          mkt20.bseShare,
+    qDaysElapsed:        qRows.length,
+    bseADRQtdToDate:     avg(qRows),
+    bseADRLast20:        avg(bseSeries.slice(-20)),
   };
 
   let assumptions = loadBSEValuationAssumptions();
@@ -3140,19 +3196,25 @@ async function buildBSEValuation() {
     set('triCmp',        tri.cmp              != null ? fmtPrice(tri.cmp)              : '—');
     set('triUpside',     fmtPctSigned(tri.upside));
 
+    set('annCtxDaysElapsed', `${mkt.daysElapsed} of ${assumptions.fy27TotalTradingDays}`);
     ['bear', 'base', 'bull'].forEach(k => {
       const s = annual[k];
-      set(`annAdr-${k}`,    fmtNum(s.targetADR, 2) + ' Cr/day');
-      set(`annIncome-${k}`, fmt(s.totalIncome));
-      set(`annPat-${k}`,    fmt(s.pat));
-      set(`annEps-${k}`,    '₹' + fmtNum(s.eps, 2));
-      set(`annPriceT-${k}`, fmtPrice(s.priceTarget));
-      set(`annTarget-${k}`, fmtPrice(s.targetPrice));
-      set(`annUpside-${k}`, fmtPctSigned(s.upside));
+      set(`annProjADR-${k}`, fmtNum(s.projectedTotalMarketADR, 2) + ' Cr/day');
+      set(`annShare-${k}`,   fmtPctRaw(s.targetShare * 100));
+      set(`annM1-${k}`,      fmtNum(s.targetADRMethod1, 2) + ' Cr/day');
+      set(`annM2-${k}`,      fmtNum(s.targetADRMethod2, 2) + ' Cr/day');
+      set(`annIncome-${k}`,  fmt(s.totalIncome));
+      set(`annPat-${k}`,     fmt(s.pat));
+      set(`annEps-${k}`,     '₹' + fmtNum(s.eps, 2));
+      set(`annPriceT-${k}`,  fmtPrice(s.priceTarget));
+      set(`annTarget-${k}`,  fmtPrice(s.targetPrice));
+      set(`annUpside-${k}`,  fmtPctSigned(s.upside));
     });
 
+    set('qtrCtxDaysElapsed', `${mkt.qDaysElapsed} of ${assumptions.q1TotalTradingDays}`);
+    set('qtrM1',       fmtNum(quarterly.method1ADR, 2) + ' Cr/day');
+    set('qtrM2',       fmtNum(quarterly.method2ADR, 2) + ' Cr/day');
     set('qtrTxnRev',   fmt(quarterly.transactionRev));
-    set('qtrOtherInc', fmt(quarterly.otherIncome));
     set('qtrTotalRev', fmt(quarterly.totalRevenue));
     set('qtrPat',      fmt(quarterly.pat));
   }
@@ -3180,29 +3242,66 @@ async function buildBSEValuation() {
   </div>
 
   <div class="chart-panel" style="margin-bottom:var(--space-4)">
-    <div class="chart-title">2 &amp; 3 · Annual Predictor — FY${(latestFY || '').replace('FY ', '')} <span class="chart-badge">Bear / Base / Bull</span></div>
-    <p class="section-desc">ADR → Total Income → PAT → EPS → PE-based Price Target → discounted Target Price. Edit any assumption below — your inputs are saved and shown to anyone who opens this dashboard.</p>
-    <div class="predictor-params" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin:var(--space-3) 0">
-      ${bseAssumptionRow('FY Total Trading Days', 'fy27TotalTradingDays', assumptions.fy27TotalTradingDays, '', '1')}
-      ${bseAssumptionRow('ADR Growth (Bear −x / Bull +x)', 'adrGrowthPct', assumptions.adrGrowthPct, '%', '0.5')}
-      ${bseAssumptionRow('Other Income (Annual)', 'otherIncomeAnnualCr', assumptions.otherIncomeAnnualCr, '₹ Cr', '1')}
-      ${bseAssumptionRow('PAT Margin', 'patMarginAnnualPct', assumptions.patMarginAnnualPct, '%', '0.5')}
-      ${bseAssumptionRow('Shares Outstanding', 'sharesOutstandingCr', assumptions.sharesOutstandingCr, 'Cr', '0.01')}
-      ${bseAssumptionRow('Discount Rate', 'discountPct', assumptions.discountPct, '%', '0.5')}
-      ${bseAssumptionRow('PE — Bear', 'peBear', assumptions.peBear, 'x', '1')}
-      ${bseAssumptionRow('PE — Base', 'peBase', assumptions.peBase, 'x', '1')}
-      ${bseAssumptionRow('PE — Bull', 'peBull', assumptions.peBull, 'x', '1')}
+    <div class="chart-title">2 &amp; 3 · Annual Predictor — ${latestFY} <span class="chart-badge">Bear / Base / Bull</span></div>
+    <p class="section-desc">Same layout and formulas as the Excel "Annual Predictor" block. Editable cells are inputs — everything else recomputes automatically.</p>
+    <div style="overflow-x:auto;margin-bottom:var(--space-3)">
+      <table class="data-table">
+        <tbody>
+          ${bseContextRow('FY Total Trading Days', bseCellInput('fy27TotalTradingDays', assumptions.fy27TotalTradingDays, '1'))}
+          ${bseContextRow('FY Trading Days Elapsed', `<span id="annCtxDaysElapsed"></span>`)}
+          ${bseContextRow('Shares Outstanding (Cr)', bseCellInput('sharesOutstandingCr', assumptions.sharesOutstandingCr, '0.01'))}
+          ${bseContextRow('Total Market ADR — FY to Date (₹ Cr/day)', fmtNum(mkt.totalMarketADRFY, 2))}
+          ${bseContextRow('Total Market ADR — Last 45 Days (₹ Cr/day)', fmtNum(mkt.totalMarketADR45, 2))}
+          ${bseContextRow('Total Market ADR — Last 20 Days (₹ Cr/day)', fmtNum(mkt.totalMarketADR20, 2))}
+          ${bseContextRow('BSE Market Share — FY to Date', fmtPctRaw(mkt.bseShareFY * 100))}
+          ${bseContextRow('BSE Market Share — Last 45 Days', fmtPctRaw(mkt.bseShare45 * 100))}
+          ${bseContextRow('BSE Market Share — Last 20 Days', fmtPctRaw(mkt.bseShare20 * 100))}
+          ${bseContextRow('BSE ADR — FY to Date (₹ Cr/day)', fmtNum(mkt.bseADRFYTodate, 2))}
+          ${bseContextRow('BSE ADR — Last 45 Days (₹ Cr/day)', fmtNum(mkt.bseADR45, 2))}
+          ${bseContextRow('BSE ADR — Last 20 Days (₹ Cr/day)', fmtNum(mkt.bseADR20, 2))}
+        </tbody>
+      </table>
     </div>
     <div style="overflow-x:auto">
       <table class="data-table">
         <thead><tr><th>Metric</th><th>Bear</th><th>Base</th><th>Bull</th></tr></thead>
         <tbody>
-          <tr><td>Target ADR (₹ Cr/day)</td><td id="annAdr-bear"></td><td id="annAdr-base"></td><td id="annAdr-bull"></td></tr>
+          <tr>
+            <td>Total Market ADR Growth</td>
+            <td>${bseCellInput('adrGrowthBearPct', assumptions.adrGrowthBearPct, '0.5')} %</td>
+            <td>${bseCellInput('adrGrowthBasePct', assumptions.adrGrowthBasePct, '0.5')} %</td>
+            <td>${bseCellInput('adrGrowthBullPct', assumptions.adrGrowthBullPct, '0.5')} %</td>
+          </tr>
+          <tr><td>Projected Total Market ADR</td><td id="annProjADR-bear"></td><td id="annProjADR-base"></td><td id="annProjADR-bull"></td></tr>
+          <tr>
+            <td>Target BSE Market Share (Method 1)<br><span style="font-size:10px;color:var(--color-text-muted)">shift ± ${bseCellInput('marketShareShiftPct', assumptions.marketShareShiftPct, '0.5')} pt</span></td>
+            <td id="annShare-bear"></td><td id="annShare-base"></td><td id="annShare-bull"></td>
+          </tr>
+          <tr style="color:var(--color-text-muted)"><td>BSE Target ADR — Method 1 <span style="font-size:10px">(informational)</span></td><td id="annM1-bear"></td><td id="annM1-base"></td><td id="annM1-bull"></td></tr>
+          <tr><td>BSE Target ADR — Method 2 <span style="font-size:10px;color:var(--color-text-muted)">(used)</span></td><td id="annM2-bear"></td><td id="annM2-base"></td><td id="annM2-bull"></td></tr>
+          <tr>
+            <td>Other Income (Annual)</td>
+            <td colspan="3" style="text-align:center">${bseCellInput('otherIncomeAnnualCr', assumptions.otherIncomeAnnualCr, '1')} ₹ Cr — same for all scenarios</td>
+          </tr>
           <tr><td>Total Income</td><td id="annIncome-bear"></td><td id="annIncome-base"></td><td id="annIncome-bull"></td></tr>
+          <tr>
+            <td>PAT Margin</td>
+            <td colspan="3" style="text-align:center">${bseCellInput('patMarginAnnualPct', assumptions.patMarginAnnualPct, '0.5')} % — same for all scenarios</td>
+          </tr>
           <tr><td>PAT</td><td id="annPat-bear"></td><td id="annPat-base"></td><td id="annPat-bull"></td></tr>
           <tr><td>EPS</td><td id="annEps-bear"></td><td id="annEps-base"></td><td id="annEps-bull"></td></tr>
-          <tr><td>Price Target FY27</td><td id="annPriceT-bear"></td><td id="annPriceT-base"></td><td id="annPriceT-bull"></td></tr>
-          <tr style="font-weight:600"><td>Target Price (discounted)</td><td id="annTarget-bear"></td><td id="annTarget-base"></td><td id="annTarget-bull"></td></tr>
+          <tr>
+            <td>PE</td>
+            <td>${bseCellInput('peBear', assumptions.peBear, '1')} x</td>
+            <td>${bseCellInput('peBase', assumptions.peBase, '1')} x</td>
+            <td>${bseCellInput('peBull', assumptions.peBull, '1')} x</td>
+          </tr>
+          <tr><td>Price Target ${latestFY}</td><td id="annPriceT-bear"></td><td id="annPriceT-base"></td><td id="annPriceT-bull"></td></tr>
+          <tr>
+            <td>Discount Rate</td>
+            <td colspan="3" style="text-align:center">${bseCellInput('discountPct', assumptions.discountPct, '0.5')} % — same for all scenarios</td>
+          </tr>
+          <tr style="font-weight:600"><td>Target Price</td><td id="annTarget-bear"></td><td id="annTarget-base"></td><td id="annTarget-bull"></td></tr>
           <tr><td>Upside vs CMP</td><td id="annUpside-bear"></td><td id="annUpside-base"></td><td id="annUpside-bull"></td></tr>
         </tbody>
       </table>
@@ -3211,18 +3310,22 @@ async function buildBSEValuation() {
   </div>
 
   <div class="chart-panel" style="margin-bottom:var(--space-4)">
-    <div class="chart-title">4 · Quarterly Predictor — ${latestQ || ''}</div>
-    <p class="section-desc">Current-quarter-to-date ADR extrapolated for the remainder of the quarter. Excel does not carry this through to EPS/PE — it stops at PAT.</p>
-    <div class="predictor-params" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin:var(--space-3) 0">
-      ${bseAssumptionRow('Quarter Total Trading Days', 'q1TotalTradingDays', assumptions.q1TotalTradingDays, '', '1')}
-      ${bseAssumptionRow('Other Income (Quarter)', 'otherIncomeQuarterlyCr', assumptions.otherIncomeQuarterlyCr, '₹ Cr', '1')}
-      ${bseAssumptionRow('PAT Margin (Quarter)', 'patMarginQuarterlyPct', assumptions.patMarginQuarterlyPct, '%', '0.5')}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3)">
-      ${kpi('Transaction Revenue', `<span id="qtrTxnRev"></span>`, 'ADR × trading days', '')}
-      ${kpi('Other Income', `<span id="qtrOtherInc"></span>`, '', '')}
-      ${kpi('Total Revenue', `<span id="qtrTotalRev"></span>`, '', '')}
-      ${kpi('PAT', `<span id="qtrPat"></span>`, '', '')}
+    <div class="chart-title">4 · Quarterly Predictor — ${latestQ}</div>
+    <p class="section-desc">Same layout as Excel's "Quarterly Predictor" — stops at PAT, doesn't carry through to EPS/PE.</p>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <tbody>
+          ${bseContextRow('Quarter Total Trading Days', bseCellInput('q1TotalTradingDays', assumptions.q1TotalTradingDays, '1'))}
+          ${bseContextRow('Quarter Trading Days Elapsed', `<span id="qtrCtxDaysElapsed"></span>`)}
+          ${bseContextRow('BSE ADR — Quarter to Date — Method 1 <span style="font-size:10px;color:var(--color-text-muted)">(used)</span>', `<span id="qtrM1"></span>`)}
+          ${bseContextRow('BSE ADR — Method 2 blend <span style="font-size:10px;color:var(--color-text-muted)">(informational)</span>', `<span id="qtrM2"></span>`)}
+          ${bseContextRow('Transaction Revenue', `<span id="qtrTxnRev"></span>`)}
+          ${bseContextRow('Other Income (Quarter)', bseCellInput('otherIncomeQuarterlyCr', assumptions.otherIncomeQuarterlyCr, '1') + ' ₹ Cr')}
+          ${bseContextRow('Total Revenue', `<span id="qtrTotalRev"></span>`)}
+          ${bseContextRow('PAT Margin (Quarter)', bseCellInput('patMarginQuarterlyPct', assumptions.patMarginQuarterlyPct, '0.5') + ' %')}
+          ${bseContextRow('<strong>PAT</strong>', `<strong><span id="qtrPat"></span></strong>`)}
+        </tbody>
+      </table>
     </div>
   </div>
 
@@ -3304,7 +3407,7 @@ function buildBSEDMADiagnosticCharts(bseSeries) {
   charts.bse10v45 = new Chart(document.getElementById('chartBse10v45'), {
     type: 'line',
     data: {
-      labels: merged.map(r => r.date.slice(5)),
+      labels: merged.map(r => fmtChartDate(r.date)),
       datasets: [
         { label: '45-Day MA Revenue', data: merged.map(r => r.rev_ma), borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.25 },
         { label: '10-Day MA Revenue', data: merged.map(r => byDate10.get(r.date)), borderColor: CHART_COLORS[4], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.25 },
@@ -3332,7 +3435,7 @@ function buildBSEDMADiagnosticCharts(bseSeries) {
     charts[era.key] = new Chart(document.getElementById(era.canvasId), {
       type: 'line',
       data: {
-        labels: ser.map(r => r.date.slice(2)),
+        labels: ser.map(r => fmtChartDate(r.date)),
         datasets: [
           { label: '45-Day MA Revenue (₹ Cr)', data: ser.map(r => r.rev_ma), borderColor: CHART_COLORS[4], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, yAxisID: 'yRev' },
           { label: 'Share Price (₹)', data: ser.map(r => r.price), borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, yAxisID: 'yPrice' },
@@ -3356,7 +3459,7 @@ function buildMCXCharts(viewSer, reg, maWin) {
   });
   if (!viewSer.length) return;
 
-  const labels  = viewSer.map(r => r.date.slice(5));
+  const labels  = viewSer.map(r => fmtChartDate(r.date));
   const actuals = viewSer.map(r => r.price);
   const preds   = viewSer.map(r => r.price_pred);
   const revMA   = viewSer.map(r => r.rev_ma);
@@ -3677,7 +3780,7 @@ function buildAllRegressionChartImgs(shareData, exchangeName) {
   const series   = (shareData.series || []).filter(r => r.date >= regStart);
   if (!series.length) return [];
 
-  const labels  = series.map(r => r.date.slice(5));
+  const labels  = series.map(r => fmtChartDate(r.date));
   const actuals = series.map(r => r.price);
   const preds   = series.map(r => r.price_pred);
   const revMA   = series.map(r => r.rev_ma);
