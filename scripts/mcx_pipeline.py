@@ -250,6 +250,7 @@ def seg_summary(daily_data, rev_key):
 
     days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     dow = {}
+    prev_week = {}
     for day_name in days_list:
         recs = [d for d in daily_data if d["day"] == day_name]
         latest = float(recs[-1][rev_key]) if recs else 0
@@ -264,11 +265,12 @@ def seg_summary(daily_data, rev_key):
             "avg_3d": round(avg3,  4),
             "avg_10d": round(avg10, 4),
         }
-
-    prev_week = {}
-    pw_data = daily_data[-10:-5] if len(daily_data) >= 10 else []
-    for d in pw_data:
-        prev_week[d["day"]] = round(float(d[rev_key]), 4)
+        # Previous week = this weekday's own second-to-last occurrence, not a fixed
+        # daily_data[-10:-5] slice — that assumes the trailing 10 rows split evenly
+        # into two complete 5-day weeks, which breaks on holiday gaps or an
+        # in-progress current week.
+        if len(recs) >= 2:
+            prev_week[day_name] = round(float(recs[-2][rev_key]), 4)
 
     # FY-level YoY
     fy_groups = OrderedDict()
