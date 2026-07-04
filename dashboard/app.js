@@ -943,6 +943,9 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
     `<tr><td>Last 45 Days</td><td>${xlVal(w50.value)}</td><td></td><td></td></tr>`,
   ].join('');
 
+  const prevQLabel = (dow.Monday || dow.Tuesday || dow.Wednesday || dow.Thursday || dow.Friday || {}).prev_q_label;
+  const prevQShort = prevQLabel ? prevQLabel.replace('FY 20', 'FY') : 'Prev Q';
+
   const dowRows = dayFull.map((d) => {
     const dd = dow[d] || {};
     const pwVal = pw[d];
@@ -954,6 +957,8 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
       <td>${xlVal(dd.avg_10d)}</td>
       <td>${xlChg(dd.do10d)}</td>
       <td class="xl-prev-wk">${pwVal != null ? xlVal(pwVal) : '<span class="xl-num">—</span>'}</td>
+      <td>${xlVal(dd.prev_q_avg)}</td>
+      <td>${xlChg(dd.do_prev_q)}</td>
     </tr>`;
   }).join('');
 
@@ -1032,8 +1037,8 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
 
         <table class="xl-dow-table">
           <thead>
-            <tr class="xl-sec-hdr"><td colspan="7">Day of Week</td></tr>
-            <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td></tr>
+            <tr class="xl-sec-hdr"><td colspan="9">Day of Week</td></tr>
+            <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td><td>${prevQShort} Avg</td><td>vs ${prevQShort}</td></tr>
           </thead>
           <tbody>${dowRows}</tbody>
         </table>
@@ -1082,6 +1087,9 @@ function xlStaticSegmentBlock(st, label) {
     <tr><td>Last 20 Days</td><td>${xlVal(w20.value)}</td><td></td><td></td></tr>
     <tr><td>Last 45 Days</td><td>${xlVal(w45.value)}</td><td></td><td></td></tr>`;
 
+  const prevQLabelSt = (dow.Monday || dow.Tuesday || dow.Wednesday || dow.Thursday || dow.Friday || {}).prev_q_label;
+  const prevQShortSt = prevQLabelSt ? prevQLabelSt.replace('FY 20', 'FY') : 'Prev Q';
+
   const dowRows = dayFull.map((d, i) => {
     const dd = dow[d] || {};
     const pwVal = pw[d];
@@ -1093,6 +1101,8 @@ function xlStaticSegmentBlock(st, label) {
       <td>${xlVal(dd.avg_10d)}</td>
       <td>${xlChg(dd.do10d)}</td>
       <td class="xl-prev-wk">${pwVal != null ? xlVal(pwVal) : '<span class="xl-num">—</span>'}</td>
+      <td>${xlVal(dd.prev_q_avg)}</td>
+      <td>${xlChg(dd.do_prev_q)}</td>
     </tr>`;
   }).join('');
 
@@ -1130,8 +1140,8 @@ function xlStaticSegmentBlock(st, label) {
         </table>
         <table class="xl-dow-table">
           <thead>
-            <tr class="xl-sec-hdr"><td colspan="7">Day of Week</td></tr>
-            <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td></tr>
+            <tr class="xl-sec-hdr"><td colspan="9">Day of Week</td></tr>
+            <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td><td>${prevQShortSt} Avg</td><td>vs ${prevQShortSt}</td></tr>
           </thead>
           <tbody>${dowRows}</tbody>
         </table>
@@ -1174,15 +1184,21 @@ function combineMarketSummaries() {
   const dayFull = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   const dow = {};
   dayFull.forEach(d => {
-    const latest  = sum(...sts.map(s => s.day_of_week?.[d]?.latest));
-    const avg3d   = sum(...sts.map(s => s.day_of_week?.[d]?.avg_3d));
-    const avg10d  = sum(...sts.map(s => s.day_of_week?.[d]?.avg_10d));
+    const latest    = sum(...sts.map(s => s.day_of_week?.[d]?.latest));
+    const avg3d     = sum(...sts.map(s => s.day_of_week?.[d]?.avg_3d));
+    const avg10d    = sum(...sts.map(s => s.day_of_week?.[d]?.avg_10d));
+    const prevQAvgs = sts.map(s => s.day_of_week?.[d]?.prev_q_avg).filter(v => v != null);
+    const prevQAvg  = prevQAvgs.length ? sum(...prevQAvgs) : null;
+    const prevQLabel = sts.map(s => s.day_of_week?.[d]?.prev_q_label).find(Boolean);
     dow[d] = {
       latest,
       avg_3d:  avg3d,
       avg_10d: avg10d,
       do3d:    chg(latest, avg3d),
       do10d:   chg(latest, avg10d),
+      prev_q_label: prevQLabel,
+      prev_q_avg:   prevQAvg,
+      do_prev_q:    prevQAvg ? chg(latest, prevQAvg) : null,
     };
   });
 

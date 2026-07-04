@@ -525,6 +525,8 @@ def seg_summary(daily_data, rev_key):
         "last45": {"label": "Last 45 Trading Days", "value": round(l45_avg, 4)},
     }
 
+    pq_label = pq["quarter"] if pq else None
+
     days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     dow = {}
     prev_week = {}
@@ -535,11 +537,18 @@ def seg_summary(daily_data, rev_key):
         last10 = recs[-10:] if len(recs) >= 10 else recs
         avg3 = sum(float(d[rev_key]) for d in last3) / max(len(last3), 1)
         avg10 = sum(float(d[rev_key]) for d in last10) / max(len(last10), 1)
+
+        pq_recs = [d for d in recs if d.get("fy_quarter") == pq_label] if pq_label else []
+        pq_day_avg = sum(float(d[rev_key]) for d in pq_recs) / len(pq_recs) if pq_recs else None
+
         dow[day_name] = {
             "latest": round(latest, 4),
             "do3d": round((latest - avg3) / avg3, 4) if avg3 else 0,
             "do10d": round((latest - avg10) / avg10, 4) if avg10 else 0,
             "avg_3d": round(avg3, 4), "avg_10d": round(avg10, 4),
+            "prev_q_label": pq_label,
+            "prev_q_avg": round(pq_day_avg, 4) if pq_day_avg is not None else None,
+            "do_prev_q": round((latest - pq_day_avg) / pq_day_avg, 4) if pq_day_avg else None,
         }
         # Previous week = this weekday's own second-to-last occurrence, not a fixed
         # daily_data[-10:-5] slice — that assumes the trailing 10 rows split evenly

@@ -58,35 +58,50 @@
         "do3d": 0.0721,
         "do10d": -0.1043,
         "avg_3d": 6.7254,
-        "avg_10d": 8.0499
+        "avg_10d": 8.0499,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 8.3478,
+        "do_prev_q": -0.1362
       },
       "Tuesday": {
         "latest": 7.5632,
         "do3d": -0.0054,
         "do10d": -0.0498,
         "avg_3d": 7.6044,
-        "avg_10d": 7.9592
+        "avg_10d": 7.9592,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 7.9787,
+        "do_prev_q": -0.0521
       },
       "Wednesday": {
         "latest": 23.8279,
         "do3d": 0.0547,
         "do10d": -0.1696,
         "avg_3d": 22.5916,
-        "avg_10d": 28.6932
+        "avg_10d": 28.6932,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 28.1369,
+        "do_prev_q": -0.1531
       },
       "Thursday": {
         "latest": 36.3966,
         "do3d": -0.0012,
         "do10d": -0.159,
         "avg_3d": 36.4393,
-        "avg_10d": 43.2771
+        "avg_10d": 43.2771,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 45.8258,
+        "do_prev_q": -0.2058
       },
       "Friday": {
         "latest": 6.5315,
         "do3d": -0.2334,
         "do10d": -0.1744,
         "avg_3d": 8.5206,
-        "avg_10d": 7.9114
+        "avg_10d": 7.9114,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 7.9114,
+        "do_prev_q": -0.1744
       }
     },
     "previous_week": {
@@ -161,35 +176,50 @@
         "do3d": 0.0355,
         "do10d": -0.1224,
         "avg_3d": 6.2352,
-        "avg_10d": 7.3571
+        "avg_10d": 7.3571,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 7.6668,
+        "do_prev_q": -0.1578
       },
       "Tuesday": {
         "latest": 6.7402,
         "do3d": -0.0031,
         "do10d": -0.0698,
         "avg_3d": 6.7614,
-        "avg_10d": 7.246
+        "avg_10d": 7.246,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 7.295,
+        "do_prev_q": -0.0761
       },
       "Wednesday": {
         "latest": 23.0823,
         "do3d": 0.0591,
         "do10d": -0.1739,
         "avg_3d": 21.7947,
-        "avg_10d": 27.9415
+        "avg_10d": 27.9415,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 27.3821,
+        "do_prev_q": -0.157
       },
       "Thursday": {
         "latest": 35.5564,
         "do3d": -0.0005,
         "do10d": -0.1626,
         "avg_3d": 35.5742,
-        "avg_10d": 42.462
+        "avg_10d": 42.462,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 45.0271,
+        "do_prev_q": -0.2103
       },
       "Friday": {
         "latest": 5.7156,
         "do3d": -0.2648,
         "do10d": -0.2013,
         "avg_3d": 7.7746,
-        "avg_10d": 7.1562
+        "avg_10d": 7.1562,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 7.1562,
+        "do_prev_q": -0.2013
       }
     },
     "previous_week": {
@@ -264,35 +294,50 @@
         "do3d": 0,
         "do10d": 0,
         "avg_3d": 0.0,
-        "avg_10d": 0.0
+        "avg_10d": 0.0,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.0,
+        "do_prev_q": null
       },
       "Tuesday": {
         "latest": 0.0,
         "do3d": 0,
         "do10d": 0,
         "avg_3d": 0.0,
-        "avg_10d": 0.0
+        "avg_10d": 0.0,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.0,
+        "do_prev_q": null
       },
       "Wednesday": {
         "latest": 0.0,
         "do3d": 0,
         "do10d": 0,
         "avg_3d": 0.0,
-        "avg_10d": 0.0
+        "avg_10d": 0.0,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.0,
+        "do_prev_q": null
       },
       "Thursday": {
         "latest": 0.0,
         "do3d": 0,
         "do10d": 0,
         "avg_3d": 0.0,
-        "avg_10d": 0.0
+        "avg_10d": 0.0,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.0,
+        "do_prev_q": null
       },
       "Friday": {
         "latest": 0.0,
         "do3d": 0,
         "do10d": 0,
         "avg_3d": 0.0,
-        "avg_10d": 0.0
+        "avg_10d": 0.0,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.0,
+        "do_prev_q": null
       }
     },
     "previous_week": {
@@ -367,35 +412,50 @@
         "do3d": 0.5373,
         "do10d": 0.0878,
         "avg_3d": 0.4903,
-        "avg_10d": 0.6928
+        "avg_10d": 0.6928,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.681,
+        "do_prev_q": 0.1068
       },
       "Tuesday": {
         "latest": 0.823,
         "do3d": -0.0237,
         "do10d": 0.1539,
         "avg_3d": 0.843,
-        "avg_10d": 0.7132
+        "avg_10d": 0.7132,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.6837,
+        "do_prev_q": 0.2038
       },
       "Wednesday": {
         "latest": 0.7456,
         "do3d": -0.0643,
         "do10d": -0.0081,
         "avg_3d": 0.7968,
-        "avg_10d": 0.7517
+        "avg_10d": 0.7517,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.7548,
+        "do_prev_q": -0.0122
       },
       "Thursday": {
         "latest": 0.8402,
         "do3d": -0.0288,
         "do10d": 0.0307,
         "avg_3d": 0.8651,
-        "avg_10d": 0.8152
+        "avg_10d": 0.8152,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.7987,
+        "do_prev_q": 0.052
       },
       "Friday": {
         "latest": 0.8159,
         "do3d": 0.0937,
         "do10d": 0.0805,
         "avg_3d": 0.746,
-        "avg_10d": 0.7551
+        "avg_10d": 0.7551,
+        "prev_q_label": "Q1 FY 2027",
+        "prev_q_avg": 0.7551,
+        "do_prev_q": 0.0805
       }
     },
     "previous_week": {
