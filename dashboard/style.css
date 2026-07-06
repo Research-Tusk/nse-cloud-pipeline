@@ -2295,15 +2295,23 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 }
 
 /* PDF-style % formatting */
+span.pr-pos, span.pr-neg, span.pr-neu {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-weight: 700;
+}
 span.pr-pos {
-  color: #375623;
-  font-weight: 600;
+  background: #dcfce7;
+  color: #15803d;
 }
 span.pr-neg {
-  background: #FFFF00;
-  color: #000000;
-  padding: 0 3px;
-  font-weight: 600;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+span.pr-neu {
+  background: #f0f0f0;
+  color: #555;
 }
 
 .pr-summary {

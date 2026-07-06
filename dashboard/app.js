@@ -3899,9 +3899,10 @@ async function downloadWeeklyReport() {
   if (btn) { btn.textContent = 'Building…'; btn.disabled = true; }
 
   try {
-    const [nseEnrich, bseEnrich, nseDash, bseDash, bseShare, mcxShare] = await Promise.all([
+    const [nseEnrich, bseEnrich, mcxEnrich, nseDash, bseDash, bseShare, mcxShare] = await Promise.all([
       fetch('./data/nse_enriched_data.json').then(r => r.json()),
       fetch('./data/bse_enriched_data.json').then(r => r.json()),
+      fetch('./data/mcx_enriched_data.json').then(r => r.json()).catch(() => null),
       fetch('./data/nse_dashboard_data.json').then(r => r.json()),
       fetch('./data/bse_dashboard_data.json').then(r => r.json()),
       fetch('./data/bse_share_analysis.json').then(r => r.json()).catch(() => null),
@@ -4064,6 +4065,7 @@ async function downloadWeeklyReport() {
       </div>
       ${buildExchangeSection('NSE Update', nseEnrich, true)}
       ${buildExchangeSection('BSE Update', bseEnrich, false)}
+      ${mcxEnrich ? buildExchangeSection('MCX Update', mcxEnrich, true) : ''}
       ${buildRegressionSection(bseShare, 'BSE')}
       ${buildRegressionSection(mcxShare, 'MCX')}
       <div class="pr-footer">NSE/BSE/MCX Analytics Dashboard — Auto-generated report</div>
@@ -4284,13 +4286,6 @@ async function downloadMobileReport() {
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
          background: #f3f4f6; color: #111; padding: 12px; max-width: 480px; margin: 0 auto; }
   @media (min-width: 480px) { body { padding: 20px; } }
-  .pr-pos, .pr-neg, .pr-neu {
-    display: inline-block; padding: 1px 7px; border-radius: 5px;
-    font-weight: 700; white-space: nowrap;
-  }
-  .pr-pos { background: #dcfce7; color: #15803d; }
-  .pr-neg { background: #fee2e2; color: #b91c1c; }
-  .pr-neu { background: #f3f4f6; color: #6b7280; }
 </style>
 </head>
 <body>
