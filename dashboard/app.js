@@ -3933,7 +3933,7 @@ async function downloadWeeklyReport() {
       const pct = (val * 100).toFixed(1);
       if (val > 0.0001) return `<span class="pr-pos">+${pct}%</span>`;
       if (val < -0.0001) return `<span class="pr-neg">${pct}%</span>`;
-      return '0.0%';
+      return '<span class="pr-neu">0.0%</span>';
     }
 
     function buildTotalRevenueTable(enriched) {
@@ -4107,15 +4107,18 @@ async function downloadMobileReport() {
       const p = (v * 100).toFixed(decimals != null ? decimals : 1);
       return (v > 0.0001 ? '+' : '') + p + '%';
     }
-    function pctColor(v) {
-      if (v == null || isNaN(v)) return '#666';
-      return v > 0.0001 ? '#16a34a' : v < -0.0001 ? '#dc2626' : '#666';
+    // Highlighted pill for a % change — green background for positive, red for negative
+    function pctBadge(v, decimals) {
+      if (v == null || isNaN(v)) return '<span style="color:#9ca3af">—</span>';
+      const isPos = v > 0.0001, isNeg = v < -0.0001;
+      const bg = isPos ? '#dcfce7' : isNeg ? '#fee2e2' : '#f3f4f6';
+      const fg = isPos ? '#15803d' : isNeg ? '#b91c1c' : '#6b7280';
+      return `<span style="display:inline-block;background:${bg};color:${fg};padding:1px 7px;border-radius:5px;font-weight:700;white-space:nowrap">${pct(v, decimals)}</span>`;
     }
 
     // ── KPI card for weekly/quarterly headline ──
     function kpiCard(label, value, change, changeLabel) {
-      const col = pctColor(change);
-      const chgStr = change != null ? `<div style="font-size:11px;color:${col};font-weight:600;margin-top:2px">${pct(change)} ${changeLabel || ''}</div>` : '';
+      const chgStr = change != null ? `<div style="margin-top:4px">${pctBadge(change)} <span style="font-size:10px;color:#9ca3af">${changeLabel || ''}</span></div>` : '';
       return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;flex:1;min-width:130px">
         <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${label}</div>
         <div style="font-size:20px;font-weight:700;color:#111;letter-spacing:-.02em">₹${n(value)}<span style="font-size:11px;font-weight:400;color:#6b7280"> Cr</span></div>
@@ -4129,11 +4132,10 @@ async function downloadMobileReport() {
       const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
       return days.map(d => {
         const dd = dow[d] || {};
-        const col = pctColor(dd.do3d);
         return `<tr>
           <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;font-weight:600;color:#374151">${d.slice(0,3)}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right">₹${n(dd.latest)}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right;color:${col};font-weight:600">${pct(dd.do3d)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right">${pctBadge(dd.do3d)}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right;color:#6b7280">${n(dd.avg_10d)}</td>
         </tr>`;
       }).join('');
@@ -4160,8 +4162,8 @@ async function downloadMobileReport() {
         return `<tr>
           <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;color:#374151">${sg.label}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right">₹${n(l5.value)}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right;color:${pctColor(l5.wow)};font-weight:600">${pct(l5.wow)}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right;color:${pctColor(l5.wo10w)};font-weight:600">${pct(l5.wo10w)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right">${pctBadge(l5.wow)}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right">${pctBadge(l5.wo10w)}</td>
         </tr>`;
       }).join('');
 
@@ -4282,6 +4284,13 @@ async function downloadMobileReport() {
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
          background: #f3f4f6; color: #111; padding: 12px; max-width: 480px; margin: 0 auto; }
   @media (min-width: 480px) { body { padding: 20px; } }
+  .pr-pos, .pr-neg, .pr-neu {
+    display: inline-block; padding: 1px 7px; border-radius: 5px;
+    font-weight: 700; white-space: nowrap;
+  }
+  .pr-pos { background: #dcfce7; color: #15803d; }
+  .pr-neg { background: #fee2e2; color: #b91c1c; }
+  .pr-neu { background: #f3f4f6; color: #6b7280; }
 </style>
 </head>
 <body>
