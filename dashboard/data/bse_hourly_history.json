@@ -153,6 +153,20 @@
           "fraction": 1.0
         }
       ]
+    },
+    {
+      "date": "2026-07-09",
+      "weekday": 3,
+      "weekday_name": "Thursday",
+      "day_type": "expiry",
+      "eod_revenue": 44.91,
+      "snapshots": [
+        {
+          "hour_label": "15:30",
+          "total_revenue": 44.91,
+          "fraction": 1.0
+        }
+      ]
     }
   ]
 }
