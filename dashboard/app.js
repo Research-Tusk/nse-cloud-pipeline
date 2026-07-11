@@ -246,7 +246,8 @@ const EXCHANGE_TABS = {
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
   ],
   nsebse: [
-    { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
+    { id: 'revenue',      label: 'Revenue Summary',     icon: 'revenue' },
+    { id: 'marketshare',  label: 'Market Share Trend',  icon: 'share' },
   ],
 };
 
@@ -271,6 +272,7 @@ const TAB_TITLES = {
   },
   nsebse: {
     revenue: 'NSE + BSE Revenue Summary',
+    marketshare: 'NSE vs BSE Market Share Trend',
   },
 };
 
@@ -682,6 +684,7 @@ function rebuildAll() {
 
   if (currentExchange === 'nsebse') {
     buildMarketSharePanel(['nse', 'bse']);
+    buildMarketShareTrend();
     return;
   }
 
@@ -1474,6 +1477,181 @@ function buildMarketSharePanel(exList) {
   </div>`;
 }
 
+// ========================
+// NSE vs BSE MARKET SHARE TREND (Options + Total, live chart + report)
+// ========================
+
+// Daily NSE-vs-BSE market share series — takes raw {daily_all} objects so it works
+// both from the live dashboard's MARKET_RAW cache and from a report's own fetched data.
+function buildNSEBSEMarketShareSeries(nseRaw, bseRaw) {
+  const nseDaily = (nseRaw?.daily_all || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const bseDaily = (bseRaw?.daily_all || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const bseByDate = new Map(bseDaily.map(r => [r.date, r]));
+  const rows = [];
+  nseDaily.forEach(n => {
+    const b = bseByDate.get(n.date);
+    if (!b) return;
+    const totalSum = (n.total_rev || 0) + (b.total_rev || 0);
+    const optSum   = (n.opt_rev   || 0) + (b.opt_rev   || 0);
+    rows.push({
+      date: n.date,
+      totalShareNSE: totalSum ? (n.total_rev || 0) / totalSum * 100 : null,
+      totalShareBSE: totalSum ? (b.total_rev || 0) / totalSum * 100 : null,
+      optShareNSE:   optSum   ? (n.opt_rev   || 0) / optSum   * 100 : null,
+      optShareBSE:   optSum   ? (b.opt_rev   || 0) / optSum   * 100 : null,
+    });
+  });
+  return rows;
+}
+
+function filterMarketShareSeries(rows, range) {
+  if (!rows.length) return rows;
+  const last = new Date(rows[rows.length - 1].date);
+  let cutoff;
+  const d = new Date(last);
+  switch (range) {
+    case '1m': d.setMonth(d.getMonth() - 1);       cutoff = d.toISOString().slice(0, 10); break;
+    case '3m': d.setMonth(d.getMonth() - 3);       cutoff = d.toISOString().slice(0, 10); break;
+    case '6m': d.setMonth(d.getMonth() - 6);       cutoff = d.toISOString().slice(0, 10); break;
+    case '1y': d.setFullYear(d.getFullYear() - 1); cutoff = d.toISOString().slice(0, 10); break;
+    case '2y': d.setFullYear(d.getFullYear() - 2); cutoff = d.toISOString().slice(0, 10); break;
+    case 'all':
+    default:   cutoff = rows[0].date;
+  }
+  return rows.filter(r => r.date >= cutoff);
+}
+
+function buildMarketShareChart(canvasId, rows, field) {
+  if (charts[canvasId]) { charts[canvasId].destroy(); charts[canvasId] = null; }
+  if (!rows.length) return;
+  const nseKey = field === 'total' ? 'totalShareNSE' : 'optShareNSE';
+  const bseKey = field === 'total' ? 'totalShareBSE' : 'optShareBSE';
+  const labels = rows.map(r => fmtChartDate(r.date));
+  setCanvasHeight(canvasId, 280);
+  charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'NSE %', data: rows.map(r => r[nseKey]), borderColor: MS_META.nse.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+        { label: 'BSE %', data: rows.map(r => r[bseKey]), borderColor: MS_META.bse.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+      ]
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.raw.toFixed(1) + ' %' } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+        y: { min: 0, max: 100, ticks: { callback: v => v + ' %' } },
+      }
+    }
+  });
+}
+
+const MS_TREND_RANGES = [
+  { key: '1m', label: '1M' }, { key: '3m', label: '3M' }, { key: '6m', label: '6M' },
+  { key: '1y', label: '1Y' }, { key: '2y', label: '2Y' }, { key: 'all', label: 'All' },
+];
+
+function buildMarketShareTrend() {
+  const el = document.getElementById('marketShareTrendContent');
+  if (!el) return;
+
+  const rows = buildNSEBSEMarketShareSeries(MARKET_RAW.nse, MARKET_RAW.bse);
+  if (!rows.length) {
+    el.innerHTML = `<div class="chart-panel" style="text-align:center;padding:40px;color:var(--color-text-muted)">
+      <div style="font-size:14px;font-weight:600">No overlapping NSE/BSE daily data available</div>
+    </div>`;
+    return;
+  }
+
+  const toggleHTML = prefix => `<div class="share-range-toggle">${MS_TREND_RANGES.map(r =>
+    `<button class="share-range-btn ${prefix}-range-btn${r.key === 'all' ? ' active' : ''}" data-range="${r.key}">${r.label}</button>`
+  ).join('')}</div>`;
+
+  el.innerHTML = `
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:var(--space-3)">
+      <div class="chart-title" style="margin-bottom:0">Options Revenue Market Share — NSE vs BSE</div>
+      ${toggleHTML('msOpt')}
+    </div>
+    <div class="chart-wrapper"><canvas id="chartMsOptions"></canvas></div>
+  </div>
+  <div class="chart-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:var(--space-3)">
+      <div class="chart-title" style="margin-bottom:0">Total Revenue Market Share — NSE vs BSE</div>
+      ${toggleHTML('msTotal')}
+    </div>
+    <div class="chart-wrapper"><canvas id="chartMsTotal"></canvas></div>
+  </div>`;
+
+  let optRange = 'all', totalRange = 'all';
+  const refreshOpt   = () => buildMarketShareChart('chartMsOptions', filterMarketShareSeries(rows, optRange), 'opt');
+  const refreshTotal = () => buildMarketShareChart('chartMsTotal',   filterMarketShareSeries(rows, totalRange), 'total');
+  refreshOpt();
+  refreshTotal();
+
+  el.querySelectorAll('.msOpt-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.msOpt-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      optRange = btn.dataset.range;
+      refreshOpt();
+    });
+  });
+  el.querySelectorAll('.msTotal-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.msTotal-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      totalRange = btn.dataset.range;
+      refreshTotal();
+    });
+  });
+}
+
+// Off-screen chart-to-image rendering for the downloadable reports (mirrors buildAllRegressionChartImgs)
+function buildMarketShareChartImgs(nseRaw, bseRaw) {
+  const rows = buildNSEBSEMarketShareSeries(nseRaw, bseRaw);
+  if (!rows.length) return [];
+  const labels = rows.map(r => fmtChartDate(r.date));
+
+  const mkDef = (label, nseKey, bseKey) => ({
+    label, w: 700, h: 300,
+    config: {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'NSE %', data: rows.map(r => r[nseKey]), borderColor: MS_META.nse.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+          { label: 'BSE %', data: rows.map(r => r[bseKey]), borderColor: MS_META.bse.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+        ]
+      },
+      options: {
+        animation: false, plugins: { legend: { labels: { font: { size: 10 } } } },
+        scales: { x: { ticks: { maxTicksLimit: 10, font: { size: 9 } } }, y: { min: 0, max: 100, ticks: { callback: v => v + ' %', font: { size: 9 } } } }
+      }
+    }
+  });
+
+  const defs = [
+    mkDef('Options Revenue Market Share — NSE vs BSE', 'optShareNSE', 'optShareBSE'),
+    mkDef('Total Revenue Market Share — NSE vs BSE', 'totalShareNSE', 'totalShareBSE'),
+  ];
+
+  return defs.map(def => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `position:fixed;left:-9999px;top:-9999px;width:${def.w}px;height:${def.h}px;`;
+    const canvas = document.createElement('canvas');
+    canvas.width = def.w; canvas.height = def.h;
+    wrap.appendChild(canvas);
+    document.body.appendChild(wrap);
+    const tempChart = new Chart(canvas, def.config);
+    const img = tempChart.toBase64Image();
+    tempChart.destroy();
+    document.body.removeChild(wrap);
+    return { label: def.label, img };
+  });
+}
 
 // ========================
 // NSE: TEMPORAL ANALYSIS
@@ -4058,6 +4236,20 @@ async function downloadWeeklyReport() {
       </div>`;
     }
 
+    function buildMarketShareSection() {
+      const chartResults = buildMarketShareChartImgs(nseDash, bseDash);
+      if (!chartResults.length) return '';
+      const chartsHTML = chartResults.map(c =>
+        `<div class="pr-chart-item" style="grid-column:1/-1"><div class="pr-chart-label">${c.label}</div><img src="${c.img}" alt="${c.label}"></div>`
+      ).join('');
+      return `<div class="pr-section">
+        <div class="pr-section-header">NSE vs BSE Market Share Trend</div>
+        <div class="pr-section-body">
+          <div class="pr-chart-grid">${chartsHTML}</div>
+        </div>
+      </div>`;
+    }
+
     const html = `<div class="pr-wrapper">
       <div class="pr-header">
         <span class="pr-title">NSE/BSE Weekly Update – Week of ${weekRange}</span>
@@ -4065,8 +4257,9 @@ async function downloadWeeklyReport() {
       </div>
       ${buildExchangeSection('NSE Update', nseEnrich, true)}
       ${buildExchangeSection('BSE Update', bseEnrich, false)}
-      ${mcxEnrich ? buildExchangeSection('MCX Update', mcxEnrich, true) : ''}
       ${buildRegressionSection(bseShare, 'BSE')}
+      ${buildMarketShareSection()}
+      ${mcxEnrich ? buildExchangeSection('MCX Update', mcxEnrich, true) : ''}
       ${buildRegressionSection(mcxShare, 'MCX')}
       <div class="pr-footer">NSE/BSE/MCX Analytics Dashboard — Auto-generated report</div>
     </div>`;
@@ -4267,11 +4460,30 @@ async function downloadMobileReport() {
       </div>`;
     }
 
+    function marketShareSection() {
+      const chartResults = buildMarketShareChartImgs(nseDash, bseDash);
+      if (!chartResults.length) return '';
+      const chartImgs = chartResults.map(c =>
+        `<div style="margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;letter-spacing:.04em;margin-bottom:4px">${c.label}</div>
+          <img src="${c.img}" alt="${c.label}" style="width:100%;border-radius:6px;border:1px solid #e5e7eb">
+        </div>`
+      ).join('');
+      return `
+      <div style="margin-bottom:20px">
+        <div style="background:#374151;color:#fff;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 16px;border-radius:10px 10px 0 0">NSE vs BSE Market Share Trend</div>
+        <div style="background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:14px">
+          ${chartImgs}
+        </div>
+      </div>`;
+    }
+
     const body = `
       ${exchangeSection('NSE Update', '#1d4ed8', nseEnrich)}
       ${exchangeSection('BSE Update', '#0f766e', bseEnrich)}
-      ${mcxEnrich ? exchangeSection('MCX Update', '#7c3aed', mcxEnrich) : ''}
       ${regressionSection(bseShare, 'BSE', '#0f766e')}
+      ${marketShareSection()}
+      ${mcxEnrich ? exchangeSection('MCX Update', '#7c3aed', mcxEnrich) : ''}
       ${regressionSection(mcxShare, 'MCX', '#7c3aed')}
     `;
 
