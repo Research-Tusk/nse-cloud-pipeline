@@ -1481,20 +1481,18 @@ function buildMarketSharePanel(exList) {
 // NSE vs BSE MARKET SHARE TREND (Options + Total, live chart + report)
 // ========================
 
-// Daily NSE-vs-BSE market share series — takes raw {daily_all} objects so it works
-// both from the live dashboard's MARKET_RAW cache and from a report's own fetched data.
-function buildNSEBSEMarketShareSeries(nseRaw, bseRaw) {
-  const nseDaily = (nseRaw?.daily_all || []).slice().sort((a, b) => a.date.localeCompare(b.date));
-  const bseDaily = (bseRaw?.daily_all || []).slice().sort((a, b) => a.date.localeCompare(b.date));
-  const bseByDate = new Map(bseDaily.map(r => [r.date, r]));
+// Monthly NSE-vs-BSE market share — one point per calendar month (smooth, low-noise default view)
+function buildNSEBSEMonthlyShareSeries(nseRaw, bseRaw) {
+  const nseM = nseRaw?.monthly || [];
+  const bseByMonth = new Map((bseRaw?.monthly || []).map(m => [m.month, m]));
   const rows = [];
-  nseDaily.forEach(n => {
-    const b = bseByDate.get(n.date);
+  nseM.forEach(n => {
+    const b = bseByMonth.get(n.month);
     if (!b) return;
     const totalSum = (n.total_rev || 0) + (b.total_rev || 0);
     const optSum   = (n.opt_rev   || 0) + (b.opt_rev   || 0);
     rows.push({
-      date: n.date,
+      label: n.month,
       totalShareNSE: totalSum ? (n.total_rev || 0) / totalSum * 100 : null,
       totalShareBSE: totalSum ? (b.total_rev || 0) / totalSum * 100 : null,
       optShareNSE:   optSum   ? (n.opt_rev   || 0) / optSum   * 100 : null,
@@ -1504,21 +1502,53 @@ function buildNSEBSEMarketShareSeries(nseRaw, bseRaw) {
   return rows;
 }
 
-function filterMarketShareSeries(rows, range) {
-  if (!rows.length) return rows;
-  const last = new Date(rows[rows.length - 1].date);
-  let cutoff;
-  const d = new Date(last);
-  switch (range) {
-    case '1m': d.setMonth(d.getMonth() - 1);       cutoff = d.toISOString().slice(0, 10); break;
-    case '3m': d.setMonth(d.getMonth() - 3);       cutoff = d.toISOString().slice(0, 10); break;
-    case '6m': d.setMonth(d.getMonth() - 6);       cutoff = d.toISOString().slice(0, 10); break;
-    case '1y': d.setFullYear(d.getFullYear() - 1); cutoff = d.toISOString().slice(0, 10); break;
-    case '2y': d.setFullYear(d.getFullYear() - 2); cutoff = d.toISOString().slice(0, 10); break;
-    case 'all':
-    default:   cutoff = rows[0].date;
-  }
-  return rows.filter(r => r.date >= cutoff);
+// Rolling N-day NSE-vs-BSE market share — daily granularity smoothed by a trailing window,
+// so the line reads as a trend rather than a dense daily zigzag.
+function buildNSEBSERollingShareSeries(nseRaw, bseRaw, windowSize) {
+  const nseDaily = (nseRaw?.daily_all || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const bseByDate = new Map((bseRaw?.daily_all || []).map(r => [r.date, r]));
+  const merged = [];
+  nseDaily.forEach(n => {
+    const b = bseByDate.get(n.date);
+    if (!b) return;
+    merged.push({
+      date: n.date,
+      nseTotalRev: n.total_rev || 0, bseTotalRev: b.total_rev || 0,
+      nseOptRev:   n.opt_rev   || 0, bseOptRev:   b.opt_rev   || 0,
+    });
+  });
+
+  const rows = merged.map((r, i) => {
+    const slice = merged.slice(Math.max(0, i - windowSize + 1), i + 1);
+    const nseTotalSum = slice.reduce((s, x) => s + x.nseTotalRev, 0);
+    const bseTotalSum = slice.reduce((s, x) => s + x.bseTotalRev, 0);
+    const nseOptSum   = slice.reduce((s, x) => s + x.nseOptRev, 0);
+    const bseOptSum   = slice.reduce((s, x) => s + x.bseOptRev, 0);
+    const totalSum = nseTotalSum + bseTotalSum;
+    const optSum   = nseOptSum + bseOptSum;
+    return {
+      label: fmtChartDate(r.date),
+      totalShareNSE: totalSum ? nseTotalSum / totalSum * 100 : null,
+      totalShareBSE: totalSum ? bseTotalSum / totalSum * 100 : null,
+      optShareNSE:   optSum   ? nseOptSum   / optSum   * 100 : null,
+      optShareBSE:   optSum   ? bseOptSum   / optSum   * 100 : null,
+    };
+  });
+
+  // Drop the leading partial-window rows — they're averaged over fewer than windowSize days
+  return rows.slice(windowSize - 1);
+}
+
+const MS_GRANULARITIES = [
+  { key: 'monthly', label: 'Monthly' },
+  { key: '20d',     label: '20-Day Rolling' },
+  { key: '45d',     label: '45-Day Rolling' },
+];
+
+function getMarketShareRows(nseRaw, bseRaw, granularity) {
+  if (granularity === '20d') return buildNSEBSERollingShareSeries(nseRaw, bseRaw, 20);
+  if (granularity === '45d') return buildNSEBSERollingShareSeries(nseRaw, bseRaw, 45);
+  return buildNSEBSEMonthlyShareSeries(nseRaw, bseRaw);
 }
 
 function buildMarketShareChart(canvasId, rows, field) {
@@ -1526,12 +1556,11 @@ function buildMarketShareChart(canvasId, rows, field) {
   if (!rows.length) return;
   const nseKey = field === 'total' ? 'totalShareNSE' : 'optShareNSE';
   const bseKey = field === 'total' ? 'totalShareBSE' : 'optShareBSE';
-  const labels = rows.map(r => fmtChartDate(r.date));
   setCanvasHeight(canvasId, 280);
   charts[canvasId] = new Chart(document.getElementById(canvasId), {
     type: 'line',
     data: {
-      labels,
+      labels: rows.map(r => r.label),
       datasets: [
         { label: 'NSE %', data: rows.map(r => r[nseKey]), borderColor: MS_META.nse.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
         { label: 'BSE %', data: rows.map(r => r[bseKey]), borderColor: MS_META.bse.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
@@ -1548,25 +1577,20 @@ function buildMarketShareChart(canvasId, rows, field) {
   });
 }
 
-const MS_TREND_RANGES = [
-  { key: '1m', label: '1M' }, { key: '3m', label: '3M' }, { key: '6m', label: '6M' },
-  { key: '1y', label: '1Y' }, { key: '2y', label: '2Y' }, { key: 'all', label: 'All' },
-];
-
 function buildMarketShareTrend() {
   const el = document.getElementById('marketShareTrendContent');
   if (!el) return;
 
-  const rows = buildNSEBSEMarketShareSeries(MARKET_RAW.nse, MARKET_RAW.bse);
-  if (!rows.length) {
+  const nseRaw = MARKET_RAW.nse, bseRaw = MARKET_RAW.bse;
+  if (!getMarketShareRows(nseRaw, bseRaw, 'monthly').length) {
     el.innerHTML = `<div class="chart-panel" style="text-align:center;padding:40px;color:var(--color-text-muted)">
-      <div style="font-size:14px;font-weight:600">No overlapping NSE/BSE daily data available</div>
+      <div style="font-size:14px;font-weight:600">No overlapping NSE/BSE data available</div>
     </div>`;
     return;
   }
 
-  const toggleHTML = prefix => `<div class="share-range-toggle">${MS_TREND_RANGES.map(r =>
-    `<button class="share-range-btn ${prefix}-range-btn${r.key === 'all' ? ' active' : ''}" data-range="${r.key}">${r.label}</button>`
+  const toggleHTML = prefix => `<div class="share-range-toggle">${MS_GRANULARITIES.map(g =>
+    `<button class="share-range-btn ${prefix}-gran-btn${g.key === 'monthly' ? ' active' : ''}" data-gran="${g.key}">${g.label}</button>`
   ).join('')}</div>`;
 
   el.innerHTML = `
@@ -1585,42 +1609,42 @@ function buildMarketShareTrend() {
     <div class="chart-wrapper"><canvas id="chartMsTotal"></canvas></div>
   </div>`;
 
-  let optRange = 'all', totalRange = 'all';
-  const refreshOpt   = () => buildMarketShareChart('chartMsOptions', filterMarketShareSeries(rows, optRange), 'opt');
-  const refreshTotal = () => buildMarketShareChart('chartMsTotal',   filterMarketShareSeries(rows, totalRange), 'total');
+  let optGran = 'monthly', totalGran = 'monthly';
+  const refreshOpt   = () => buildMarketShareChart('chartMsOptions', getMarketShareRows(nseRaw, bseRaw, optGran), 'opt');
+  const refreshTotal = () => buildMarketShareChart('chartMsTotal',   getMarketShareRows(nseRaw, bseRaw, totalGran), 'total');
   refreshOpt();
   refreshTotal();
 
-  el.querySelectorAll('.msOpt-range-btn').forEach(btn => {
+  el.querySelectorAll('.msOpt-gran-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      el.querySelectorAll('.msOpt-range-btn').forEach(b => b.classList.remove('active'));
+      el.querySelectorAll('.msOpt-gran-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      optRange = btn.dataset.range;
+      optGran = btn.dataset.gran;
       refreshOpt();
     });
   });
-  el.querySelectorAll('.msTotal-range-btn').forEach(btn => {
+  el.querySelectorAll('.msTotal-gran-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      el.querySelectorAll('.msTotal-range-btn').forEach(b => b.classList.remove('active'));
+      el.querySelectorAll('.msTotal-gran-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      totalRange = btn.dataset.range;
+      totalGran = btn.dataset.gran;
       refreshTotal();
     });
   });
 }
 
 // Off-screen chart-to-image rendering for the downloadable reports (mirrors buildAllRegressionChartImgs)
+// Reports use the monthly view — smooth and compact, matching a periodic snapshot.
 function buildMarketShareChartImgs(nseRaw, bseRaw) {
-  const rows = buildNSEBSEMarketShareSeries(nseRaw, bseRaw);
+  const rows = buildNSEBSEMonthlyShareSeries(nseRaw, bseRaw);
   if (!rows.length) return [];
-  const labels = rows.map(r => fmtChartDate(r.date));
 
   const mkDef = (label, nseKey, bseKey) => ({
     label, w: 700, h: 300,
     config: {
       type: 'line',
       data: {
-        labels,
+        labels: rows.map(r => r.label),
         datasets: [
           { label: 'NSE %', data: rows.map(r => r[nseKey]), borderColor: MS_META.nse.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
           { label: 'BSE %', data: rows.map(r => r[bseKey]), borderColor: MS_META.bse.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2 },
@@ -1634,8 +1658,8 @@ function buildMarketShareChartImgs(nseRaw, bseRaw) {
   });
 
   const defs = [
-    mkDef('Options Revenue Market Share — NSE vs BSE', 'optShareNSE', 'optShareBSE'),
-    mkDef('Total Revenue Market Share — NSE vs BSE', 'totalShareNSE', 'totalShareBSE'),
+    mkDef('Options Revenue Market Share — NSE vs BSE (Monthly)', 'optShareNSE', 'optShareBSE'),
+    mkDef('Total Revenue Market Share — NSE vs BSE (Monthly)', 'totalShareNSE', 'totalShareBSE'),
   ];
 
   return defs.map(def => {

@@ -2013,6 +2013,7 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 
 .exchange-pill {
   display: flex;
+  flex-wrap: wrap;
   background: transparent;
   border: none;
   border-bottom: 2px solid var(--color-primary);
@@ -2022,8 +2023,9 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 }
 
 .exchange-btn {
-  flex: 1;
-  padding: 6px var(--space-3);
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px var(--space-2);
   border: none;
   border-radius: 0;
   background: transparent;
@@ -2035,6 +2037,7 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
   transition: all var(--transition-interactive);
   text-align: center;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .exchange-btn:hover {
