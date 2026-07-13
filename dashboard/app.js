@@ -427,6 +427,32 @@ function toggleExchangeContent(exchange) {
 // DATA LOADING
 // ========================
 
+// Overrides SHARE_DATA.latest.price_actual with an intraday quote from the
+// live poller (bse_live.json / mcx_live.json), when available — otherwise
+// the price shown is always yesterday's fixed close from the daily batch job.
+async function applyLiveStockPrice(shareData, exchange) {
+  try {
+    const res = await fetch(`./data/${exchange}_live.json?t=${Date.now()}`);
+    if (!res.ok) return;
+    const live = await res.json().catch(() => null);
+    const sp = live?.stock_price;
+    if (!sp || sp.last_price == null || !shareData.latest) return;
+
+    shareData.latest.price_prev_close = shareData.latest.price_actual;
+    shareData.latest.price_actual = sp.last_price;
+    shareData.latest.is_live = true;
+    shareData.latest.live_updated_at = live.updated_at;
+    shareData.latest.live_pct_change = sp.pct_change;
+    if (shareData.latest.price_pred != null && sp.last_price) {
+      shareData.latest.error_pct = Math.round(
+        Math.abs(shareData.latest.price_pred - sp.last_price) / sp.last_price * 1000
+      ) / 10;
+    }
+  } catch (e) {
+    // Live price is a nice-to-have — silently fall back to the batch close on any failure
+  }
+}
+
 async function loadExchangeData(exchange) {
   if (exchange === 'all') {
     if (!Object.keys(MARKET_DATA).length) await preloadMarketData();
@@ -456,6 +482,9 @@ async function loadExchangeData(exchange) {
     SHARE_DATA = await results[2].json().catch(() => null);
   } else {
     SHARE_DATA = null;
+  }
+  if (SHARE_DATA && (exchange === 'bse' || exchange === 'mcx')) {
+    await applyLiveStockPrice(SHARE_DATA, exchange);
   }
 }
 
@@ -3077,7 +3106,7 @@ function buildBSEShareAnalysis() {
     ${kpi('Model R²',        r2pct + '%',                        reg.fit + ' fit',                           r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
     ${kpi('Pearson r',       reg.pearson_r.toFixed(2),           'revenue ↔ price',                          '')}
     ${kpi('Predicted Price', '₹' + fmtNum(lat.price_pred, 0),   'model estimate',                           '')}
-    ${kpi('Actual Price',    '₹' + fmtNum(lat.price_actual, 0), (errDiff >= 0 ? '+' : '') + fmtNum(errDiff, 0) + ' vs model', errDiff >= 0 ? 'positive' : 'negative')}
+    ${kpi(lat.is_live ? 'Actual Price 🟢 Live' : 'Actual Price', '₹' + fmtNum(lat.price_actual, 0), (errDiff >= 0 ? '+' : '') + fmtNum(errDiff, 0) + ' vs model', errDiff >= 0 ? 'positive' : 'negative')}
   </div>`;
 
   const eqHTML = `
@@ -3448,7 +3477,7 @@ async function buildBSEValuation() {
       ${kpi('Regression', `<span id="triRegression"></span>`, '45-day DMA model', '')}
       ${kpi('Analyst Target', `<span id="triAnalyst"></span>`, `avg of ${analystTargets.length} brokers, discounted`, '')}
       ${kpi('Average Target', `<span id="triAverage"></span>`, `<span id="triUpside"></span> vs CMP`, '')}
-      ${kpi('CMP', `<span id="triCmp"></span>`, 'latest close', '')}
+      ${kpi('CMP', `<span id="triCmp"></span>`, SHARE_DATA?.latest?.is_live ? '🟢 live' : 'latest close', '')}
     </div>
   </div>
 
@@ -3835,7 +3864,7 @@ function buildMCXShareAnalysis() {
     ${kpi('Model R²',        r2pct + '%',                        reg.fit + ' fit',                           r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
     ${kpi('Pearson r',       reg.pearson_r.toFixed(2),           'revenue ↔ price',                          '')}
     ${kpi('Predicted Price', '₹' + fmtNum(lat.price_pred, 0),   'model estimate',                           '')}
-    ${kpi('Actual Price',    '₹' + fmtNum(lat.price_actual, 0), (errDiff >= 0 ? '+' : '') + fmtNum(errDiff, 0) + ' vs model', errDiff >= 0 ? 'positive' : 'negative')}
+    ${kpi(lat.is_live ? 'Actual Price 🟢 Live' : 'Actual Price', '₹' + fmtNum(lat.price_actual, 0), (errDiff >= 0 ? '+' : '') + fmtNum(errDiff, 0) + ' vs model', errDiff >= 0 ? 'positive' : 'negative')}
   </div>`;
 
   const eqHTML = `

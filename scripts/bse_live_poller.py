@@ -8,6 +8,10 @@ Primary endpoints (no auth needed, just Referer header):
   GetSensexData/w     → live Sensex price/change
   MarketStat2/w       → equity breadth + market cap
 
+Also fetches BSE Ltd's own stock price (ticker BSE.NS) via yfinance
+fast_info — an intraday quote (~15 min delayed, not tick-real-time),
+so the dashboard shows something better than yesterday's fixed close.
+
 Revenue take rates (both-side transaction charge):
   Cash (Equity)  : 0.00375% × 2  on traded value
   Options        : 0.03503% × 2  on premium turnover  (BSE derivatives ≈ all options)
@@ -202,6 +206,30 @@ def fetch_market_stat():
     }
 
 
+# ---------------------------------------------------------------------------
+# Fetch BSE Ltd's own stock price (intraday quote, ~15 min delayed)
+# ---------------------------------------------------------------------------
+def fetch_stock_price(ticker="BSE.NS"):
+    try:
+        import yfinance as yf
+        fi = yf.Ticker(ticker).fast_info
+        last = fi.last_price
+        prev_close = fi.previous_close
+        if last is None:
+            return None
+        return {
+            "last_price":    round(float(last), 2),
+            "previous_close": round(float(prev_close), 2) if prev_close else None,
+            "open":          round(float(fi.open), 2) if fi.open else None,
+            "day_high":      round(float(fi.day_high), 2) if fi.day_high else None,
+            "day_low":       round(float(fi.day_low), 2) if fi.day_low else None,
+            "pct_change":    round((last - prev_close) / prev_close * 100, 2) if prev_close else None,
+        }
+    except Exception as e:
+        print(f"  stock price fetch error: {e}")
+        return None
+
+
 # save_hourly_snapshot imported from live_common (handles archiving + prediction)
 
 
@@ -229,11 +257,17 @@ def main():
     print("Hourly snapshot:")
     save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE, exchange="bse")
 
+    print("Stock price:")
+    stock_price = fetch_stock_price("BSE.NS")
+    if stock_price:
+        print(f"  BSE.NS {stock_price['last_price']}  ({stock_price['pct_change']}%)")
+
     payload = {
         "updated_at":    ts_iso,
         "sensex":        sensex,
         "market_stat":   stat,
         "revenue":       revenue,
+        "stock_price":   stock_price,
     }
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(json.dumps(payload, indent=2, default=str))
