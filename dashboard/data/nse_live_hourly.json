@@ -1,19 +1,19 @@
 {
-  "date": "2026-07-17",
-  "weekday": 4,
-  "weekday_name": "Friday",
-  "day_type": "normal",
+  "date": "2026-07-21",
+  "weekday": 1,
+  "weekday_name": "Tuesday",
+  "day_type": "expiry",
   "snapshots": [
     {
-      "hour_label": "15:00",
-      "captured_ist": "2026-07-17T15:01:07",
-      "elapsed_minutes": 345,
-      "total_revenue": 46.25,
-      "cash_revenue": 5.65,
-      "options_revenue": 37.22,
-      "futures_revenue": 3.38,
+      "hour_label": "14:00",
+      "captured_ist": "2026-07-21T14:03:15",
+      "elapsed_minutes": 285,
+      "total_revenue": 40.58,
+      "cash_revenue": 4.64,
+      "options_revenue": 33.42,
+      "futures_revenue": 2.52,
       "has_data": true,
-      "predicted_eod": 50.27,
+      "predicted_eod": 53.39,
       "pred_method": "linear"
     }
   ]
