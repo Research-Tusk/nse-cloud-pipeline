@@ -1,6 +1,6 @@
-/* style.css — NSE Analytics Dashboard / Apple-Inspired Theme */
+/* style.css — NSE Analytics Dashboard / CIO Ledger Theme */
 
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap');
 
 /* ===========================
    DESIGN TOKENS — DARK MODE (default)
@@ -28,16 +28,16 @@
   --space-16: 4rem;
   --space-20: 5rem;
 
-  /* Font — condensed for financial data density */
-  --font-body: 'Roboto Condensed', 'Arial Narrow', Arial, sans-serif;
-  --font-display: 'Roboto Condensed', 'Arial Narrow', Arial, sans-serif;
+  /* Font — IBM Plex, ledger-style density */
+  --font-body: 'IBM Plex Sans', Arial, sans-serif;
+  --font-display: 'IBM Plex Sans Condensed', 'Arial Narrow', Arial, sans-serif;
 
-  /* Radius — minimal, corporate */
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --radius-xl: 6px;
-  --radius-pill: 3px;
+  /* Radius — sharp, ledger/wire aesthetic (no rounding) */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-pill: 0px;
 
   /* Apple Easing */
   --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
@@ -116,72 +116,77 @@
    =========================== */
 
 [data-theme="light"] {
-  /* Financial light mode — white background, crimson accent */
-  --color-bg:             #FFFFFF;
+  /* CIO Ledger — white/paper background, ledger-red accent */
+  --color-bg:             #F7F7F5;
   --color-surface:        #FFFFFF;
   --color-surface-solid:  #FFFFFF;
   --color-surface-2:      #FFFFFF;
   --color-surface-3:      #F5F5F5;
   --color-surface-offset: #E8E8E8;
-  --color-border:         #CCCCCC;
-  --color-border-strong:  #AAAAAA;
+  --color-border:         #D9D9D4;
+  --color-border-strong:  #B7B7B0;
   --color-divider:        #E0E0E0;
 
-  --color-text:           #1A1A1A;
-  --color-text-muted:     #555555;
-  --color-text-faint:     #999999;
+  --color-text:           #16181D;
+  --color-text-muted:     #686B72;
+  --color-text-faint:     #93959A;
 
-  /* Financial crimson accent */
-  --color-primary:        #8B1C1C;
-  --color-primary-hover:  #A32020;
-  --color-primary-active: #731717;
-  --color-primary-glow:   rgba(139, 28, 28, 0.08);
+  /* Ledger red accent */
+  --color-primary:        #BD1117;
+  --color-primary-hover:  #A10E13;
+  --color-primary-active: #8E090D;
+  --color-primary-glow:   rgba(189, 17, 23, 0.08);
 
-  /* Green positive / red negative — Excel style */
-  --color-success:        #1B7D2E;
-  --color-error:          #C0392B;
-  --color-warning:        #D97706;
+  /* Ink — dark panel/header base (ledger's second brand color) */
+  --color-ink:            #16181D;
+  --color-ink-2:          #2C3038;
+  --color-paper-warm:     #FBFAF7;
+
+  /* Green positive / red negative — ledger style */
+  --color-success:        #176C2E;
+  --color-error:          #A01822;
+  --color-warning:        #A56000;
 
   /* Guideline aliases (§3.1 semantic tokens) */
-  --color-positive:       #1B7D2E;
-  --color-positive-bg:    rgba(27, 125, 46, 0.18);
-  --color-negative:       #C0392B;
-  --color-negative-bg:    rgba(192, 57, 43, 0.15);
-  --color-warning-bg:     rgba(217, 119, 6, 0.08);
+  --color-positive:       #176C2E;
+  --color-positive-bg:    #E3F3E7;
+  --color-negative:       #A01822;
+  --color-negative-bg:    #FBE4E6;
+  --color-warning-bg:     rgba(165, 96, 0, 0.08);
   --color-info:           #2563EB;
   --color-info-bg:        rgba(37, 99, 235, 0.06);
   --color-bg-elevated:    #F0F2F5;
   --color-bg-card:        #FFFFFF;
-  --color-text-secondary: #555555;
+  --color-text-secondary: #686B72;
 
   /* Section header tokens */
-  --color-header-bg:      #8B1C1C;
+  --color-header-bg:      #16181D;
   --color-header-text:    #FFFFFF;
-  --color-subheader-bg:   #B84040;
+  --color-subheader-bg:   #2C3038;
   --color-subheader-text: #FFFFFF;
 
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.08);
-  --shadow-md: 0 2px 4px rgba(0,0,0,0.10);
-  --shadow-lg: 0 3px 8px rgba(0,0,0,0.12);
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
 
   --color-sidebar: #FFFFFF;
 
   --color-tooltip-bg: rgba(255, 255, 255, 0.98);
-  --color-tooltip-text: #1A1A1A;
+  --color-tooltip-text: #16181D;
 
   --color-grid: rgba(0,0,0,0.07);
-  --color-tick: #666666;
+  --color-tick: #686B72;
 
   --color-donut-border: #FFFFFF;
 
-  --heatmap-color: 139, 28, 28;
+  --heatmap-color: 189, 17, 23;
 
-  --color-table-hover: rgba(139, 28, 28, 0.04);
+  --color-table-hover: rgba(189, 17, 23, 0.04);
 
-  /* No glassmorphism in financial style */
+  /* No glassmorphism in ledger style */
   --backdrop-blur: none;
 
-  /* Chart colors — financial palette */
+  /* Chart colors — financial palette (kept in sync with CHART_COLORS in app.js) */
   --chart-1: #2563EB;
   --chart-2: #C0392B;
   --chart-3: #16A34A;
@@ -247,12 +252,12 @@ html, body {
   grid-row: 1 / -1;
   grid-column: 1;
   background: var(--color-sidebar);
-  border-right: 3px solid var(--color-primary);
+  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--space-3) 0;
+  padding: 0 0 var(--space-3);
   z-index: 20;
 }
 
@@ -262,8 +267,9 @@ html, body {
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-3);
-  background: var(--color-primary);
-  border-bottom: 1px solid #6B0000;
+  background: var(--color-ink);
+  border-top: 3px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-ink);
 }
 
 .sidebar-logo svg {
@@ -271,7 +277,8 @@ html, body {
 }
 
 .sidebar-logo .logo-text {
-  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-size: 13px;
   font-weight: 700;
   color: #FFFFFF;
   letter-spacing: 0.02em;
@@ -279,16 +286,20 @@ html, body {
 }
 
 .sidebar-logo .logo-sub {
-  font-size: var(--text-xs);
-  color: rgba(255,255,255,0.7);
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-size: 9px;
+  color: rgba(255,255,255,0.65);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 1px;
 }
 
 .sidebar-nav {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 3px;
   padding: 0 var(--space-3);
 }
 
@@ -298,43 +309,46 @@ html, body {
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: 500;
+  border: 1px solid transparent;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   color: var(--color-text-muted);
   cursor: pointer;
   transition: color var(--transition-interactive);
-  border: none;
   background: none;
   white-space: nowrap;
   position: relative;
 }
 
 .nav-item:hover {
-  color: var(--color-text);
-  background: #F5EBEB;
+  color: var(--color-primary);
+  background: #FBF3F3;
 }
 
 .nav-item.active {
-  background: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-ink);
   color: #FFFFFF;
-  border-radius: var(--radius-sm);
+  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
-/* Active indicator removed — using filled bg instead */
 .nav-item.active::before {
   display: none;
 }
 
 .nav-item svg {
-  width: 18px;
-  height: 18px;
-  opacity: 0.5;
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
   flex-shrink: 0;
   transition: opacity var(--transition-interactive);
 }
 
 .nav-item:hover svg {
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .nav-item.active svg {
@@ -369,17 +383,18 @@ html, body {
   justify-content: space-between;
   padding: 0 var(--space-5);
   background: var(--color-surface);
-  border-bottom: 3px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-border-strong);
+  border-top: 3px solid var(--color-primary);
   z-index: 10;
   box-shadow: var(--shadow-sm);
 }
 
 .header-title {
-  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-text);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
 }
 
 .header-right {
@@ -392,7 +407,10 @@ html, body {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  font-size: var(--text-xs);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   color: var(--color-text-muted);
 }
 
@@ -489,22 +507,23 @@ html, body {
   grid-row: 1;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   padding: 0 var(--space-5);
-  background: var(--color-primary);
-  font-family: var(--font-body);
+  background: var(--color-paper-warm);
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-display);
   font-size: 12px;
-  color: rgba(255,255,255,0.9);
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
 }
 
 .rev-banner-title {
   font-weight: 700;
-  font-size: 10px;
+  font-size: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.65);
+  letter-spacing: 0.09em;
+  color: var(--color-text-faint);
   flex-shrink: 0;
 }
 
@@ -512,38 +531,39 @@ html, body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 10px;
-  background: rgba(255,255,255,0.12);
-  border-radius: 3px;
+  height: 25px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-strong);
+  background: #ffffff;
+  border-radius: 0;
   flex-shrink: 0;
 }
 
 .rev-banner-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(255,255,255,0.65);
+  letter-spacing: 0.07em;
+  color: var(--color-primary);
 }
 
 .rev-banner-value {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #ffffff;
+  color: var(--color-text);
 }
 
 .rev-banner-date {
-  font-size: 11px;
-  color: rgba(255,255,255,0.7);
+  font-size: 9px;
+  color: var(--color-text-faint);
 }
 
 .rev-banner-live {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #ffffff;
-  background: rgba(255,255,255,0.25);
-  border-radius: 2px;
+  color: var(--color-positive);
+  background: var(--color-positive-bg);
+  border-radius: 0;
   padding: 1px 4px;
 }
 
@@ -572,10 +592,9 @@ html, body {
 
 .kpi-card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-primary);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  padding: 9px 11px;
   box-shadow: var(--shadow-sm);
   transition: box-shadow var(--transition-interactive);
 }
@@ -585,49 +604,52 @@ html, body {
 }
 
 .kpi-label {
-  font-size: 10px;
+  font-family: var(--font-display);
+  font-size: 8px;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 600;
-  margin-bottom: 3px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 
 .kpi-value {
-  font-size: var(--text-base);
+  font-family: var(--font-display);
+  font-size: 20px;
   font-weight: 700;
   color: var(--color-text);
   font-variant-numeric: tabular-nums lining-nums;
-  line-height: 1.2;
-  margin-bottom: 3px;
+  line-height: 1.1;
+  margin-bottom: 4px;
   letter-spacing: -0.01em;
 }
 
 .kpi-delta {
-  font-size: 10px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums lining-nums;
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  border-radius: 2px;
+  border-radius: 0;
   padding: 1px 5px;
 }
 
-/* Excel-style: solid filled KPI delta badges */
+/* Ledger-style: soft badge KPI deltas */
 .kpi-delta.positive {
-  background: #00B050;
-  color: #FFFFFF;
+  background: var(--color-positive-bg);
+  color: var(--color-positive);
   border: none;
 }
 .kpi-delta.negative {
-  background: #FF0000;
-  color: #FFFFFF;
+  background: var(--color-negative-bg);
+  color: var(--color-negative);
   border: none;
 }
 .kpi-delta.neutral {
-  background: #767676;
-  color: #FFFFFF;
+  background: var(--color-surface-3);
+  color: var(--color-text-muted);
   border: none;
 }
 
@@ -648,7 +670,7 @@ html, body {
 
 .chart-panel {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   padding: 0;
   position: relative;
@@ -657,16 +679,19 @@ html, body {
 }
 
 .chart-title {
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: 10px;
   font-weight: 700;
   color: #FFFFFF;
-  background: var(--color-primary);
-  padding: 6px 14px;
+  background: var(--color-ink);
+  border-top: 3px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-ink);
+  padding: 7px 14px;
   margin: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -710,15 +735,16 @@ html, body {
 }
 
 .data-table th {
-  background: #000000;
+  background: var(--color-ink);
   color: #FFFFFF;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 10px;
-  padding: 4px 8px;
+  letter-spacing: 0.05em;
+  font-size: 9px;
+  padding: 5px 8px;
   text-align: right;
-  border: 1px solid #333333;
+  border: 1px solid var(--color-ink-2);
   white-space: nowrap;
 }
 
@@ -727,11 +753,14 @@ html, body {
 }
 
 .data-table td {
-  padding: 3px 8px;
+  padding: 5px 8px;
   text-align: right;
   color: var(--color-text);
-  border: 1px solid var(--color-divider);
-  font-size: 12px;
+  border-bottom: 1px solid var(--color-divider);
+  border-left: none;
+  border-right: none;
+  font-family: var(--font-display);
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -742,39 +771,39 @@ html, body {
 }
 
 .data-table tr:nth-child(even) td {
-  background: #F8F8F8;
+  background: var(--color-paper-warm);
 }
 
 .data-table tr:hover td {
   background: var(--color-table-hover);
 }
 
-/* Excel-style: whole-cell solid fill for td.positive/negative */
+/* Ledger-style: soft badge fill for td.positive/negative */
 .data-table td.positive {
-  background: #00B050 !important;
-  color: #FFFFFF !important;
+  background: var(--color-positive-bg) !important;
+  color: var(--color-positive) !important;
   font-weight: 700;
 }
 .data-table td.negative {
-  background: #FF0000 !important;
-  color: #FFFFFF !important;
+  background: var(--color-negative-bg) !important;
+  color: var(--color-negative) !important;
   font-weight: 700;
 }
 
-/* Excel-style: inline badge for span.positive/negative (fmtPctSigned) */
+/* Ledger-style: inline badge for span.positive/negative (fmtPctSigned) */
 span.positive {
-  background: #00B050;
-  color: #FFFFFF;
+  background: var(--color-positive-bg);
+  color: var(--color-positive);
   padding: 1px 5px;
-  border-radius: 2px;
+  border-radius: 0;
   font-weight: 700;
   display: inline-block;
 }
 span.negative {
-  background: #FF0000;
-  color: #FFFFFF;
+  background: var(--color-negative-bg);
+  color: var(--color-negative);
   padding: 1px 5px;
-  border-radius: 2px;
+  border-radius: 0;
   font-weight: 700;
   display: inline-block;
 }
@@ -799,32 +828,38 @@ span.neutral {
   display: flex;
   gap: 0;
   margin-bottom: var(--space-4);
-  background: transparent;
+  background: var(--color-ink);
   padding: 0;
-  border-bottom: 2px solid var(--color-primary);
+  border: 1px solid var(--color-ink);
   width: fit-content;
 }
 
 .sub-tab {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 5px 14px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 6px 16px;
   border-radius: 0;
-  color: var(--color-text-muted);
+  border-right: 1px solid #555861;
+  color: #FFFFFF;
   cursor: pointer;
   transition: all var(--transition-interactive);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
+.sub-tab:last-child {
+  border-right: none;
+}
+
 .sub-tab:hover {
-  color: var(--color-primary);
-  background: #F5EBEB;
+  background: #343840;
 }
 
 .sub-tab.active {
   background: var(--color-primary);
   color: #fff;
+  box-shadow: inset 0 -3px 0 #ffffff;
 }
 
 .sub-content {
@@ -1083,15 +1118,15 @@ span.neutral {
 }
 
 .pe-card.bear {
-  border-top-color: #C0392B;
+  border-top-color: var(--color-negative);
 }
 
 .pe-card.base {
-  border-top-color: #8B1C1C;
+  border-top-color: var(--color-primary);
 }
 
 .pe-card.bull {
-  border-top-color: #1B7D2E;
+  border-top-color: var(--color-positive);
 }
 
 .pe-card .pe-scenario-label {
@@ -1102,9 +1137,9 @@ span.neutral {
   margin-bottom: var(--space-1);
 }
 
-.pe-card.bear .pe-scenario-label { color: #C0392B; }
-.pe-card.base .pe-scenario-label { color: #8B1C1C; }
-.pe-card.bull .pe-scenario-label { color: #1B7D2E; }
+.pe-card.bear .pe-scenario-label { color: var(--color-negative); }
+.pe-card.base .pe-scenario-label { color: var(--color-primary); }
+.pe-card.bull .pe-scenario-label { color: var(--color-positive); }
 
 .pe-card .pe-subtitle {
   font-size: var(--text-xs);
@@ -2014,9 +2049,8 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 .exchange-pill {
   display: flex;
   flex-wrap: wrap;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid var(--color-primary);
+  background: var(--color-ink);
+  border: 1px solid var(--color-ink);
   padding: 0;
   margin: var(--space-3) var(--space-4) var(--space-2);
   gap: 0;
@@ -2025,14 +2059,15 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 .exchange-btn {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 6px var(--space-2);
+  padding: 7px var(--space-2);
   border: none;
+  border-right: 1px solid #555861;
   border-radius: 0;
   background: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
+  color: #FFFFFF;
+  font-family: var(--font-display);
+  font-size: 10px;
   font-weight: 700;
-  font-family: var(--font-body);
   cursor: pointer;
   transition: all var(--transition-interactive);
   text-align: center;
@@ -2040,15 +2075,18 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
   white-space: nowrap;
 }
 
+.exchange-btn:last-child {
+  border-right: none;
+}
+
 .exchange-btn:hover {
-  color: var(--color-primary);
-  background: #F5EBEB;
+  background: #343840;
 }
 
 .exchange-btn.active {
   background: var(--color-primary);
   color: #FFFFFF;
-  box-shadow: none;
+  box-shadow: inset 0 -3px 0 #ffffff;
 }
 
 /* ===========================
@@ -2145,10 +2183,10 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
   color: #FFFFFF;
   border: none;
   border-radius: var(--radius-sm);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  font-family: var(--font-body);
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   transition: background var(--transition-interactive);
@@ -2167,10 +2205,10 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
   color: var(--color-primary);
   border: 1.5px solid var(--color-primary);
   border-radius: var(--radius-sm);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  font-family: var(--font-body);
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   transition: background var(--transition-interactive), color var(--transition-interactive);
