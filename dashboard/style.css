@@ -1306,13 +1306,39 @@ span.neutral {
 .xl-col-chg1   { width: 18%; }
 .xl-col-chg2   { width: 18%; }
 
-/* RIGHT: DoW — fills remaining 63%, auto column widths from content */
+/* MIDDLE: DoW — auto column widths from content, more columns so gets more flex */
 .xl-dow-table {
   border-collapse: collapse;
   font-size: 12px;
   table-layout: auto;   /* columns size to content, then expand to fill */
+  flex: 1.5 1 0;
+  min-width: 0;
+  border-right: 2px solid var(--color-border);
+}
+
+/* RIGHT: per-weekday Quarter (QoQ/YoY) comparison — fills remaining space */
+.xl-qdow-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  table-layout: auto;
   flex: 1 1 0;
   min-width: 0;
+}
+
+/* Quarter-detail sub-rows (current/prev/YoY quarter labels under each weekday) */
+.xl-qdow-detail td {
+  padding: 3px 8px 3px 20px;
+  color: var(--color-text-faint);
+  font-size: 11px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.xl-qdow-detail td:first-child {
+  font-weight: 400;
+}
+
+.xl-qdow-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 /* Section header rows (e.g. "Financial Year", "Quarter") */
@@ -1348,7 +1374,8 @@ span.neutral {
 
 /* Data rows */
 .xl-period-table td,
-.xl-dow-table td {
+.xl-dow-table td,
+.xl-qdow-table td {
   padding: 4px 8px;
   white-space: nowrap;
   vertical-align: middle;
@@ -1366,14 +1393,16 @@ span.neutral {
 
 /* Period label column */
 .xl-period-table td:first-child,
-.xl-dow-table td:first-child {
+.xl-dow-table td:first-child,
+.xl-qdow-table td:first-child {
   color: var(--color-text-secondary);
   font-size: 12px;
 }
 
 /* Value / change columns — right-aligned */
 .xl-period-table td:nth-child(n+2),
-.xl-dow-table td:nth-child(n+2) {
+.xl-dow-table td:nth-child(n+2),
+.xl-qdow-table td:nth-child(n+2) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -1398,17 +1427,22 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
 
 /* Cell-level background for direct % change cells */
 .xl-period-table td:has(> .xl-chg.xl-pos),
-.xl-dow-table   td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
+.xl-dow-table   td:has(> .xl-chg.xl-pos),
+.xl-qdow-table  td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
 .xl-period-table td:has(> .xl-chg.xl-neg),
-.xl-dow-table   td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
+.xl-dow-table   td:has(> .xl-chg.xl-neg),
+.xl-qdow-table  td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
 
 /* Hover */
 .xl-period-table tbody tr:hover td,
-.xl-dow-table tbody tr:hover td { background: var(--color-bg-elevated); }
+.xl-dow-table tbody tr:hover td,
+.xl-qdow-table tbody tr:hover td { background: var(--color-bg-elevated); }
 .xl-period-table tbody tr:hover td:has(> .xl-chg.xl-pos),
-.xl-dow-table   tbody tr:hover td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
+.xl-dow-table   tbody tr:hover td:has(> .xl-chg.xl-pos),
+.xl-qdow-table  tbody tr:hover td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
 .xl-period-table tbody tr:hover td:has(> .xl-chg.xl-neg),
-.xl-dow-table   tbody tr:hover td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
+.xl-dow-table   tbody tr:hover td:has(> .xl-chg.xl-neg),
+.xl-qdow-table  tbody tr:hover td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
 
 /* Number spans */
 .xl-num {

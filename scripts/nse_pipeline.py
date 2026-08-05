@@ -443,6 +443,8 @@ def seg_summary(daily_data, rev_key):
     }
 
     pq_label = pq["quarter"] if pq else None
+    cq_label = cq["quarter"] if cq else None
+    yoy_label = yoy_q["quarter"] if yoy_q else None
 
     days_list = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
     dow = {}
@@ -458,6 +460,13 @@ def seg_summary(daily_data, rev_key):
         pq_recs = [d for d in recs if d.get("fy_quarter") == pq_label] if pq_label else []
         pq_day_avg = sum(float(d[rev_key]) for d in pq_recs) / len(pq_recs) if pq_recs else None
 
+        # Per-weekday quarter comparison — this weekday's average revenue within
+        # the current quarter, previous quarter, and same quarter a year ago.
+        cq_recs = [d for d in recs if d.get("fy_quarter") == cq_label] if cq_label else []
+        cq_day_avg = sum(float(d[rev_key]) for d in cq_recs) / len(cq_recs) if cq_recs else None
+        yoy_recs = [d for d in recs if d.get("fy_quarter") == yoy_label] if yoy_label else []
+        yoy_day_avg = sum(float(d[rev_key]) for d in yoy_recs) / len(yoy_recs) if yoy_recs else None
+
         dow[day_name] = {
             "latest": round(latest, 4),
             "do3d": round((latest - avg3) / avg3, 4) if avg3 else 0,
@@ -466,6 +475,12 @@ def seg_summary(daily_data, rev_key):
             "prev_q_label": pq_label,
             "prev_q_avg": round(pq_day_avg, 4) if pq_day_avg is not None else None,
             "do_prev_q": round((latest - pq_day_avg) / pq_day_avg, 4) if pq_day_avg else None,
+            "cur_q_label": cq_label,
+            "cur_q_avg": round(cq_day_avg, 4) if cq_day_avg is not None else None,
+            "yoy_q_label": yoy_label,
+            "yoy_q_avg": round(yoy_day_avg, 4) if yoy_day_avg is not None else None,
+            "qoq": round((cq_day_avg - pq_day_avg) / pq_day_avg, 4) if cq_day_avg is not None and pq_day_avg else None,
+            "yoy": round((cq_day_avg - yoy_day_avg) / yoy_day_avg, 4) if cq_day_avg is not None and yoy_day_avg else None,
         }
         # Previous week = this weekday's own second-to-last occurrence, not a fixed
         # daily_data[-10:-5] slice — that assumes the trailing 10 rows split evenly

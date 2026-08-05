@@ -578,7 +578,24 @@ function buildCombinedEnrichedData(exList) {
       const lat = sum(...sts.map(s => s.day_of_week?.[d]?.latest));
       const a3  = sum(...sts.map(s => s.day_of_week?.[d]?.avg_3d));
       const a10 = sum(...sts.map(s => s.day_of_week?.[d]?.avg_10d));
-      dow[d] = { latest: lat, avg_3d: a3, avg_10d: a10, do3d: chg(lat, a3), do10d: chg(lat, a10) };
+      const prevQAvgs = sts.map(s => s.day_of_week?.[d]?.prev_q_avg).filter(v => v != null);
+      const prevQAvg  = prevQAvgs.length ? sum(...prevQAvgs) : null;
+      const curQAvgs = sts.map(s => s.day_of_week?.[d]?.cur_q_avg).filter(v => v != null);
+      const curQAvg  = curQAvgs.length ? sum(...curQAvgs) : null;
+      const yoyQAvgs = sts.map(s => s.day_of_week?.[d]?.yoy_q_avg).filter(v => v != null);
+      const yoyQAvg  = yoyQAvgs.length ? sum(...yoyQAvgs) : null;
+      dow[d] = {
+        latest: lat, avg_3d: a3, avg_10d: a10, do3d: chg(lat, a3), do10d: chg(lat, a10),
+        prev_q_label: sts.map(s => s.day_of_week?.[d]?.prev_q_label).find(Boolean),
+        prev_q_avg:   prevQAvg,
+        do_prev_q:    prevQAvg ? chg(lat, prevQAvg) : null,
+        cur_q_label: sts.map(s => s.day_of_week?.[d]?.cur_q_label).find(Boolean),
+        cur_q_avg:   curQAvg,
+        yoy_q_label: sts.map(s => s.day_of_week?.[d]?.yoy_q_label).find(Boolean),
+        yoy_q_avg:   yoyQAvg,
+        qoq: (curQAvg != null && prevQAvg) ? chg(curQAvg, prevQAvg) : null,
+        yoy: (curQAvg != null && yoyQAvg) ? chg(curQAvg, yoyQAvg) : null,
+      };
       pw[d]  = sum(...sts.map(s => s.previous_week?.[d])) || null;
     });
     const ref = sts[0];
@@ -1001,6 +1018,21 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
     </tr>`;
   }).join('');
 
+  const qdowRows = dayFull.map((d) => {
+    const dd = dow[d] || {};
+    const detail = (label, val) => label
+      ? `<tr class="xl-qdow-detail"><td>${label}</td><td>${xlVal(val)}</td><td></td><td></td></tr>` : '';
+    return `<tr class="xl-r-cur">
+      <td class="xl-day">${d}</td>
+      <td>${xlVal(dd.latest)}</td>
+      <td>${xlChg(dd.qoq)}</td>
+      <td>${xlChg(dd.yoy)}</td>
+    </tr>
+    ${detail(dd.cur_q_label, dd.cur_q_avg)}
+    ${detail(dd.prev_q_label, dd.prev_q_avg)}
+    ${detail(dd.yoy_q_label, dd.yoy_q_avg)}`;
+  }).join('');
+
   const mkSel = (id, opts) => `<select class="xl-row-sel" id="${id}">${opts}</select>`;
 
   // FY: 2 independently selectable rows
@@ -1082,6 +1114,14 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
           <tbody>${dowRows}</tbody>
         </table>
 
+        <table class="xl-qdow-table">
+          <thead>
+            <tr class="xl-sec-hdr"><td colspan="4">Quarter</td></tr>
+            <tr class="xl-col-hdr"><td>Day</td><td>Val (Latest)</td><td>QoQ</td><td>YoY</td></tr>
+          </thead>
+          <tbody>${qdowRows}</tbody>
+        </table>
+
       </div>
     </div>`;
 }
@@ -1145,6 +1185,21 @@ function xlStaticSegmentBlock(st, label) {
     </tr>`;
   }).join('');
 
+  const qdowRows = dayFull.map((d, i) => {
+    const dd = dow[d] || {};
+    const detail = (label, val) => label
+      ? `<tr class="xl-qdow-detail"><td>${label}</td><td>${xlVal(val)}</td><td></td><td></td></tr>` : '';
+    return `<tr class="xl-r-cur">
+      <td class="xl-day">${dayShort[i]}</td>
+      <td>${xlVal(dd.latest)}</td>
+      <td>${xlChg(dd.qoq)}</td>
+      <td>${xlChg(dd.yoy)}</td>
+    </tr>
+    ${detail(dd.cur_q_label, dd.cur_q_avg)}
+    ${detail(dd.prev_q_label, dd.prev_q_avg)}
+    ${detail(dd.yoy_q_label, dd.yoy_q_avg)}`;
+  }).join('');
+
   return `
     <div class="xl-segment">
       <div class="xl-seg-header">${label} <span class="xl-seg-unit">₹ Cr · daily avg</span></div>
@@ -1183,6 +1238,13 @@ function xlStaticSegmentBlock(st, label) {
             <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td><td>${prevQShortSt} Avg</td><td>vs ${prevQShortSt}</td></tr>
           </thead>
           <tbody>${dowRows}</tbody>
+        </table>
+        <table class="xl-qdow-table">
+          <thead>
+            <tr class="xl-sec-hdr"><td colspan="4">Quarter</td></tr>
+            <tr class="xl-col-hdr"><td>Day</td><td>Val (Latest)</td><td>QoQ</td><td>YoY</td></tr>
+          </thead>
+          <tbody>${qdowRows}</tbody>
         </table>
       </div>
     </div>`;
@@ -1229,6 +1291,15 @@ function combineMarketSummaries() {
     const prevQAvgs = sts.map(s => s.day_of_week?.[d]?.prev_q_avg).filter(v => v != null);
     const prevQAvg  = prevQAvgs.length ? sum(...prevQAvgs) : null;
     const prevQLabel = sts.map(s => s.day_of_week?.[d]?.prev_q_label).find(Boolean);
+
+    // Per-weekday quarter comparison (current / previous / same quarter last year)
+    const curQAvgs = sts.map(s => s.day_of_week?.[d]?.cur_q_avg).filter(v => v != null);
+    const curQAvg  = curQAvgs.length ? sum(...curQAvgs) : null;
+    const curQLabel = sts.map(s => s.day_of_week?.[d]?.cur_q_label).find(Boolean);
+    const yoyQAvgs = sts.map(s => s.day_of_week?.[d]?.yoy_q_avg).filter(v => v != null);
+    const yoyQAvg  = yoyQAvgs.length ? sum(...yoyQAvgs) : null;
+    const yoyQLabel = sts.map(s => s.day_of_week?.[d]?.yoy_q_label).find(Boolean);
+
     dow[d] = {
       latest,
       avg_3d:  avg3d,
@@ -1238,6 +1309,12 @@ function combineMarketSummaries() {
       prev_q_label: prevQLabel,
       prev_q_avg:   prevQAvg,
       do_prev_q:    prevQAvg ? chg(latest, prevQAvg) : null,
+      cur_q_label: curQLabel,
+      cur_q_avg:   curQAvg,
+      yoy_q_label: yoyQLabel,
+      yoy_q_avg:   yoyQAvg,
+      qoq: (curQAvg != null && prevQAvg) ? chg(curQAvg, prevQAvg) : null,
+      yoy: (curQAvg != null && yoyQAvg) ? chg(curQAvg, yoyQAvg) : null,
     };
   });
 
