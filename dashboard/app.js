@@ -448,6 +448,13 @@ async function applyLiveStockPrice(shareData, exchange) {
         Math.abs(shareData.latest.price_pred - sp.last_price) / sp.last_price * 1000
       ) / 10;
     }
+
+    // `series` (not `latest`) feeds every chart — its last row otherwise still
+    // shows yesterday's batch close even after the KPI tile above goes live.
+    const lastRow = shareData.series?.[shareData.series.length - 1];
+    if (lastRow && lastRow.date === shareData.latest.date) {
+      lastRow.price = sp.last_price;
+    }
   } catch (e) {
     // Live price is a nice-to-have — silently fall back to the batch close on any failure
   }
