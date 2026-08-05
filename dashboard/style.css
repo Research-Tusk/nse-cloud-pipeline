@@ -1290,13 +1290,23 @@ span.neutral {
   overflow-x: auto;
 }
 
-/* LEFT: period sections — fixed 37% of content width */
+/* LEFT: period sections — fixed ~34% of content width (three roughly-equal columns) */
 .xl-period-table {
   border-collapse: collapse;
   font-size: 12px;
   table-layout: fixed;
-  width: 37%;           /* % of flex container; fixed via flex-basis */
-  flex: 0 0 37%;
+  width: 34%;           /* % of flex container; fixed via flex-basis */
+  flex: 0 0 34%;
+  border-right: 2px solid var(--color-border);
+}
+
+/* MIDDLE + RIGHT: Day of Week / Quarter wire-tables — equal remaining space */
+.xl-main-row > .wire-table-scroll {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-right: 12px;
+}
+.xl-main-row > .wire-table-scroll:first-of-type {
   border-right: 2px solid var(--color-border);
 }
 
@@ -1305,41 +1315,6 @@ span.neutral {
 .xl-col-val    { width: 20%; }
 .xl-col-chg1   { width: 18%; }
 .xl-col-chg2   { width: 18%; }
-
-/* MIDDLE: DoW — auto column widths from content, more columns so gets more flex */
-.xl-dow-table {
-  border-collapse: collapse;
-  font-size: 12px;
-  table-layout: auto;   /* columns size to content, then expand to fill */
-  flex: 1.5 1 0;
-  min-width: 0;
-  border-right: 2px solid var(--color-border);
-}
-
-/* RIGHT: per-weekday Quarter (QoQ/YoY) comparison — fills remaining space */
-.xl-qdow-table {
-  border-collapse: collapse;
-  font-size: 12px;
-  table-layout: auto;
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-/* Quarter-detail sub-rows (current/prev/YoY quarter labels under each weekday) */
-.xl-qdow-detail td {
-  padding: 3px 8px 3px 20px;
-  color: var(--color-text-faint);
-  font-size: 11px;
-  border-bottom: 1px solid #eef0f3;
-}
-
-.xl-qdow-detail td:first-child {
-  font-weight: 400;
-}
-
-.xl-qdow-table tbody tr:last-child td {
-  border-bottom: none;
-}
 
 /* Section header rows (e.g. "Financial Year", "Quarter") */
 .xl-sec-hdr td {
@@ -1358,91 +1333,44 @@ span.neutral {
   border-top: none;
 }
 
-/* Column header rows (Period | Value | QoQ ...) */
+/* Column header rows (Period | Value | QoQ ...) — exact reference colors:
+   near-black fill, white text, thin red grid border */
 .xl-col-hdr td {
-  background: #f4f5f7;
-  color: var(--color-text-faint);
-  font-size: 10.5px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-bottom: 1px solid var(--color-border);
+  background: #050505;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 7px;
+  border: 1px solid #e31b23;
   white-space: nowrap;
+  text-align: center;
 }
 
-/* Right-align all numeric column headers */
-.xl-col-hdr td:nth-child(n+2) { text-align: right; }
-
 /* Data rows */
-.xl-period-table td,
-.xl-dow-table td,
-.xl-qdow-table td {
+.xl-period-table td {
   padding: 4px 8px;
   white-space: nowrap;
   vertical-align: middle;
-  color: var(--color-text);
+  color: #333333;
   border-bottom: 1px solid #eef0f3;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Last row in each data tbody: no bottom border */
-.xl-sec-data tr:last-child td,
-.xl-dow-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
 /* Period label column */
-.xl-period-table td:first-child,
-.xl-dow-table td:first-child,
-.xl-qdow-table td:first-child {
-  color: var(--color-text-secondary);
+.xl-period-table td:first-child {
+  color: #333333;
   font-size: 12px;
 }
 
 /* Value / change columns — right-aligned */
-.xl-period-table td:nth-child(n+2),
-.xl-dow-table td:nth-child(n+2),
-.xl-qdow-table td:nth-child(n+2) {
+.xl-period-table td:nth-child(n+2) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-/* Full day name in DoW table */
-td.xl-day {
-  font-weight: 600;
-  color: var(--color-text) !important;
-  white-space: nowrap;
-  min-width: 86px; /* fits "Wednesday" at 12px */
-}
-
-/* Prev-week column separator */
-td.xl-prev-wk {
-  border-left: 1px solid var(--color-border);
-  color: var(--color-text-faint);
-}
-
-/* Current period row */
-tr.xl-r-cur td { font-weight: 600; }
-tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
-
-/* Cell-level background for direct % change cells */
-.xl-period-table td:has(> .xl-chg.xl-pos),
-.xl-dow-table   td:has(> .xl-chg.xl-pos),
-.xl-qdow-table  td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
-.xl-period-table td:has(> .xl-chg.xl-neg),
-.xl-dow-table   td:has(> .xl-chg.xl-neg),
-.xl-qdow-table  td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
-
-/* Hover */
-.xl-period-table tbody tr:hover td,
-.xl-dow-table tbody tr:hover td,
-.xl-qdow-table tbody tr:hover td { background: var(--color-bg-elevated); }
-.xl-period-table tbody tr:hover td:has(> .xl-chg.xl-pos),
-.xl-dow-table   tbody tr:hover td:has(> .xl-chg.xl-pos),
-.xl-qdow-table  tbody tr:hover td:has(> .xl-chg.xl-pos) { background: var(--color-positive-bg); }
-.xl-period-table tbody tr:hover td:has(> .xl-chg.xl-neg),
-.xl-dow-table   tbody tr:hover td:has(> .xl-chg.xl-neg),
-.xl-qdow-table  tbody tr:hover td:has(> .xl-chg.xl-neg) { background: var(--color-negative-bg); }
+/* Current/main period row — reference only bolds + darkens the first cell, no box */
+tr.xl-r-cur td:first-child { font-weight: 700; color: #151515; }
 
 /* Number spans */
 .xl-num {
@@ -1450,16 +1378,120 @@ tr.xl-r-cur { background: rgba(37, 99, 235, 0.03); }
   letter-spacing: -0.01em;
 }
 
-/* Change badge */
+/* Change badge — always red-bordered regardless of direction (reference's literal
+   treatment); only the fill/text color signals positive vs negative */
 .xl-chg {
+  display: inline-block;
+  min-width: 44px;
+  padding: 1px 4px;
+  border: 1px solid #e31b23;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  text-align: center;
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
 }
-.xl-chg.xl-pos { color: var(--color-positive); }
-.xl-chg.xl-neg { color: var(--color-negative); }
-.xl-chg.xl-neu { color: var(--color-text-faint); }
+.xl-chg.xl-pos { color: #08711e; background: #c6efce; }
+.xl-chg.xl-neg { color: #a30c15; background: #ffc7ce; }
+.xl-chg.xl-neu { color: #333333; background: #eeeeee; }
+
+/* ============================================
+   WIRE TABLES — Day of Week / Quarter comparison,
+   exact port of the reference's weekday/quarter tables
+   ============================================ */
+
+.wire-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: #333333;
+  background: #ffffff;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wire-table th {
+  height: 28px;
+  padding: 3px 7px;
+  border: 1px solid #e31b23;
+  color: #ffffff;
+  background: #050505;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.wire-table td {
+  height: 26px;
+  padding: 3px 6px;
+  border: 0;
+  line-height: 1.18;
+  vertical-align: middle;
+}
+
+.wire-table td:first-child {
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.wire-value {
+  text-align: right;
+}
+
+.wire-day-main td:first-child {
+  color: #151515;
+  font-weight: 700;
+}
+
+.wire-day-main td {
+  padding-top: 7px;
+}
+
+.wire-day-main:first-child td {
+  padding-top: 3px;
+}
+
+.wire-detail td {
+  height: 23px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.wire-detail td:first-child {
+  color: #4d4d4d;
+}
+
+.wire-day-spacer td {
+  height: 16px;
+  padding: 0;
+}
+
+.quarter-wire-table .wire-day-spacer td {
+  height: 14px;
+}
+
+.wire-delta {
+  border: 1px solid #e31b23 !important;
+  font-weight: 700;
+  text-align: center !important;
+}
+
+.wire-delta.positive { color: #08711e; background: #c6efce; }
+.wire-delta.negative { color: #a30c15; background: #ffc7ce; }
+.wire-delta.neutral   { color: #333333; background: #eeeeee; }
+
+.weekday-wire-table th:first-child { width: 48%; }
+.weekday-wire-table th:nth-child(2) { width: 20%; }
+.weekday-wire-table th:nth-child(3),
+.weekday-wire-table th:nth-child(4) { width: 16%; }
+
+.quarter-wire-table th:first-child { width: 31%; }
+.quarter-wire-table th:nth-child(2) { width: 23%; }
+.quarter-wire-table th:nth-child(3),
+.quarter-wire-table th:nth-child(4) { width: 23%; }
 
 /* Secondary context tag — no cell highlight */
 .xl-tag {

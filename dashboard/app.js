@@ -856,6 +856,32 @@ function xlVal(v) {
   return `<span class="xl-num">${fmt(v)}</span>`;
 }
 
+// ── Wire-table formatters — exact match to the reference's bare-number style
+// (no ₹/Cr, whole-number % deltas, no leading + sign) ─────────────────────────
+function wireVal(v, decimals) {
+  if (v == null || isNaN(v)) return '—';
+  return v.toFixed(decimals);
+}
+
+function xlValPlain(v, decimals) {
+  if (v == null || isNaN(v)) return '<span class="xl-num">—</span>';
+  return `<span class="xl-num">${wireVal(v, decimals)}</span>`;
+}
+
+function wireChg(val) {
+  if (val == null || isNaN(val)) return '<span class="xl-chg xl-neu">—</span>';
+  const pct = Math.round(val * 100);
+  const cls = pct > 0 ? 'xl-pos' : pct < 0 ? 'xl-neg' : 'xl-neu';
+  return `<span class="xl-chg ${cls}">${pct}%</span>`;
+}
+
+function wireDeltaTd(val) {
+  if (val == null || isNaN(val)) return '<td></td>';
+  const pct = Math.round(val * 100);
+  const cls = pct > 0 ? 'positive' : pct < 0 ? 'negative' : 'neutral';
+  return `<td class="wire-delta ${cls}">${pct}%</td>`;
+}
+
 // ── Simple avg getters (no derived comparisons) ───────────────────────────────
 function getFYAvg(fyStr, segKey) {
   const rf = getRevFieldObj(segKey);
@@ -902,11 +928,11 @@ function renderFYRow(rowNum, fyStr, segKey) {
   const cur   = getFYAvg(fyStr, segKey);
   const valEl = document.getElementById('xlFYVal' + rowNum + '-' + segKey);
   const chgEl = document.getElementById('xlFYChg' + rowNum + '-' + segKey);
-  if (valEl) valEl.innerHTML = xlVal(cur?.value);
+  if (valEl) valEl.innerHTML = xlValPlain(cur?.value, 2);
   if (chgEl) {
     if (rowNum === 0) { chgEl.innerHTML = ''; return; }
     const ref = getFYAvg(document.getElementById('xlFY0-' + segKey)?.value, segKey);
-    chgEl.innerHTML = xlChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
+    chgEl.innerHTML = wireChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
   }
 }
 
@@ -914,11 +940,11 @@ function renderQRow(rowNum, qIdx, segKey) {
   const cur   = getQAvg(qIdx, segKey);
   const valEl = document.getElementById('xlQVal' + rowNum + '-' + segKey);
   const chgEl = document.getElementById('xlQChg' + rowNum + '-' + segKey);
-  if (valEl) valEl.innerHTML = xlVal(cur?.value);
+  if (valEl) valEl.innerHTML = xlValPlain(cur?.value, 2);
   if (chgEl) {
     if (rowNum === 0) { chgEl.innerHTML = ''; return; }
     const ref = getQAvg(parseInt(document.getElementById('xlQ0-' + segKey)?.value), segKey);
-    chgEl.innerHTML = xlChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
+    chgEl.innerHTML = wireChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
   }
 }
 
@@ -926,7 +952,7 @@ function renderMRow(rowNum, mIdx, segKey) {
   const cur   = getMAvg(mIdx, segKey);
   const valEl = document.getElementById('xlMVal' + rowNum + '-' + segKey);
   const chgEl = document.getElementById('xlMChg' + rowNum + '-' + segKey);
-  if (valEl) valEl.innerHTML = xlVal(cur?.value);
+  if (valEl) valEl.innerHTML = xlValPlain(cur?.value, 2);
   if (chgEl) {
     if (rowNum === 0) {
       chgEl.innerHTML = '';
@@ -934,12 +960,12 @@ function renderMRow(rowNum, mIdx, segKey) {
       const avg = getM6mAvg(mIdx, segKey);
       const avgValEl = document.getElementById('xlMAvgVal-' + segKey);
       const avgChgEl = document.getElementById('xlMAvgChg-' + segKey);
-      if (avgValEl) avgValEl.innerHTML = xlVal(avg);
-      if (avgChgEl) avgChgEl.innerHTML = xlChg(avg && cur ? (cur.value - avg) / avg : null);
+      if (avgValEl) avgValEl.innerHTML = xlValPlain(avg, 2);
+      if (avgChgEl) avgChgEl.innerHTML = wireChg(avg && cur ? (cur.value - avg) / avg : null);
       return;
     }
     const ref = getMAvg(parseInt(document.getElementById('xlM0-' + segKey)?.value), segKey);
-    chgEl.innerHTML = xlChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
+    chgEl.innerHTML = wireChg(ref && cur ? (ref.value - cur.value) / cur.value : null);
   }
 }
 
@@ -989,49 +1015,43 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const w20 = s.weekly.last20 || {};
   const w50 = s.weekly.last45;
   const dow = s.day_of_week;
-  const pw  = s.previous_week || {};
   const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
   const wRows = [
-    `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>`,
-    `<tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td></td><td></td></tr>`,
-    `<tr><td>Last 20 Days</td><td>${xlVal(w20.value)}</td><td></td><td></td></tr>`,
-    `<tr><td>Last 45 Days</td><td>${xlVal(w50.value)}</td><td></td><td></td></tr>`,
+    `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlValPlain(wl5.value, 2)}</td><td>${wireChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${wireChg(wl5.wo10w)}</span></td></tr>`,
+    `<tr><td>Prev 5 Days</td><td>${xlValPlain(wp5.value, 2)}</td><td></td><td></td></tr>`,
+    `<tr><td>Last 20 Days</td><td>${xlValPlain(w20.value, 2)}</td><td></td><td></td></tr>`,
+    `<tr><td>Last 45 Days</td><td>${xlValPlain(w50.value, 2)}</td><td></td><td></td></tr>`,
   ].join('');
 
-  const prevQLabel = (dow.Monday || dow.Tuesday || dow.Wednesday || dow.Thursday || dow.Friday || {}).prev_q_label;
-  const prevQShort = prevQLabel ? prevQLabel.replace('FY 20', 'FY') : 'Prev Q';
+  const wireDetailRow = (label, val) => label
+    ? `<tr class="wire-detail"><td>${label}</td><td class="wire-value">${wireVal(val, 1)}</td><td></td><td></td></tr>` : '';
+  const wireSpacerRow = '<tr class="wire-day-spacer"><td colspan="4"></td></tr>';
 
   const dowRows = dayFull.map((d) => {
     const dd = dow[d] || {};
-    const pwVal = pw[d];
-    return `<tr>
-      <td class="xl-day">${d}</td>
-      <td>${xlVal(dd.latest)}</td>
-      <td>${xlVal(dd.avg_3d)}</td>
-      <td>${xlChg(dd.do3d)}</td>
-      <td>${xlVal(dd.avg_10d)}</td>
-      <td>${xlChg(dd.do10d)}</td>
-      <td class="xl-prev-wk">${pwVal != null ? xlVal(pwVal) : '<span class="xl-num">—</span>'}</td>
-      <td>${xlVal(dd.prev_q_avg)}</td>
-      <td>${xlChg(dd.do_prev_q)}</td>
-    </tr>`;
-  }).join('');
+    return `<tr class="wire-day-main">
+      <td>${d}</td>
+      <td class="wire-value">${wireVal(dd.latest, 1)}</td>
+      ${wireDeltaTd(dd.do3d)}
+      ${wireDeltaTd(dd.do10d)}
+    </tr>
+    ${wireDetailRow('Average of last 3 ' + d + 's', dd.avg_3d)}
+    ${wireDetailRow('Average of last 10 ' + d + 's', dd.avg_10d)}`;
+  }).join(wireSpacerRow);
 
   const qdowRows = dayFull.map((d) => {
     const dd = dow[d] || {};
-    const detail = (label, val) => label
-      ? `<tr class="xl-qdow-detail"><td>${label}</td><td>${xlVal(val)}</td><td></td><td></td></tr>` : '';
-    return `<tr class="xl-r-cur">
-      <td class="xl-day">${d}</td>
-      <td>${xlVal(dd.latest)}</td>
-      <td>${xlChg(dd.qoq)}</td>
-      <td>${xlChg(dd.yoy)}</td>
+    return `<tr class="wire-day-main">
+      <td>${d}</td>
+      <td class="wire-value">${wireVal(dd.latest, 1)}</td>
+      ${wireDeltaTd(dd.qoq)}
+      ${wireDeltaTd(dd.yoy)}
     </tr>
-    ${detail(dd.cur_q_label, dd.cur_q_avg)}
-    ${detail(dd.prev_q_label, dd.prev_q_avg)}
-    ${detail(dd.yoy_q_label, dd.yoy_q_avg)}`;
-  }).join('');
+    ${wireDetailRow(dd.cur_q_label, dd.cur_q_avg)}
+    ${wireDetailRow(dd.prev_q_label, dd.prev_q_avg)}
+    ${wireDetailRow(dd.yoy_q_label, dd.yoy_q_avg)}`;
+  }).join(wireSpacerRow);
 
   const mkSel = (id, opts) => `<select class="xl-row-sel" id="${id}">${opts}</select>`;
 
@@ -1082,45 +1102,43 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
           </colgroup>
 
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Financial Year</td></tr>
-            <tr class="xl-col-hdr"><td>Year</td><td>Value</td><td>% chg</td><td></td></tr>
+            <tr class="xl-col-hdr"><td>Financial Year</td><td>Total</td><td>% chg</td><td></td></tr>
             ${fyRows}
           </tbody>
 
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Quarter</td></tr>
-            <tr class="xl-col-hdr"><td>Quarter</td><td>Value</td><td>% chg</td><td></td></tr>
+            <tr class="xl-col-hdr"><td>Quarter&gt;&gt;</td><td>Val (In Cr)</td><td>% chg</td><td></td></tr>
             ${qRows}
           </tbody>
 
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Month</td></tr>
-            <tr class="xl-col-hdr"><td>Month</td><td>Value</td><td>% chg</td><td></td></tr>
+            <tr class="xl-col-hdr"><td>Month&gt;&gt;</td><td>Val (In Cr)</td><td>% chg</td><td></td></tr>
             ${mRows}
           </tbody>
 
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Week</td></tr>
-            <tr class="xl-col-hdr"><td>Period</td><td>Value</td><td>WoW</td><td>Wo10W</td></tr>
+            <tr class="xl-col-hdr"><td>Week&gt;&gt;</td><td>Val (In Cr)</td><td>WoW</td><td>Wo 10W</td></tr>
             ${wRows}
           </tbody>
         </table>
 
-        <table class="xl-dow-table">
+        <div class="wire-table-scroll">
+        <table class="wire-table weekday-wire-table">
           <thead>
-            <tr class="xl-sec-hdr"><td colspan="9">Day of Week</td></tr>
-            <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td><td>${prevQShort} Avg</td><td>vs ${prevQShort}</td></tr>
+            <tr><th>Week&gt;&gt;</th><th>Val (In Cr)</th><th>Do 3D</th><th>Do 10D</th></tr>
           </thead>
           <tbody>${dowRows}</tbody>
         </table>
+        </div>
 
-        <table class="xl-qdow-table">
+        <div class="wire-table-scroll">
+        <table class="wire-table quarter-wire-table">
           <thead>
-            <tr class="xl-sec-hdr"><td colspan="4">Quarter</td></tr>
-            <tr class="xl-col-hdr"><td>Day</td><td>Val (Latest)</td><td>QoQ</td><td>YoY</td></tr>
+            <tr><th>Quarter</th><th>Val (In Cr)</th><th>QoQ</th><th>YoY</th></tr>
           </thead>
           <tbody>${qdowRows}</tbody>
         </table>
+        </div>
 
       </div>
     </div>`;
@@ -1138,67 +1156,60 @@ function xlStaticSegmentBlock(st, label) {
   const w20 = (st.weekly || {}).last20 || {};
   const w45 = (st.weekly || {}).last45 || {};
   const dow = st.day_of_week   || {};
-  const pw  = st.previous_week || {};
   const dayFull  = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
-  const dayShort = ['Mon','Tue','Wed','Thu','Fri'];
 
   const curFYLabel  = (q.current?.label  || '').match(/FY \d{4}/)?.[0] || 'Current FY';
   const prevFYLabel = (q.previous?.label || '').match(/FY \d{4}/)?.[0] || 'Prev FY';
 
   const fyRows = `
-    <tr class="xl-r-cur"><td>${curFYLabel}</td><td>${xlVal(fy.current)}</td><td>${xlChg(fy.yoy)}</td><td></td></tr>
-    <tr><td>${prevFYLabel}</td><td>${xlVal(fy.previous)}</td><td></td><td></td></tr>`;
+    <tr class="xl-r-cur"><td>${curFYLabel}</td><td>${xlValPlain(fy.current, 2)}</td><td>${wireChg(fy.yoy)}</td><td></td></tr>
+    <tr><td>${prevFYLabel}</td><td>${xlValPlain(fy.previous, 2)}</td><td></td><td></td></tr>`;
 
   const qRows = [
-    `<tr class="xl-r-cur"><td>${q.current?.label  || '—'}</td><td>${xlVal(q.current?.value)}</td><td>${xlChg(q.current?.qoq)}</td><td></td></tr>`,
-    `<tr><td>${q.previous?.label || '—'}</td><td>${xlVal(q.previous?.value)}</td><td></td><td></td></tr>`,
-    q.prev2 ? `<tr><td>${q.prev2.label}</td><td>${xlVal(q.prev2.value)}</td><td></td><td></td></tr>` : '',
+    `<tr class="xl-r-cur"><td>${q.current?.label  || '—'}</td><td>${xlValPlain(q.current?.value, 2)}</td><td>${wireChg(q.current?.qoq)}</td><td></td></tr>`,
+    `<tr><td>${q.previous?.label || '—'}</td><td>${xlValPlain(q.previous?.value, 2)}</td><td></td><td></td></tr>`,
+    q.prev2 ? `<tr><td>${q.prev2.label}</td><td>${xlValPlain(q.prev2.value, 2)}</td><td></td><td></td></tr>` : '',
   ].join('');
 
   const mRows = `
-    <tr class="xl-r-cur"><td>${m.current?.label  || '—'}</td><td>${xlVal(m.current?.value)}</td><td>${xlChg(m.current?.mom)}</td><td></td></tr>
-    <tr><td>${m.previous?.label || '—'}</td><td>${xlVal(m.previous?.value)}</td><td></td><td></td></tr>
-    <tr><td>${m.avg_6m?.label   || 'Avg 6 Months'}</td><td>${xlVal(m.avg_6m?.value)}</td><td>${xlChg(m.current?.mo6m)}</td><td></td></tr>`;
+    <tr class="xl-r-cur"><td>${m.current?.label  || '—'}</td><td>${xlValPlain(m.current?.value, 2)}</td><td>${wireChg(m.current?.mom)}</td><td></td></tr>
+    <tr><td>${m.previous?.label || '—'}</td><td>${xlValPlain(m.previous?.value, 2)}</td><td></td><td></td></tr>
+    <tr><td>${m.avg_6m?.label   || 'Avg 6 Months'}</td><td>${xlValPlain(m.avg_6m?.value, 2)}</td><td>${wireChg(m.current?.mo6m)}</td><td></td></tr>`;
 
   const wRows = `
-    <tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlVal(wl5.value)}</td><td>${xlChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${xlChg(wl5.wo10w)}</span></td></tr>
-    <tr><td>Prev 5 Days</td><td>${xlVal(wp5.value)}</td><td></td><td></td></tr>
-    <tr><td>Last 20 Days</td><td>${xlVal(w20.value)}</td><td></td><td></td></tr>
-    <tr><td>Last 45 Days</td><td>${xlVal(w45.value)}</td><td></td><td></td></tr>`;
+    <tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlValPlain(wl5.value, 2)}</td><td>${wireChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${wireChg(wl5.wo10w)}</span></td></tr>
+    <tr><td>Prev 5 Days</td><td>${xlValPlain(wp5.value, 2)}</td><td></td><td></td></tr>
+    <tr><td>Last 20 Days</td><td>${xlValPlain(w20.value, 2)}</td><td></td><td></td></tr>
+    <tr><td>Last 45 Days</td><td>${xlValPlain(w45.value, 2)}</td><td></td><td></td></tr>`;
 
-  const prevQLabelSt = (dow.Monday || dow.Tuesday || dow.Wednesday || dow.Thursday || dow.Friday || {}).prev_q_label;
-  const prevQShortSt = prevQLabelSt ? prevQLabelSt.replace('FY 20', 'FY') : 'Prev Q';
+  const wireDetailRow = (label, val) => label
+    ? `<tr class="wire-detail"><td>${label}</td><td class="wire-value">${wireVal(val, 1)}</td><td></td><td></td></tr>` : '';
+  const wireSpacerRow = '<tr class="wire-day-spacer"><td colspan="4"></td></tr>';
 
-  const dowRows = dayFull.map((d, i) => {
+  const dowRows = dayFull.map((d) => {
     const dd = dow[d] || {};
-    const pwVal = pw[d];
-    return `<tr>
-      <td class="xl-day">${dayShort[i]}</td>
-      <td>${xlVal(dd.latest)}</td>
-      <td>${xlVal(dd.avg_3d)}</td>
-      <td>${xlChg(dd.do3d)}</td>
-      <td>${xlVal(dd.avg_10d)}</td>
-      <td>${xlChg(dd.do10d)}</td>
-      <td class="xl-prev-wk">${pwVal != null ? xlVal(pwVal) : '<span class="xl-num">—</span>'}</td>
-      <td>${xlVal(dd.prev_q_avg)}</td>
-      <td>${xlChg(dd.do_prev_q)}</td>
-    </tr>`;
-  }).join('');
-
-  const qdowRows = dayFull.map((d, i) => {
-    const dd = dow[d] || {};
-    const detail = (label, val) => label
-      ? `<tr class="xl-qdow-detail"><td>${label}</td><td>${xlVal(val)}</td><td></td><td></td></tr>` : '';
-    return `<tr class="xl-r-cur">
-      <td class="xl-day">${dayShort[i]}</td>
-      <td>${xlVal(dd.latest)}</td>
-      <td>${xlChg(dd.qoq)}</td>
-      <td>${xlChg(dd.yoy)}</td>
+    return `<tr class="wire-day-main">
+      <td>${d}</td>
+      <td class="wire-value">${wireVal(dd.latest, 1)}</td>
+      ${wireDeltaTd(dd.do3d)}
+      ${wireDeltaTd(dd.do10d)}
     </tr>
-    ${detail(dd.cur_q_label, dd.cur_q_avg)}
-    ${detail(dd.prev_q_label, dd.prev_q_avg)}
-    ${detail(dd.yoy_q_label, dd.yoy_q_avg)}`;
-  }).join('');
+    ${wireDetailRow('Average of last 3 ' + d + 's', dd.avg_3d)}
+    ${wireDetailRow('Average of last 10 ' + d + 's', dd.avg_10d)}`;
+  }).join(wireSpacerRow);
+
+  const qdowRows = dayFull.map((d) => {
+    const dd = dow[d] || {};
+    return `<tr class="wire-day-main">
+      <td>${d}</td>
+      <td class="wire-value">${wireVal(dd.latest, 1)}</td>
+      ${wireDeltaTd(dd.qoq)}
+      ${wireDeltaTd(dd.yoy)}
+    </tr>
+    ${wireDetailRow(dd.cur_q_label, dd.cur_q_avg)}
+    ${wireDetailRow(dd.prev_q_label, dd.prev_q_avg)}
+    ${wireDetailRow(dd.yoy_q_label, dd.yoy_q_avg)}`;
+  }).join(wireSpacerRow);
 
   return `
     <div class="xl-segment">
@@ -1212,40 +1223,38 @@ function xlStaticSegmentBlock(st, label) {
             <col class="xl-col-chg2">
           </colgroup>
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Financial Year</td></tr>
-            <tr class="xl-col-hdr"><td>Year</td><td>Value</td><td>YoY</td><td></td></tr>
+            <tr class="xl-col-hdr"><td>Financial Year</td><td>Total</td><td>YoY</td><td></td></tr>
             ${fyRows}
           </tbody>
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Quarter</td></tr>
-            <tr class="xl-col-hdr"><td>Quarter</td><td>Value</td><td>QoQ</td><td></td></tr>
+            <tr class="xl-col-hdr"><td>Quarter&gt;&gt;</td><td>Val (In Cr)</td><td>QoQ</td><td></td></tr>
             ${qRows}
           </tbody>
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Month</td></tr>
-            <tr class="xl-col-hdr"><td>Month</td><td>Value</td><td>MoM</td><td></td></tr>
+            <tr class="xl-col-hdr"><td>Month&gt;&gt;</td><td>Val (In Cr)</td><td>MoM</td><td></td></tr>
             ${mRows}
           </tbody>
           <tbody class="xl-sec">
-            <tr class="xl-sec-hdr"><td colspan="4">Week</td></tr>
-            <tr class="xl-col-hdr"><td>Period</td><td>Value</td><td>WoW</td><td>Wo10W</td></tr>
+            <tr class="xl-col-hdr"><td>Week&gt;&gt;</td><td>Val (In Cr)</td><td>WoW</td><td>Wo 10W</td></tr>
             ${wRows}
           </tbody>
         </table>
-        <table class="xl-dow-table">
+        <div class="wire-table-scroll">
+        <table class="wire-table weekday-wire-table">
           <thead>
-            <tr class="xl-sec-hdr"><td colspan="9">Day of Week</td></tr>
-            <tr class="xl-col-hdr"><td>Day</td><td>Latest</td><td>3D Avg</td><td>Do3D</td><td>10D Avg</td><td>Do10D</td><td>Prev Wk</td><td>${prevQShortSt} Avg</td><td>vs ${prevQShortSt}</td></tr>
+            <tr><th>Week&gt;&gt;</th><th>Val (In Cr)</th><th>Do 3D</th><th>Do 10D</th></tr>
           </thead>
           <tbody>${dowRows}</tbody>
         </table>
-        <table class="xl-qdow-table">
+        </div>
+        <div class="wire-table-scroll">
+        <table class="wire-table quarter-wire-table">
           <thead>
-            <tr class="xl-sec-hdr"><td colspan="4">Quarter</td></tr>
-            <tr class="xl-col-hdr"><td>Day</td><td>Val (Latest)</td><td>QoQ</td><td>YoY</td></tr>
+            <tr><th>Quarter</th><th>Val (In Cr)</th><th>QoQ</th><th>YoY</th></tr>
           </thead>
           <tbody>${qdowRows}</tbody>
         </table>
+        </div>
       </div>
     </div>`;
 }
