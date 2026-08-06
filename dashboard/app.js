@@ -241,6 +241,7 @@ const EXCHANGE_TABS = {
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
+    { id: 'valuation',  label: 'Valuation Model',       icon: 'advanced' },
   ],
   all: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
@@ -266,6 +267,7 @@ const TAB_TITLES = {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
     share: 'Share Price Analytics',
+    valuation: 'MCX Valuation Model',
   },
   all: {
     revenue: 'Combined Revenue — NSE + BSE + MCX',
@@ -418,6 +420,10 @@ function toggleExchangeContent(exchange) {
   // MCX-only sections
   show('mcxPredictionContent', isMCX);
   show('mcx-share-inner',      isMCX);
+  show('mcxValuationContent',  isMCX);
+
+  // BSE-only (continued)
+  show('bseValuationContent',  isBSE);
 
   // Market share panel — visible for nsebse (NSE+BSE) and all (NSE+BSE+MCX)
   show('marketSharePanel', exchange === 'nsebse' || exchange === 'all');
@@ -512,6 +518,24 @@ async function preloadMarketData() {
 // so the combined value is a true sum-of-daily-averages regardless of each
 // exchange having a different number of trading days in a period.
 // days=1 is stored so computeQuarterMetrics / getMAvg return the value as-is.
+// "Q2 FY 2027" → chronological sort key. Indian FY: Q1=Apr-Jun, Q2=Jul-Sep,
+// Q3=Oct-Dec, Q4=Jan-Mar (of the FY-ending year) — Q1..Q4 within "FY N" already
+// climbs in the right order, so year*10+quarter sorts correctly across years too.
+function quarterSortKey(label) {
+  const m = /^Q(\d)\s+FY\s+(\d+)$/.exec(label);
+  return m ? parseInt(m[2], 10) * 10 + parseInt(m[1], 10) : 0;
+}
+
+// "FY 2027 August" → chronological sort key. Indian FY starts in April.
+const FY_MONTH_ORDER = {
+  April: 1, May: 2, June: 3, July: 4, August: 5, September: 6,
+  October: 7, November: 8, December: 9, January: 10, February: 11, March: 12,
+};
+function monthSortKey(label) {
+  const m = /^FY\s+(\d+)\s+(\w+)$/.exec(label);
+  return m ? parseInt(m[1], 10) * 100 + (FY_MONTH_ORDER[m[2]] || 0) : 0;
+}
+
 function buildCombinedRawData(exList) {
   const raws = exList.map(ex => MARKET_RAW[ex]).filter(Boolean);
   if (!raws.length) return { quarterly: [], monthly: [], daily: [], daily_all: [] };
@@ -526,7 +550,10 @@ function buildCombinedRawData(exList) {
   });
 
   // For each period: sum (rev / own_days) across exchanges → combined daily avg, days=1
-  const quarterly = [...qKeys].sort().map(key => {
+  // NOTE: chronological sort, not the default alphabetical .sort() — "Q4 FY 2026"
+  // would otherwise string-sort after "Q1 FY 2027", scrambling the "latest N
+  // periods" logic downstream (buildRevenueSummary's defQ0..defQ3).
+  const quarterly = [...qKeys].sort((a, b) => quarterSortKey(a) - quarterSortKey(b)).map(key => {
     const out = { quarter: key, days: 1 };
     segFields.forEach(f => {
       out[f] = raws.reduce((sum, raw) => {
@@ -538,7 +565,7 @@ function buildCombinedRawData(exList) {
     return out;
   });
 
-  const monthly = [...mKeys].sort().map(key => {
+  const monthly = [...mKeys].sort((a, b) => monthSortKey(a) - monthSortKey(b)).map(key => {
     const out = { month: key, trading_days: 1, days: 1 };
     segFields.forEach(f => {
       out[f] = raws.reduce((sum, raw) => {
@@ -762,6 +789,7 @@ function rebuildAll() {
   } else if (currentExchange === 'mcx') {
     buildMCXRevenuePredictor();
     buildMCXShareAnalysis();
+    buildMCXValuation();
   }
 }
 
@@ -3679,6 +3707,105 @@ function bseContextRow(label, valueHtml) {
   return `<tr><td>${label}</td><td style="text-align:center;font-variant-numeric:tabular-nums">${valueHtml}</td></tr>`;
 }
 
+// ── Quick Valuation (45-Day ADR → EPS → PE target) — shared by BSE & MCX ──────
+// ADR always defaults to the trailing 45-day average revenue on load/refresh and
+// is deliberately excluded from persistence; PAT margin, other income, and PE
+// ratio persist per exchange via localStorage.
+// NOTE: MCX has no prior valuation baseline in this codebase (unlike BSE's
+// Excel-sourced figures) — its PAT margin/other income/PE defaults below are
+// round-number placeholders, not real financial figures. Shares outstanding for
+// both exchanges is sourced from yfinance (sharesOutstanding for BSE.NS/MCX.NS).
+const QUICK_VAL_SHARES_CR = { bse: 40.73, mcx: 25.45 };
+const QUICK_VAL_DEFAULTS = {
+  bse: { patMarginPct: 52, otherIncomeCr: 2055.39, peRatio: 45, tradingDays: 247 },
+  mcx: { patMarginPct: 50, otherIncomeCr: 0,        peRatio: 30, tradingDays: 247 },
+};
+
+function quickValStorageKey(exchange) { return `quickValuation_${exchange}_v1`; }
+
+function loadQuickValAssumptions(exchange, defaultAdr) {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(quickValStorageKey(exchange)) || '{}'); } catch {}
+  // adr is intentionally excluded from what's restored — always the fresh 45-day average
+  return { ...QUICK_VAL_DEFAULTS[exchange], ...saved, adr: defaultAdr };
+}
+
+function saveQuickValAssumptions(exchange, a) {
+  const { adr, ...persisted } = a; // never persist adr
+  try { localStorage.setItem(quickValStorageKey(exchange), JSON.stringify(persisted)); } catch {}
+}
+
+function computeQuickValuation(exchange, a, cmp) {
+  const annualRevenue = a.adr * a.tradingDays;
+  const totalIncome   = annualRevenue + a.otherIncomeCr;
+  const pat            = totalIncome * a.patMarginPct / 100;
+  const shares          = QUICK_VAL_SHARES_CR[exchange];
+  const eps              = shares ? pat / shares : null;
+  const targetPrice     = eps != null ? eps * a.peRatio : null;
+  const upside          = (targetPrice != null && cmp) ? targetPrice / cmp - 1 : null;
+  return { annualRevenue, totalIncome, pat, eps, targetPrice, upside };
+}
+
+function qvCellInput(exchange, key, value, step) {
+  return `<input type="number" step="${step ?? '0.1'}" class="param-input" style="width:90px;text-align:center" data-qv-exch="${exchange}" data-qv-key="${key}" value="${value}">`;
+}
+
+// Renders the Quick Valuation panel into `el` and wires up its inputs.
+// `dailySeries` = the exchange's sorted daily rows (drives the 45-day ADR default).
+// `cmp` = current market price for the upside readout, may be null.
+function buildQuickValuationPanel(el, exchange, dailySeries, cmp) {
+  if (!el) return;
+  const last45 = dailySeries.slice(-45);
+  const defaultAdr = last45.length ? last45.reduce((s, r) => s + (r.total_rev || 0), 0) / last45.length : 0;
+
+  let a = loadQuickValAssumptions(exchange, defaultAdr);
+  let result = computeQuickValuation(exchange, a, cmp);
+
+  function updateOutputs() {
+    const set = (id, html) => { const node = document.getElementById(id); if (node) node.innerHTML = html; };
+    set(`qv-${exchange}-annualRevenue`, fmt(result.annualRevenue));
+    set(`qv-${exchange}-totalIncome`,   fmt(result.totalIncome));
+    set(`qv-${exchange}-pat`,           fmt(result.pat));
+    set(`qv-${exchange}-eps`,           result.eps != null ? '₹' + fmtNum(result.eps, 2) : '—');
+    set(`qv-${exchange}-target`,        result.targetPrice != null ? fmtPrice(result.targetPrice) : '—');
+    set(`qv-${exchange}-upside`,        fmtPctSigned(result.upside));
+  }
+
+  el.innerHTML = `
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div class="chart-title">Quick Valuation — 45-Day ADR <span class="chart-badge">Default</span></div>
+    <p class="section-desc">ADR defaults to the trailing 45-day average revenue every time this page loads — edit it freely, it just won't be remembered on refresh. PAT margin, other income, and PE ratio are saved.</p>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <tbody>
+          ${bseContextRow('Average Daily Revenue — 45D (₹ Cr)', qvCellInput(exchange, 'adr', fmtNum(a.adr, 2), '0.01'))}
+          ${bseContextRow('Trading Days / Year', a.tradingDays)}
+          ${bseContextRow('Annual Transaction Revenue (₹ Cr)', `<span id="qv-${exchange}-annualRevenue"></span>`)}
+          ${bseContextRow('Other Income (₹ Cr)', qvCellInput(exchange, 'otherIncomeCr', a.otherIncomeCr, '1'))}
+          ${bseContextRow('Total Income (₹ Cr)', `<span id="qv-${exchange}-totalIncome"></span>`)}
+          ${bseContextRow('PAT Margin (%)', qvCellInput(exchange, 'patMarginPct', a.patMarginPct, '0.5'))}
+          ${bseContextRow('<strong>PAT (₹ Cr)</strong>', `<strong><span id="qv-${exchange}-pat"></span></strong>`)}
+          ${bseContextRow('<strong>Expected EPS (₹)</strong>', `<strong><span id="qv-${exchange}-eps"></span></strong>`)}
+          ${bseContextRow('PE Ratio (x)', qvCellInput(exchange, 'peRatio', a.peRatio, '1'))}
+          ${bseContextRow('<strong>Target Share Price</strong>', `<strong><span id="qv-${exchange}-target"></span></strong>`)}
+          ${bseContextRow('Upside vs CMP', `<span id="qv-${exchange}-upside"></span>`)}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+
+  updateOutputs();
+
+  el.querySelectorAll(`[data-qv-exch="${exchange}"]`).forEach(input => {
+    input.addEventListener('input', () => {
+      a[input.dataset.qvKey] = parseFloat(input.value) || 0;
+      result = computeQuickValuation(exchange, a, cmp);
+      updateOutputs();
+      saveQuickValAssumptions(exchange, a);
+    });
+  });
+}
+
 async function buildBSEValuation() {
   const el = document.getElementById('bseValuationContent');
   if (!el) return;
@@ -3774,6 +3901,7 @@ async function buildBSEValuation() {
     </tr>`).join('');
 
   el.innerHTML = `
+  <div id="bseQuickValPanel"></div>
   <div class="chart-panel" style="margin-bottom:var(--space-4)">
     <div class="chart-title">1 · Triangulated Target Price <span class="chart-badge">Live</span></div>
     <p class="section-desc">Average of the ADR (Annual Predictor Base case), 45-day regression, and analyst-consensus target prices, shown against CMP.</p>
@@ -3907,6 +4035,7 @@ async function buildBSEValuation() {
   </div>`;
 
   updateOutputs();
+  buildQuickValuationPanel(el.querySelector('#bseQuickValPanel'), 'bse', bseSeries, tri.cmp);
   el.querySelector('#bseValTrendTables').innerHTML =
     xlStaticSegmentBlock(ENRICHED_DATA.summary_total, 'Total') +
     xlStaticSegmentBlock(ENRICHED_DATA.seg_options, 'Options') +
@@ -4276,6 +4405,18 @@ function buildMCXShareAnalysis() {
       refreshMCXCharts();
     });
   });
+}
+
+function buildMCXValuation() {
+  const el = document.getElementById('mcxValuationContent');
+  if (!el) return;
+
+  const mcxSeries = bseDailySeries(DATA);
+  if (!mcxSeries.length) { el.innerHTML = ''; return; }
+  const cmp = SHARE_DATA?.latest?.price_actual ?? null;
+
+  el.innerHTML = `<div id="mcxQuickValPanel"></div>`;
+  buildQuickValuationPanel(el.querySelector('#mcxQuickValPanel'), 'mcx', mcxSeries, cmp);
 }
 
 function kpi(title, value, sub, sentiment) {

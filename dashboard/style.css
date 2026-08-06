@@ -1342,7 +1342,11 @@ span.neutral {
 
 /* Column header rows (Period | Value | QoQ ...) — exact reference colors:
    near-black fill, white text, thin red grid border */
-.xl-col-hdr td {
+/* Qualified with `tr` to out-specificity the generic .xl-period-table td rule
+   below (same class+element specificity otherwise, and this one is defined
+   first — without the bump its white text got overridden to the dark gray
+   body-row color). */
+tr.xl-col-hdr td {
   background: #050505;
   color: #ffffff;
   font-size: 12px;
@@ -1370,6 +1374,12 @@ span.neutral {
   font-size: 12px;
 }
 
+/* First-column header cell needs to stay white — :first-child above out-specifies
+   the plain tr.xl-col-hdr td rule, so this needs the same bump. */
+tr.xl-col-hdr td:first-child {
+  color: #ffffff;
+}
+
 /* Value / change columns — right-aligned */
 .xl-period-table td:nth-child(n+2) {
   text-align: right;
@@ -1389,7 +1399,7 @@ tr.xl-r-cur td:first-child { font-weight: 700; color: #151515; }
    treatment); only the fill/text color signals positive vs negative */
 .xl-chg {
   display: inline-block;
-  min-width: 44px;
+  box-sizing: border-box;
   padding: 1px 4px;
   border: 1px solid #e31b23;
   font-size: 12px;
