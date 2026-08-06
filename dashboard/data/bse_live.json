@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-06T12:29:56",
+  "updated_at": "2026-08-06T12:53:39",
   "sensex": {
     "last": 78954.76,
     "change": 373.76,
@@ -34,11 +34,11 @@
     "source": "live"
   },
   "stock_price": {
-    "last_price": 3482.6,
+    "last_price": 3435.0,
     "previous_close": 3534.6,
     "open": 3534.6,
     "day_high": 3536.8,
-    "day_low": 3473.0,
-    "pct_change": -1.47
+    "day_low": 3432.0,
+    "pct_change": -2.82
   }
 }
