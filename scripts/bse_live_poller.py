@@ -123,6 +123,13 @@ def fetch_turnover():
     deriv_notional  = _parse(deriv.get("Turnover"))
     deriv_premium   = _parse(deriv.get("PermiumTurnover"))
 
+    # BSE returns the literal "-" when a field hasn't posted for the session yet
+    # (distinct from a genuine 0, which comes through as "0"/"0.00"). Track that
+    # separately so callers don't treat a cash-only total as a complete one.
+    def _is_pending(raw):
+        return raw is None or str(raw).strip() in ("", "-")
+    options_pending = _is_pending(deriv.get("PermiumTurnover")) and not _is_pending(eq.get("Turnover"))
+
     # Revenue — BSE derivatives are overwhelmingly Sensex options.
     # Derivatives.Turnover is the full notional (futures + options notional),
     # so we cannot separate futures notional cleanly. Since BSE futures volume
@@ -149,6 +156,8 @@ def fetch_turnover():
             f"Fut ₹{fut_rev:.4f} Cr | "
             f"Total ₹{total_rev:.4f} Cr"
         )
+        if options_pending:
+            print("  NOTE: options premium not yet posted by BSE — total above is cash-only")
     else:
         print("  Turnover: no data")
 
@@ -162,6 +171,7 @@ def fetch_turnover():
         "futures_revenue":         round(fut_rev,   4),
         "total_revenue":           round(total_rev, 4),
         "has_data":                has_data,
+        "options_pending":         options_pending,
         "source":                  "live",
     }
 

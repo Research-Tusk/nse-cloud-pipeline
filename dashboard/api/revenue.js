@@ -111,6 +111,10 @@ async function fetchBSEDirect() {
   const rows = body?.Data || [];
 
   function find(name) { return rows.find(r => r.HeaderName?.toLowerCase() === name.toLowerCase()) || {}; }
+  // BSE returns the literal string "-" when a field hasn't posted for the session yet
+  // (distinct from a genuine 0, which comes through as "0"/"0.00") — track that
+  // separately so we don't silently understate revenue as a "complete" total.
+  function isPending(raw) { return raw == null || String(raw).trim() === '' || String(raw).trim() === '-'; }
   function parse(val) {
     if (!val || String(val).trim() === '-') return 0;
     return parseFloat(String(val).replace(/,/g, '')) || 0;
@@ -121,6 +125,9 @@ async function fetchBSEDirect() {
 
   const eq_turnover   = parse(eq.Turnover);
   const deriv_premium = parse(deriv.PermiumTurnover);
+  // Options premium not yet posted while cash equity already has live data —
+  // total_rev below would otherwise look like a complete (cash-only) total.
+  const options_pending = isPending(deriv.PermiumTurnover) && !isPending(eq.Turnover);
 
   const cash_rev  = eq_turnover   * TR_CASH_BSE;
   const opt_rev   = deriv_premium * TR_OPT_BSE;
@@ -139,6 +146,7 @@ async function fetchBSEDirect() {
     total_revenue: Math.round(total_rev * 100) / 100,
     trade_date,
     has_data,
+    options_pending,
     source: 'direct',
   };
 }

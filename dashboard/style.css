@@ -565,6 +565,13 @@ html, body {
   background: var(--color-positive-bg);
   border-radius: 0;
   padding: 1px 4px;
+  cursor: default;
+}
+
+/* Cash-only total — BSE options premium not yet posted for the session */
+.rev-banner-partial {
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
 }
 
 /* =========================

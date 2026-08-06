@@ -711,12 +711,15 @@ async function updateLatestRevBanner() {
 
   function chip(label, info) {
     if (!info) return '';
-    const isLive = info.source !== 'historical';
-    const liveTag = isLive ? '<span class="rev-banner-live">LIVE</span>' : '';
+    const isLive  = info.source !== 'historical';
+    const partial = isLive && !!info.options_pending;
+    const liveTag = !isLive ? '' : partial
+      ? '<span class="rev-banner-live rev-banner-partial" title="Cash revenue only — BSE has not posted options premium turnover for this session yet">PARTIAL</span>'
+      : '<span class="rev-banner-live">LIVE</span>';
     return '<span class="rev-banner-chip">' +
       '<span class="rev-banner-label">' + label + '</span>' +
       liveTag +
-      '<span class="rev-banner-value">₹ ' + Number(info.total_revenue).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Cr</span>' +
+      '<span class="rev-banner-value"' + (partial ? ' title="Options premium not yet posted — cash revenue only"' : '') + '>₹ ' + Number(info.total_revenue).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Cr</span>' +
       '<span class="rev-banner-date">' + formatDate(info.trade_date) + '</span>' +
       '</span>';
   }
