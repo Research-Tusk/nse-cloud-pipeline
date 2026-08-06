@@ -1396,15 +1396,23 @@ tr.xl-r-cur td:first-child { font-weight: 700; color: #151515; }
 }
 
 /* Change badge — always red-bordered regardless of direction (reference's literal
-   treatment); only the fill/text color signals positive vs negative */
+   treatment); only the fill/text color signals positive vs negative.
+   Fills its cell edge-to-edge (border sits at the cell boundary) so it reads
+   as a fixed-size box, matching the wire-tables' .wire-delta cells. */
+.xl-period-table td:has(> .xl-chg) {
+  padding: 0;
+}
 .xl-chg {
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
-  padding: 1px 4px;
+  width: 100%;
+  height: 100%;
+  padding: 4px 4px;
   border: 1px solid #e31b23;
   font-size: 12px;
   font-weight: 700;
-  text-align: center;
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
 }
