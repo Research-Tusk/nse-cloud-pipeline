@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-06T11:05:23",
+  "updated_at": "2026-08-06T12:50:16",
   "market_status": {
     "marketState": [
       {
@@ -14,13 +14,13 @@
       },
       {
         "market": "Currency",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "06-Aug-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Commodity",
@@ -34,13 +34,13 @@
       },
       {
         "market": "Debt",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "06-Aug-2026",
         "index": "",
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "index": "NIFTY50 USD",
@@ -51,13 +51,13 @@
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Open",
+        "marketStatus": "Closed",
         "tradeDate": "06-Aug-2026",
         "index": "",
         "last": "95.0100",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open",
+        "marketStatusMessage": "Market is Closed",
         "expiryDate": "07-Aug-2026",
         "underlying": "USDINR",
         "updated_time": "06-Aug-2026 14:59",
@@ -88,16 +88,16 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 48606,
-      "DAYCHANGE": 2,
+      "CONTRACTSTRADED": 49762,
+      "DAYCHANGE": -20,
       "EXPIRYDATE": "25-Aug-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 24750,
+      "LASTPRICE": 24728,
       "OPTIONTYPE": "-",
-      "PERCHANGE": 0.01,
+      "PERCHANGE": -0.08,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "06-Aug-2026 16:33",
+      "TIMESTMP": "06-Aug-2026 18:18",
       "id": "1/NIFTYFUTIDX25-Aug-2026--"
     },
     "niftyusd": {
