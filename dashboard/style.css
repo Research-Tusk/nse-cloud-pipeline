@@ -1510,16 +1510,6 @@ tr.xl-r-cur td:first-child { font-weight: 700; color: #151515; }
 .quarter-wire-table th:nth-child(3),
 .quarter-wire-table th:nth-child(4) { width: 23%; }
 
-/* Secondary context tag — no cell highlight */
-.xl-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 11px;
-  color: var(--color-text-faint);
-  font-weight: 500;
-}
-
 /* =========================
    NSE+BSE MARKET SHARE PANEL
    ========================= */

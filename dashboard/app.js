@@ -230,6 +230,7 @@ const EXCHANGE_TABS = {
   nse: [
     { id: 'revenue',    label: 'Revenue Summary',    icon: 'revenue' },
     { id: 'prediction', label: 'PAT Prediction',      icon: 'prediction' },
+    { id: 'valuation',  label: 'Valuation Model',     icon: 'advanced' },
   ],
   bse: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
@@ -256,6 +257,7 @@ const TAB_TITLES = {
   nse: {
     revenue: 'Revenue Summary',
     prediction: 'PAT Prediction Engine',
+    valuation: 'NSE Valuation Model',
   },
   bse: {
     revenue: 'Revenue Summary',
@@ -408,6 +410,7 @@ function toggleExchangeContent(exchange) {
   show('nseAdvancedContent',  isNSE);
   show('nseExecExtras',       isNSE);
   show('nsePredictionContent', isNSE);
+  show('nseValuationContent', isNSE);
 
   // BSE-only sections
   show('bseSegmentContent',   isBSE);
@@ -782,6 +785,7 @@ function rebuildAll() {
     initNSEPATPredictor();
     initNSEPEValuation();
     initNSEPrediction();
+    buildNSEValuation();
   } else if (currentExchange === 'bse') {
     buildBSERevenuePredictor();
     buildBSEShareAnalysis();
@@ -1049,7 +1053,7 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
   const wRows = [
-    `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlValPlain(wl5.value, 2)}</td><td>${wireChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${wireChg(wl5.wo10w)}</span></td></tr>`,
+    `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlValPlain(wl5.value, 2)}</td><td>${wireChg(wl5.wow)}</td><td>${wireChg(wl5.wo10w)}</td></tr>`,
     `<tr><td>Prev 5 Days</td><td>${xlValPlain(wp5.value, 2)}</td><td></td><td></td></tr>`,
     `<tr><td>Last 20 Days</td><td>${xlValPlain(w20.value, 2)}</td><td></td><td></td></tr>`,
     `<tr><td>Last 45 Days</td><td>${xlValPlain(w50.value, 2)}</td><td></td><td></td></tr>`,
@@ -1208,7 +1212,7 @@ function xlStaticSegmentBlock(st, label) {
     <tr><td>${m.avg_6m?.label   || 'Avg 6 Months'}</td><td>${xlValPlain(m.avg_6m?.value, 2)}</td><td>${wireChg(m.current?.mo6m)}</td><td></td></tr>`;
 
   const wRows = `
-    <tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlValPlain(wl5.value, 2)}</td><td>${wireChg(wl5.wow)}</td><td><span class="xl-tag">Wo10W ${wireChg(wl5.wo10w)}</span></td></tr>
+    <tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlValPlain(wl5.value, 2)}</td><td>${wireChg(wl5.wow)}</td><td>${wireChg(wl5.wo10w)}</td></tr>
     <tr><td>Prev 5 Days</td><td>${xlValPlain(wp5.value, 2)}</td><td></td><td></td></tr>
     <tr><td>Last 20 Days</td><td>${xlValPlain(w20.value, 2)}</td><td></td><td></td></tr>
     <tr><td>Last 45 Days</td><td>${xlValPlain(w45.value, 2)}</td><td></td><td></td></tr>`;
@@ -3715,11 +3719,20 @@ function bseContextRow(label, valueHtml) {
 // Excel-sourced figures) — its PAT margin/other income/PE defaults below are
 // round-number placeholders, not real financial figures. Shares outstanding for
 // both exchanges is sourced from yfinance (sharesOutstanding for BSE.NS/MCX.NS).
-const QUICK_VAL_SHARES_CR = { bse: 40.73, mcx: 25.45 };
+// NSE's 247.5 Cr is not a fresh guess — it's the implied share count (PAT/EPS)
+// already baked into this codebase's own NSE PAT Prediction Engine data
+// (dashboard/data/nse_dashboard_data.json's pnl/pnl_predicted_quarters), stable
+// at ~247.4-247.7 Cr across every quarter checked.
+const QUICK_VAL_SHARES_CR = { bse: 40.73, mcx: 25.45, nse: 247.5 };
 const QUICK_VAL_DEFAULTS = {
-  bse: { patMarginPct: 52, otherIncomeCr: 2055.39, peRatio: 45, tradingDays: 247 },
-  mcx: { patMarginPct: 50, otherIncomeCr: 0,        peRatio: 30, tradingDays: 247 },
+  bse: { patMarginPct: 52, otherIncomeMode: 'fixed', otherIncomeCr: 2055.39, peBear: 40, peBase: 45, peBull: 50, tradingDays: 247 },
+  mcx: { patMarginPct: 50, otherIncomeMode: 'fixed', otherIncomeCr: 0,        peBear: 25, peBase: 30, peBull: 35, tradingDays: 247 },
+  // NSE has no CMP (unlisted — not traded on itself or any other exchange), and
+  // its other income is modeled as a % of total revenue (incl. other income)
+  // rather than a fixed ₹Cr figure, per the user's explicit assumption.
+  nse: { patMarginPct: 55, otherIncomeMode: 'pctOfTotal', otherIncomePct: 30, peBear: 25, peBase: 35, peBull: 45, tradingDays: 247 },
 };
+const QUICK_VAL_SCENARIOS = ['bear', 'base', 'bull'];
 
 function quickValStorageKey(exchange) { return `quickValuation_${exchange}_v1`; }
 
@@ -3737,13 +3750,28 @@ function saveQuickValAssumptions(exchange, a) {
 
 function computeQuickValuation(exchange, a, cmp) {
   const annualRevenue = a.adr * a.tradingDays;
-  const totalIncome   = annualRevenue + a.otherIncomeCr;
+  let otherIncomeCr, totalIncome;
+  if (a.otherIncomeMode === 'pctOfTotal') {
+    // otherIncome = pct% of (annualRevenue + otherIncome), solved algebraically:
+    // otherIncome = annualRevenue * pct/(100-pct)
+    const pct = Math.min(a.otherIncomePct, 99.9);
+    otherIncomeCr = annualRevenue * (pct / (100 - pct));
+    totalIncome   = annualRevenue + otherIncomeCr;
+  } else {
+    otherIncomeCr = a.otherIncomeCr;
+    totalIncome   = annualRevenue + otherIncomeCr;
+  }
   const pat            = totalIncome * a.patMarginPct / 100;
   const shares          = QUICK_VAL_SHARES_CR[exchange];
   const eps              = shares ? pat / shares : null;
-  const targetPrice     = eps != null ? eps * a.peRatio : null;
-  const upside          = (targetPrice != null && cmp) ? targetPrice / cmp - 1 : null;
-  return { annualRevenue, totalIncome, pat, eps, targetPrice, upside };
+  const scenarios = {};
+  QUICK_VAL_SCENARIOS.forEach(key => {
+    const pe          = a['pe' + key[0].toUpperCase() + key.slice(1)]; // peBear/peBase/peBull
+    const targetPrice = eps != null ? eps * pe : null;
+    const upside       = (targetPrice != null && cmp) ? targetPrice / cmp - 1 : null;
+    scenarios[key] = { pe, targetPrice, upside };
+  });
+  return { annualRevenue, otherIncomeCr, totalIncome, pat, eps, cmp, scenarios };
 }
 
 function qvCellInput(exchange, key, value, step) {
@@ -3761,34 +3789,59 @@ function buildQuickValuationPanel(el, exchange, dailySeries, cmp) {
   let a = loadQuickValAssumptions(exchange, defaultAdr);
   let result = computeQuickValuation(exchange, a, cmp);
 
+  const pctMode = a.otherIncomeMode === 'pctOfTotal';
+
   function updateOutputs() {
     const set = (id, html) => { const node = document.getElementById(id); if (node) node.innerHTML = html; };
     set(`qv-${exchange}-annualRevenue`, fmt(result.annualRevenue));
+    if (pctMode) set(`qv-${exchange}-otherIncomeComputed`, fmt(result.otherIncomeCr));
     set(`qv-${exchange}-totalIncome`,   fmt(result.totalIncome));
     set(`qv-${exchange}-pat`,           fmt(result.pat));
     set(`qv-${exchange}-eps`,           result.eps != null ? '₹' + fmtNum(result.eps, 2) : '—');
-    set(`qv-${exchange}-target`,        result.targetPrice != null ? fmtPrice(result.targetPrice) : '—');
-    set(`qv-${exchange}-upside`,        fmtPctSigned(result.upside));
+    set(`qv-${exchange}-cmp`,           result.cmp != null ? fmtPrice(result.cmp) : '— (unlisted)');
+    QUICK_VAL_SCENARIOS.forEach(key => {
+      const s = result.scenarios[key];
+      set(`qv-${exchange}-target-${key}`, s.targetPrice != null ? fmtPrice(s.targetPrice) : '—');
+      set(`qv-${exchange}-upside-${key}`, fmtPctSigned(s.upside));
+    });
   }
+
+  const scenarioCols = QUICK_VAL_SCENARIOS.map(key => `
+    <td style="text-align:center">${qvCellInput(exchange, 'pe' + key[0].toUpperCase() + key.slice(1), a['pe' + key[0].toUpperCase() + key.slice(1)], '1')}</td>`).join('');
+  const targetCols = QUICK_VAL_SCENARIOS.map(key => `<td id="qv-${exchange}-target-${key}" style="text-align:center"></td>`).join('');
+  const upsideCols = QUICK_VAL_SCENARIOS.map(key => `<td id="qv-${exchange}-upside-${key}" style="text-align:center"></td>`).join('');
+
+  const otherIncomeRows = pctMode
+    ? bseContextRow('Other Income (% of Total Revenue)', qvCellInput(exchange, 'otherIncomePct', a.otherIncomePct, '1'))
+      + bseContextRow('Other Income, implied (₹ Cr)', `<span id="qv-${exchange}-otherIncomeComputed"></span>`)
+    : bseContextRow('Other Income (₹ Cr)', qvCellInput(exchange, 'otherIncomeCr', a.otherIncomeCr, '1'));
 
   el.innerHTML = `
   <div class="chart-panel" style="margin-bottom:var(--space-4)">
     <div class="chart-title">Quick Valuation — 45-Day ADR <span class="chart-badge">Default</span></div>
-    <p class="section-desc">ADR defaults to the trailing 45-day average revenue every time this page loads — edit it freely, it just won't be remembered on refresh. PAT margin, other income, and PE ratio are saved.</p>
-    <div style="overflow-x:auto">
+    <p class="section-desc">ADR defaults to the trailing 45-day average revenue every time this page loads — edit it freely, it just won't be remembered on refresh. PAT margin, other income, PE ratios, and CMP-derived targets are saved.${pctMode ? ' Other income here is solved so it equals the given % of total revenue (transaction revenue + other income), not a flat add-on.' : ''}</p>
+    <div style="overflow-x:auto;margin-bottom:var(--space-3)">
       <table class="data-table">
         <tbody>
           ${bseContextRow('Average Daily Revenue — 45D (₹ Cr)', qvCellInput(exchange, 'adr', fmtNum(a.adr, 2), '0.01'))}
           ${bseContextRow('Trading Days / Year', a.tradingDays)}
           ${bseContextRow('Annual Transaction Revenue (₹ Cr)', `<span id="qv-${exchange}-annualRevenue"></span>`)}
-          ${bseContextRow('Other Income (₹ Cr)', qvCellInput(exchange, 'otherIncomeCr', a.otherIncomeCr, '1'))}
+          ${otherIncomeRows}
           ${bseContextRow('Total Income (₹ Cr)', `<span id="qv-${exchange}-totalIncome"></span>`)}
           ${bseContextRow('PAT Margin (%)', qvCellInput(exchange, 'patMarginPct', a.patMarginPct, '0.5'))}
           ${bseContextRow('<strong>PAT (₹ Cr)</strong>', `<strong><span id="qv-${exchange}-pat"></span></strong>`)}
           ${bseContextRow('<strong>Expected EPS (₹)</strong>', `<strong><span id="qv-${exchange}-eps"></span></strong>`)}
-          ${bseContextRow('PE Ratio (x)', qvCellInput(exchange, 'peRatio', a.peRatio, '1'))}
-          ${bseContextRow('<strong>Target Share Price</strong>', `<strong><span id="qv-${exchange}-target"></span></strong>`)}
-          ${bseContextRow('Upside vs CMP', `<span id="qv-${exchange}-upside"></span>`)}
+          ${bseContextRow('CMP — Current Price Estimate (₹)', `<span id="qv-${exchange}-cmp"></span>`)}
+        </tbody>
+      </table>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Metric</th><th style="text-align:center">Bear</th><th style="text-align:center">Base</th><th style="text-align:center">Bull</th></tr></thead>
+        <tbody>
+          <tr><td>PE Ratio (x)</td>${scenarioCols}</tr>
+          <tr style="font-weight:600"><td>Target Share Price</td>${targetCols}</tr>
+          <tr><td>Upside vs CMP</td>${upsideCols}</tr>
         </tbody>
       </table>
     </div>
@@ -4405,6 +4458,19 @@ function buildMCXShareAnalysis() {
       refreshMCXCharts();
     });
   });
+}
+
+// NSE has no CMP — it is unlisted, not traded on itself or any other exchange —
+// so upside-vs-CMP will always show "—" here; that's expected, not a bug.
+function buildNSEValuation() {
+  const el = document.getElementById('nseValuationContent');
+  if (!el) return;
+
+  const nseSeries = bseDailySeries(DATA);
+  if (!nseSeries.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `<div id="nseQuickValPanel"></div>`;
+  buildQuickValuationPanel(el.querySelector('#nseQuickValPanel'), 'nse', nseSeries, null);
 }
 
 function buildMCXValuation() {
