@@ -769,7 +769,16 @@ def main():
                 existing = json.load(f)
             all_daily = existing.get("daily_all", [])
             existing_dates_local = {d["date"] for d in all_daily}
-            new_local = [r for r in new_parsed if r["date"] not in existing_dates_local]
+            # Dates previously recorded with no F&O data (cash-only fallback from a
+            # data-posting lag, see "Also handle cash-only dates" above) — if freshly
+            # fetched data now has F&O for that date, replace the stale record instead
+            # of skipping it forever. Mirrors fetch_zero_fo_dates() in the Supabase path.
+            zero_fo_dates_local = {d["date"] for d in all_daily if not d.get("fo_rev")}
+            correctable = {r["date"] for r in new_parsed if r["date"] in zero_fo_dates_local and r.get("fo_rev")}
+            if correctable:
+                print(f"Correcting {len(correctable)} previously cash-only date(s) now that F&O data has posted: {sorted(correctable)}")
+                all_daily = [d for d in all_daily if d["date"] not in correctable]
+            new_local = [r for r in new_parsed if r["date"] not in existing_dates_local or r["date"] in correctable]
             all_daily = sorted(all_daily + new_local, key=lambda x: x["date"])
         else:
             all_daily = sorted(new_parsed, key=lambda x: x["date"])
