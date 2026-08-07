@@ -33,9 +33,9 @@ DATA_DIR = PROJECT_ROOT / "data"
 DASHBOARD_DIR = PROJECT_ROOT / "dashboard"
 
 # ── Take Rates ──
-TR_FUT  = 3.46e-05
-TR_OPT  = 7.006e-04
-TR_CASH = 5.94e-05
+TR_FUT  = 3.66e-05
+TR_OPT  = 7.106e-04
+TR_CASH = 6.14e-05
 
 
 # ═══════════════════════════════════════════════════════════════

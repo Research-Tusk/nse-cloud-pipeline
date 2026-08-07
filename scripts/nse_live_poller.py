@@ -44,9 +44,9 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # ---------------------------------------------------------------------------
 # Take rates  (one-side × 2 = round-trip)
 # ---------------------------------------------------------------------------
-TR_FUT  = 0.00173 / 100 * 2   # Futures  on INR turnover
-TR_OPT  = 0.03503 / 100 * 2   # Options  on premium turnover
-TR_CASH = 0.00297 / 100 * 2   # Cash     on traded value
+TR_FUT  = 0.00183 / 100 * 2   # Futures  on INR turnover
+TR_OPT  = 0.03553 / 100 * 2   # Options  on premium turnover
+TR_CASH = 0.00307 / 100 * 2   # Cash     on traded value
 
 # ---------------------------------------------------------------------------
 # NSE endpoints
