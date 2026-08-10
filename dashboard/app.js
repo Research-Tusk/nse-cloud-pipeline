@@ -3726,7 +3726,10 @@ function bseContextRow(label, valueHtml) {
 const QUICK_VAL_SHARES_CR = { bse: 40.73, mcx: 25.45, nse: 247.5 };
 const QUICK_VAL_DEFAULTS = {
   bse: { patMarginPct: 52, otherIncomeMode: 'fixed', otherIncomeCr: 2055.39, peBear: 40, peBase: 45, peBull: 50, tradingDays: 247 },
-  mcx: { patMarginPct: 50, otherIncomeMode: 'fixed', otherIncomeCr: 0,        peBear: 25, peBase: 30, peBull: 35, tradingDays: 247 },
+  // MCX runs a fuller trading calendar than the equity exchanges (fewer holidays) —
+  // 243/251/257 trading days in FY24/FY25/FY26 respectively, a rising trend, so the
+  // most recent completed year (257) is used rather than NSE/BSE's ~247.
+  mcx: { patMarginPct: 50, otherIncomeMode: 'fixed', otherIncomeCr: 0,        peBear: 25, peBase: 30, peBull: 35, tradingDays: 257 },
   // NSE has no CMP (unlisted — not traded on itself or any other exchange), and
   // its other income is modeled as a % of total revenue (incl. other income)
   // rather than a fixed ₹Cr figure, per the user's explicit assumption.
