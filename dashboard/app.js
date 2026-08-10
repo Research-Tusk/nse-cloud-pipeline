@@ -3779,14 +3779,31 @@ function qvCellInput(exchange, key, value, step) {
 }
 
 // Renders the Quick Valuation panel into `el` and wires up its inputs.
-// `dailySeries` = the exchange's sorted daily rows (drives the 45-day ADR default).
+// `dailySeries` = the exchange's sorted daily rows (drives the ADR default).
 // `cmp` = current market price for the upside readout, may be null.
+//
+// ADR default = a projected full-year average for the current FY: actual
+// reported revenue for trading days elapsed so far this FY, plus the trailing
+// 45-day average revenue applied to the remaining trading days (per
+// `tradingDays`), all divided by `tradingDays`. Only trading revenue is
+// projected this way — Other Income keeps its existing (fixed or %-of-total)
+// logic untouched.
 function buildQuickValuationPanel(el, exchange, dailySeries, cmp) {
   if (!el) return;
-  const last45 = dailySeries.slice(-45);
-  const defaultAdr = last45.length ? last45.reduce((s, r) => s + (r.total_rev || 0), 0) / last45.length : 0;
+  let a = loadQuickValAssumptions(exchange, 0); // peek tradingDays; adr set below
 
-  let a = loadQuickValAssumptions(exchange, defaultAdr);
+  const last45 = dailySeries.slice(-45);
+  const adr45 = last45.length ? last45.reduce((s, r) => s + (r.total_rev || 0), 0) / last45.length : 0;
+
+  const curFY = currentFYQuarterLabel(new Date()).fy;
+  const fyRowsToDate = dailySeries.filter(r => r.fy === curFY);
+  const daysElapsed = fyRowsToDate.length;
+  const revenueToDate = fyRowsToDate.reduce((s, r) => s + (r.total_rev || 0), 0);
+  const daysRemaining = Math.max(a.tradingDays - daysElapsed, 0);
+  const projectedAnnualRevenue = revenueToDate + adr45 * daysRemaining;
+  const defaultAdr = a.tradingDays ? projectedAnnualRevenue / a.tradingDays : adr45;
+
+  a.adr = defaultAdr;
   let result = computeQuickValuation(exchange, a, cmp);
 
   const pctMode = a.otherIncomeMode === 'pctOfTotal';
@@ -3818,12 +3835,12 @@ function buildQuickValuationPanel(el, exchange, dailySeries, cmp) {
 
   el.innerHTML = `
   <div class="chart-panel" style="margin-bottom:var(--space-4)">
-    <div class="chart-title">Quick Valuation — 45-Day ADR <span class="chart-badge">Default</span></div>
-    <p class="section-desc">ADR defaults to the trailing 45-day average revenue every time this page loads — edit it freely, it just won't be remembered on refresh. PAT margin, other income, PE ratios, and CMP-derived targets are saved.${pctMode ? ' Other income here is solved so it equals the given % of total revenue (transaction revenue + other income), not a flat add-on.' : ''}</p>
+    <div class="chart-title">Quick Valuation — ${curFY} Projected ADR <span class="chart-badge">Default</span></div>
+    <p class="section-desc">ADR defaults to a projected full-year average for ${curFY} every time this page loads — actual reported revenue for the ${daysElapsed} trading day${daysElapsed === 1 ? '' : 's'} elapsed so far, plus the trailing 45-day average applied to the ${daysRemaining} remaining trading day${daysRemaining === 1 ? '' : 's'} (of ${a.tradingDays} assumed for the year). Edit it freely, it just won't be remembered on refresh. PAT margin, other income, PE ratios, and CMP-derived targets are saved.${pctMode ? ' Other income here is solved so it equals the given % of total revenue (transaction revenue + other income), not a flat add-on.' : ''}</p>
     <div style="overflow-x:auto;margin-bottom:var(--space-3)">
       <table class="data-table">
         <tbody>
-          ${bseContextRow('Average Daily Revenue — 45D (₹ Cr)', qvCellInput(exchange, 'adr', fmtNum(a.adr, 2), '0.01'))}
+          ${bseContextRow(`Average Daily Revenue — ${curFY} Projected (₹ Cr)`, qvCellInput(exchange, 'adr', fmtNum(a.adr, 2), '0.01'))}
           ${bseContextRow('Trading Days / Year', a.tradingDays)}
           ${bseContextRow('Annual Transaction Revenue (₹ Cr)', `<span id="qv-${exchange}-annualRevenue"></span>`)}
           ${otherIncomeRows}
