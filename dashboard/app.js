@@ -3836,6 +3836,12 @@ function buildQuickValuationPanel(el, exchange, dailySeries, cmp) {
       + bseContextRow('Other Income, implied (₹ Cr)', `<span id="qv-${exchange}-otherIncomeComputed"></span>`)
     : bseContextRow('Other Income (₹ Cr)', qvCellInput(exchange, 'otherIncomeCr', a.otherIncomeCr, '1'));
 
+  // EPS (and everything downstream of it) is built off the full projected FY
+  // income, not a trailing/current-date run rate — so the target price is a
+  // full-year-forward (FYxxE) target, not a spot fair value. Label it as such.
+  const fyShort = curFY.match(/\d{4}/)[0].slice(-2);
+  const fyeLabel = `FY${fyShort}E`;
+
   el.innerHTML = `
   <div class="chart-panel" style="margin-bottom:var(--space-4)">
     <div class="chart-title">Quick Valuation — ${curFY} Projected ADR <span class="chart-badge">Default</span></div>
@@ -3850,7 +3856,7 @@ function buildQuickValuationPanel(el, exchange, dailySeries, cmp) {
           ${bseContextRow('Total Income (₹ Cr)', `<span id="qv-${exchange}-totalIncome"></span>`)}
           ${bseContextRow('PAT Margin (%)', qvCellInput(exchange, 'patMarginPct', a.patMarginPct, '0.5'))}
           ${bseContextRow('<strong>PAT (₹ Cr)</strong>', `<strong><span id="qv-${exchange}-pat"></span></strong>`)}
-          ${bseContextRow('<strong>Expected EPS (₹)</strong>', `<strong><span id="qv-${exchange}-eps"></span></strong>`)}
+          ${bseContextRow(`<strong>Expected EPS — ${fyeLabel} (₹)</strong>`, `<strong><span id="qv-${exchange}-eps"></span></strong>`)}
           ${bseContextRow('CMP — Current Price Estimate (₹)', `<span id="qv-${exchange}-cmp"></span>`)}
         </tbody>
       </table>
@@ -3860,7 +3866,7 @@ function buildQuickValuationPanel(el, exchange, dailySeries, cmp) {
         <thead><tr><th>Metric</th><th style="text-align:center">Bear</th><th style="text-align:center">Base</th><th style="text-align:center">Bull</th></tr></thead>
         <tbody>
           <tr><td>PE Ratio (x)</td>${scenarioCols}</tr>
-          <tr style="font-weight:600"><td>Target Share Price</td>${targetCols}</tr>
+          <tr style="font-weight:600"><td>Target Share Price — ${fyeLabel}<span style="font-weight:400;font-size:10px;color:var(--color-text-muted)"> (full-year forward, not spot)</span></td>${targetCols}</tr>
           <tr><td>Upside vs CMP</td>${upsideCols}</tr>
         </tbody>
       </table>
