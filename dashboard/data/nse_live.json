@@ -1,15 +1,15 @@
 {
-  "updated_at": "2026-08-12T06:07:29",
+  "updated_at": "2026-08-12T07:50:33",
   "market_status": {
     "marketState": [
       {
         "market": "Capital Market",
         "marketStatus": "Open",
-        "tradeDate": "12-Aug-2026 11:36",
+        "tradeDate": "12-Aug-2026 13:19",
         "index": "NIFTY 50",
-        "last": 24294.7,
-        "variation": -177,
-        "percentChange": -0.72,
+        "last": 24299.65,
+        "variation": -172.04999999999927,
+        "percentChange": -0.7,
         "marketStatusMessage": "Normal Market is Open"
       },
       {
@@ -44,10 +44,10 @@
       },
       {
         "index": "NIFTY50 USD",
-        "last": 8822,
-        "change": -62.22999999999956,
-        "percentChange": -0.7,
-        "timestamp": "12-Aug-2026 11:36"
+        "last": 8825.45,
+        "change": -58.779999999998836,
+        "percentChange": -0.66,
+        "timestamp": "12-Aug-2026 13:19"
       },
       {
         "market": "currencyfuture",
@@ -88,42 +88,42 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 21269,
-      "DAYCHANGE": -187,
+      "CONTRACTSTRADED": 27351,
+      "DAYCHANGE": -189,
       "EXPIRYDATE": "25-Aug-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 24378.5,
+      "LASTPRICE": 24376.5,
       "OPTIONTYPE": "-",
-      "PERCHANGE": -0.76,
+      "PERCHANGE": -0.77,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "12-Aug-2026 11:36",
-      "id": "1/NIFTYFUTIDX25-Aug-2026--"
+      "TIMESTMP": "12-Aug-2026 13:18",
+      "id": "0/NIFTYFUTIDX25-Aug-2026--"
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
-      "last": 8822,
-      "change": -62.22999999999956,
-      "percentChange": -0.7,
-      "timestamp": "12-Aug-2026 11:36"
+      "last": 8825.45,
+      "change": -58.779999999998836,
+      "percentChange": -0.66,
+      "timestamp": "12-Aug-2026 13:19"
     }
   },
   "revenue": {
     "trade_date": "2026-08-12",
-    "index_futures_turnover": 6927.36,
-    "stock_futures_turnover": 32833.1,
-    "futures_turnover": 39760.46,
-    "index_options_premium": 13663.52,
-    "stock_options_premium": 4332.25,
-    "options_premium": 17995.77,
-    "cash_traded_value": 62142.82,
+    "index_futures_turnover": 9038.51,
+    "stock_futures_turnover": 46190.56,
+    "futures_turnover": 55229.07,
+    "index_options_premium": 18092.61,
+    "stock_options_premium": 5772.43,
+    "options_premium": 23865.04,
+    "cash_traded_value": 86424.48,
     "take_rate_futures": 3.66e-05,
     "take_rate_options": 0.0007106,
     "take_rate_cash": 6.14e-05,
-    "futures_revenue": 1.4552,
-    "options_revenue": 12.7878,
-    "cash_revenue": 3.8156,
-    "total_revenue": 18.0586,
+    "futures_revenue": 2.0214,
+    "options_revenue": 16.9585,
+    "cash_revenue": 5.3065,
+    "total_revenue": 24.2863,
     "has_data": true,
     "source": "live"
   },
@@ -265,20 +265,20 @@
       "timestamp": "2026-08-12",
       "revenue": {
         "trade_date": "2026-08-12",
-        "index_futures_turnover": 6927.36,
-        "stock_futures_turnover": 32833.1,
-        "futures_turnover": 39760.46,
-        "index_options_premium": 13663.52,
-        "stock_options_premium": 4332.25,
-        "options_premium": 17995.77,
-        "cash_traded_value": 62142.82,
+        "index_futures_turnover": 9038.51,
+        "stock_futures_turnover": 46190.56,
+        "futures_turnover": 55229.07,
+        "index_options_premium": 18092.61,
+        "stock_options_premium": 5772.43,
+        "options_premium": 23865.04,
+        "cash_traded_value": 86424.48,
         "take_rate_futures": 3.66e-05,
         "take_rate_options": 0.0007106,
         "take_rate_cash": 6.14e-05,
-        "futures_revenue": 1.4552,
-        "options_revenue": 12.7878,
-        "cash_revenue": 3.8156,
-        "total_revenue": 18.0586,
+        "futures_revenue": 2.0214,
+        "options_revenue": 16.9585,
+        "cash_revenue": 5.3065,
+        "total_revenue": 24.2863,
         "has_data": true,
         "source": "live"
       }
