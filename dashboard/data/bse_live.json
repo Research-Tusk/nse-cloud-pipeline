@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-19T10:43:57",
+  "updated_at": "2026-08-19T11:01:27",
   "sensex": {
     "last": 76909.68,
     "change": -325.78,
@@ -8,7 +8,7 @@
     "open": 77218.05,
     "high": 77347.81,
     "low": 76822.89,
-    "datetime": "19 Aug 26 | 15:59",
+    "datetime": "19 Aug 26 | 16:00",
     "status": "Closed"
   },
   "market_stat": {
