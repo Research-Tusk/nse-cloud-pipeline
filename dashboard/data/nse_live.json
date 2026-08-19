@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-19T10:56:26",
+  "updated_at": "2026-08-19T11:15:40",
   "market_status": {
     "marketState": [
       {
@@ -54,14 +54,14 @@
         "marketStatus": "Open",
         "tradeDate": "19-Aug-2026",
         "index": "",
-        "last": "95.6900",
+        "last": "95.6850",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "27-Aug-2026",
         "underlying": "USDINR",
-        "updated_time": "19-Aug-2026 16:25",
-        "tradeDateFormatted": "19-Aug-2026 16:25",
+        "updated_time": "19-Aug-2026 16:45",
+        "tradeDateFormatted": "19-Aug-2026 16:45",
         "slickclass": "slick-item"
       }
     ],
@@ -88,16 +88,16 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 46878,
-      "DAYCHANGE": 12,
+      "CONTRACTSTRADED": 46937,
+      "DAYCHANGE": 18,
       "EXPIRYDATE": "25-Aug-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 24102,
+      "LASTPRICE": 24108,
       "OPTIONTYPE": "-",
-      "PERCHANGE": 0.05,
+      "PERCHANGE": 0.07,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "19-Aug-2026 16:23",
+      "TIMESTMP": "19-Aug-2026 16:40",
       "id": "0/NIFTYFUTIDX25-Aug-2026--"
     },
     "niftyusd": {
@@ -353,6 +353,25 @@
         "options_revenue": 37.9458,
         "cash_revenue": 6.7213,
         "total_revenue": 47.7214,
+        "source": "historical"
+      }
+    },
+    {
+      "timestamp": "19-Aug-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "19-Aug-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 110315.23,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 6.7734,
+        "total_revenue": 6.7734,
         "source": "historical"
       }
     },
