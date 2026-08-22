@@ -3246,6 +3246,43 @@ function buildSeriesWithDMA(rawSeries, dmaWindow, regStart) {
   };
 }
 
+// KPI grid + regression-equation panel for the BSE/MCX share-price regression
+// sections — factored out so switching the DMA window (10/20/45) can refresh
+// R², Pearson r, the equation, and the predicted price together, instead of
+// only the charts while these stayed pinned to the initial window's values.
+function shareRegressionInfoHTML(reg, predPrice, actualPrice, isLive, asOfDate, activeDma, regStart, nDays, ticker) {
+  const r2pct   = Math.round(reg.r_squared * 100);
+  const errDiff = predPrice - actualPrice;
+  const errPct  = actualPrice ? (errDiff / actualPrice * 100) : 0;
+
+  const kpiHTML = `
+  <div class="share-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
+    ${kpi('Model R²',        r2pct + '%',              reg.fit + ' fit',    r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
+    ${kpi('Pearson r',       reg.pearson_r.toFixed(2), 'revenue ↔ price',   '')}
+    ${kpi('Predicted Price', '₹' + fmtNum(predPrice, 0), 'model estimate', '')}
+    ${kpi(isLive ? 'Actual Price 🟢 Live' : 'Actual Price', '₹' + fmtNum(actualPrice, 0), (errDiff >= 0 ? '+' : '') + fmtNum(errDiff, 0) + ' vs model', errDiff >= 0 ? 'positive' : 'negative')}
+  </div>`;
+
+  const eqHTML = `
+  <div class="chart-panel" style="margin-bottom:var(--space-4);padding:20px 24px">
+    <div class="chart-title">Regression Equation</div>
+    <div style="font-size:20px;font-weight:700;color:var(--color-text);margin:12px 0 8px;font-family:var(--font-mono,monospace)">${reg.equation}</div>
+    <div style="font-size:12px;color:var(--color-text-muted);display:flex;gap:24px;flex-wrap:wrap">
+      <span>R² = ${reg.r_squared.toFixed(3)} &nbsp;|&nbsp; r = ${reg.pearson_r.toFixed(3)} &nbsp;|&nbsp; n = ${nDays} trading days</span>
+      <span>MA window: ${activeDma} days &nbsp;|&nbsp; Regression from: ${regStart} &nbsp;|&nbsp; Ticker: ${ticker}</span>
+      <span>Prediction error: ${errPct.toFixed(2)} % &nbsp;|&nbsp; As of: ${asOfDate}</span>
+    </div>
+  </div>`;
+
+  return kpiHTML + eqHTML;
+}
+
+// Latest row of a DMA-window series — falls back to the last entry if the
+// exact as-of date isn't present (shouldn't normally happen).
+function latestShareRow(series, asOfDate) {
+  return series.find(r => r.date === asOfDate) || series[series.length - 1];
+}
+
 function filterShareSeries(ser, range, regStart) {
   const last = new Date(ser[ser.length - 1].date);
   let cutoff;
@@ -3435,27 +3472,11 @@ function buildBSEShareAnalysis() {
   const ser      = SHARE_DATA.series || [];
   const maWin    = SHARE_DATA.ma_window;
   const regStart = SHARE_DATA.regression_start || '2025-03-01';
-  const r2pct    = Math.round(reg.r_squared * 100);
-  const errDiff  = lat.price_pred - lat.price_actual;
 
-  const kpiHTML = `
-  <div class="share-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
-    ${kpi('Model R²',        r2pct + '%',                        reg.fit + ' fit',                           r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
-    ${kpi('Pearson r',       reg.pearson_r.toFixed(2),           'revenue ↔ price',                          '')}
-    ${kpi('Predicted Price', '₹' + fmtNum(lat.price_pred, 0),   'model estimate',                           '')}
-    ${kpi(lat.is_live ? 'Actual Price 🟢 Live' : 'Actual Price', '₹' + fmtNum(lat.price_actual, 0), (errDiff >= 0 ? '+' : '') + fmtNum(errDiff, 0) + ' vs model', errDiff >= 0 ? 'positive' : 'negative')}
-  </div>`;
-
-  const eqHTML = `
-  <div class="chart-panel" style="margin-bottom:var(--space-4);padding:20px 24px">
-    <div class="chart-title">Regression Equation</div>
-    <div style="font-size:20px;font-weight:700;color:var(--color-text);margin:12px 0 8px;font-family:var(--font-mono,monospace)">${reg.equation}</div>
-    <div style="font-size:12px;color:var(--color-text-muted);display:flex;gap:24px;flex-wrap:wrap">
-      <span>R² = ${reg.r_squared.toFixed(3)} &nbsp;|&nbsp; r = ${reg.pearson_r.toFixed(3)} &nbsp;|&nbsp; n = ${SHARE_DATA.n_days} trading days</span>
-      <span>MA window: ${maWin} days &nbsp;|&nbsp; Regression from: ${regStart} &nbsp;|&nbsp; Ticker: ${SHARE_DATA.ticker}</span>
-      <span>Prediction error: ${lat.error_pct} % &nbsp;|&nbsp; As of: ${lat.date}</span>
-    </div>
-  </div>`;
+  const infoHTML = shareRegressionInfoHTML(
+    reg, lat.price_pred, lat.price_actual, lat.is_live, lat.date,
+    maWin, regStart, SHARE_DATA.n_days, SHARE_DATA.ticker
+  );
 
   const regLabel = new Date(regStart + 'T00:00:00').toLocaleString('en-IN', { month: 'short', year: 'numeric' }) + '+';
   const ranges = [
@@ -3509,7 +3530,7 @@ function buildBSEShareAnalysis() {
     ${chartsHTML}
   </div>`;
 
-  el.innerHTML = kpiHTML + eqHTML + sectionHTML;
+  el.innerHTML = `<div id="bseShareInfo">${infoHTML}</div>` + sectionHTML;
 
   let bseActiveDma   = 45;
   let bseActiveRange = 'nov2024';
@@ -3528,6 +3549,14 @@ function buildBSEShareAnalysis() {
     if (t1) t1.textContent = `${bseActiveDma}-Day MA Revenue vs BSE Share Price`;
     const t2 = document.getElementById('bseRatioChartTitle');
     if (t2) t2.textContent = `Price ÷ Rev MA${bseActiveDma} Ratio — Mean ± SD`;
+    const infoEl = document.getElementById('bseShareInfo');
+    if (infoEl) {
+      const latestRow = latestShareRow(d.series, lat.date);
+      infoEl.innerHTML = shareRegressionInfoHTML(
+        d.reg, latestRow.price_pred, latestRow.price, lat.is_live, lat.date,
+        bseActiveDma, regStart, SHARE_DATA.n_days, SHARE_DATA.ticker
+      );
+    }
   }
 
   // Initial render
@@ -4370,27 +4399,11 @@ function buildMCXShareAnalysis() {
   const ser      = SHARE_DATA.series || [];
   const maWin    = SHARE_DATA.ma_window;
   const regStart = SHARE_DATA.regression_start || '2025-01-01';
-  const r2pct    = Math.round(reg.r_squared * 100);
-  const errDiff  = lat.price_pred - lat.price_actual;
 
-  const kpiHTML = `
-  <div class="share-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
-    ${kpi('Model R²',        r2pct + '%',                        reg.fit + ' fit',                           r2pct > 60 ? 'positive' : r2pct > 30 ? 'neutral' : 'negative')}
-    ${kpi('Pearson r',       reg.pearson_r.toFixed(2),           'revenue ↔ price',                          '')}
-    ${kpi('Predicted Price', '₹' + fmtNum(lat.price_pred, 0),   'model estimate',                           '')}
-    ${kpi(lat.is_live ? 'Actual Price 🟢 Live' : 'Actual Price', '₹' + fmtNum(lat.price_actual, 0), (errDiff >= 0 ? '+' : '') + fmtNum(errDiff, 0) + ' vs model', errDiff >= 0 ? 'positive' : 'negative')}
-  </div>`;
-
-  const eqHTML = `
-  <div class="chart-panel" style="margin-bottom:var(--space-4);padding:20px 24px">
-    <div class="chart-title">Regression Equation</div>
-    <div style="font-size:20px;font-weight:700;color:var(--color-text);margin:12px 0 8px;font-family:var(--font-mono,monospace)">${reg.equation}</div>
-    <div style="font-size:12px;color:var(--color-text-muted);display:flex;gap:24px;flex-wrap:wrap">
-      <span>R² = ${reg.r_squared.toFixed(3)} &nbsp;|&nbsp; r = ${reg.pearson_r.toFixed(3)} &nbsp;|&nbsp; n = ${SHARE_DATA.n_days} trading days</span>
-      <span>MA window: ${maWin} days &nbsp;|&nbsp; Regression from: ${regStart} &nbsp;|&nbsp; Ticker: ${SHARE_DATA.ticker}</span>
-      <span>Prediction error: ${lat.error_pct} % &nbsp;|&nbsp; As of: ${lat.date}</span>
-    </div>
-  </div>`;
+  const infoHTML = shareRegressionInfoHTML(
+    reg, lat.price_pred, lat.price_actual, lat.is_live, lat.date,
+    maWin, regStart, SHARE_DATA.n_days, SHARE_DATA.ticker
+  );
 
   const regLabel = new Date(regStart + 'T00:00:00').toLocaleString('en-IN', { month: 'short', year: 'numeric' }) + '+';
   const ranges = [
@@ -4444,7 +4457,7 @@ function buildMCXShareAnalysis() {
     ${chartsHTML}
   </div>`;
 
-  el.innerHTML = kpiHTML + eqHTML + sectionHTML;
+  el.innerHTML = `<div id="mcxShareInfo">${infoHTML}</div>` + sectionHTML;
 
   let mcxActiveDma   = 45;
   let mcxActiveRange = 'nov2024';
@@ -4463,6 +4476,14 @@ function buildMCXShareAnalysis() {
     if (t1) t1.textContent = `${mcxActiveDma}-Day MA Revenue vs MCX Share Price`;
     const t2 = document.getElementById('mcxRatioChartTitle');
     if (t2) t2.textContent = `Price ÷ Rev MA${mcxActiveDma} Ratio — Mean ± SD`;
+    const infoEl = document.getElementById('mcxShareInfo');
+    if (infoEl) {
+      const latestRow = latestShareRow(d.series, lat.date);
+      infoEl.innerHTML = shareRegressionInfoHTML(
+        d.reg, latestRow.price_pred, latestRow.price, lat.is_live, lat.date,
+        mcxActiveDma, regStart, SHARE_DATA.n_days, SHARE_DATA.ticker
+      );
+    }
   }
 
   refreshMCXCharts();
