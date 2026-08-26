@@ -13,6 +13,20 @@
           "fraction": 1.0
         }
       ]
+    },
+    {
+      "date": "2026-08-26",
+      "weekday": 2,
+      "weekday_name": "Wednesday",
+      "day_type": "normal",
+      "eod_revenue": 30.37,
+      "snapshots": [
+        {
+          "hour_label": "15:30",
+          "total_revenue": 30.37,
+          "fraction": 1.0
+        }
+      ]
     }
   ]
 }
