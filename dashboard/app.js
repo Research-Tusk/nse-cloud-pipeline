@@ -230,11 +230,13 @@ const EXCHANGE_TABS = {
   nse: [
     { id: 'revenue',    label: 'Revenue Summary',    icon: 'revenue' },
     { id: 'prediction', label: 'PAT Prediction',      icon: 'prediction' },
+    { id: 'intraday',   label: 'Live Predictor',      icon: 'temporal' },
     { id: 'valuation',  label: 'Valuation Model',     icon: 'advanced' },
   ],
   bse: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
+    { id: 'intraday',   label: 'Live Predictor',       icon: 'temporal' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
     { id: 'valuation',  label: 'Valuation Model',       icon: 'advanced' },
   ],
@@ -257,11 +259,13 @@ const TAB_TITLES = {
   nse: {
     revenue: 'Revenue Summary',
     prediction: 'PAT Prediction Engine',
+    intraday: 'Live EOD Predictor',
     valuation: 'NSE Valuation Model',
   },
   bse: {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
+    intraday: 'Live EOD Predictor',
     share: 'Share Price Analytics',
     valuation: 'BSE Valuation Model',
   },
@@ -317,6 +321,11 @@ function attachTabListeners() {
       // Resize charts after tab switch
       setTimeout(() => {
         Object.values(charts).forEach(c => { if (c && c.resize) c.resize(); });
+        // Bar charts built while their tab was still display:none never get
+        // correct geometry from Chart.js even after a later .resize() — only
+        // a full destroy+recreate once the canvas has real dimensions fixes
+        // it (line charts don't have this problem). Re-render on first visit.
+        if (tab === 'intraday') INTRADAY_RERENDER[currentExchange]?.();
       }, 50);
     });
   });
@@ -411,6 +420,7 @@ function toggleExchangeContent(exchange) {
   show('nseExecExtras',       isNSE);
   show('nsePredictionContent', isNSE);
   show('nseValuationContent', isNSE);
+  show('nseIntradayContent',  isNSE);
 
   // BSE-only sections
   show('bseSegmentContent',   isBSE);
@@ -419,6 +429,7 @@ function toggleExchangeContent(exchange) {
   show('bseExecExtras',       isBSE);
   show('bsePredictionContent', isBSE);
   show('bse-share-inner',     isBSE);
+  show('bseIntradayContent',  isBSE);
 
   // MCX-only sections
   show('mcxPredictionContent', isMCX);
@@ -786,10 +797,12 @@ function rebuildAll() {
     initNSEPEValuation();
     initNSEPrediction();
     buildNSEValuation();
+    buildIntradayPredictor('nse', 'nseIntradayContent');
   } else if (currentExchange === 'bse') {
     buildBSERevenuePredictor();
     buildBSEShareAnalysis();
     buildBSEValuation();
+    buildIntradayPredictor('bse', 'bseIntradayContent');
   } else if (currentExchange === 'mcx') {
     buildMCXRevenuePredictor();
     buildMCXShareAnalysis();
@@ -4549,6 +4562,243 @@ function buildMCXShareAnalysis() {
       btn.classList.add('active');
       mcxActiveRange = btn.dataset.range;
       refreshMCXCharts();
+    });
+  });
+}
+
+// ========================
+// LIVE EOD PREDICTOR (NSE + BSE) — revenue-so-far -> predicted EOD from the
+// live poller's intraday samples, plus the historical "% of EOD revenue
+// reached by hour N" curve derived from dashboard/data/{exchange}_hourly_history.json.
+// MCX has no live turnover feed, so this is NSE/BSE only.
+// ========================
+
+// (label, minutes elapsed since 9:15 market open) — mirrors scripts/live_common.py's REFERENCE_CHECKPOINTS.
+const INTRADAY_CHECKPOINTS = [
+  ['10:00', 45], ['11:00', 105], ['12:00', 165], ['13:00', 225],
+  ['14:00', 285], ['15:00', 345], ['15:30', 375],
+];
+
+// Per-exchange "re-render my bar charts" callback, invoked by the tab click
+// handler the first time the Live Predictor tab becomes visible — see the
+// comment at that call site for why this is necessary.
+const INTRADAY_RERENDER = {};
+
+function fmtElapsed(mins) {
+  if (mins == null) return '—';
+  const h = Math.floor(Math.abs(mins) / 60), m = Math.abs(mins) % 60;
+  return `${mins < 0 ? '-' : ''}${h}h ${m}m`;
+}
+
+function intradayMethodLabel(method) {
+  if (!method || method === 'none') return '—';
+  if (method === 'linear') return 'Linear (not enough history yet)';
+  const m = /^historical\/(\w+?)(?:\/wd(\d))?$/.exec(method);
+  if (!m) return method;
+  const typeLabel = { expiry: 'Expiry days', pre_expiry: 'Pre-expiry days', normal: 'Normal days', overall: 'All days' }[m[1]] || m[1];
+  return m[2] != null ? `Historical (${typeLabel}, same weekday)` : `Historical (${typeLabel})`;
+}
+
+async function fetchIntradayJSON(exchange, file) {
+  try {
+    const res = await fetch(`/api/live?exchange=${exchange}&file=${file}&t=${Date.now()}`);
+    if (!res.ok) return null;
+    return await res.json().catch(() => null);
+  } catch {
+    return null;
+  }
+}
+
+// Averages each checkpoint's fraction across whichever days actually have it
+// (a day with only its closing poll contributes nothing here — see live_common.py).
+function avgCheckpointFractions(days) {
+  const acc = {};
+  days.forEach(day => {
+    Object.entries(day.checkpoints || {}).forEach(([label, cp]) => {
+      if (cp && cp.fraction != null) (acc[label] = acc[label] || []).push(cp.fraction);
+    });
+  });
+  const out = {};
+  Object.entries(acc).forEach(([label, vals]) => { out[label] = vals.reduce((a, b) => a + b, 0) / vals.length; });
+  return out;
+}
+
+async function buildIntradayPredictor(exchange, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const [hourly, history] = await Promise.all([
+    fetchIntradayJSON(exchange, 'hourly'),
+    fetchIntradayJSON(exchange, 'history'),
+  ]);
+
+  const days    = (history && history.days) || [];
+  const exLabel = exchange.toUpperCase();
+
+  // ── Live KPI row ──
+  const samples = (hourly && hourly.samples) || [];
+  const latest  = samples.length ? samples[samples.length - 1] : null;
+
+  const liveHTML = latest ? `
+  <div class="share-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
+    ${kpi('Revenue So Far Today', '₹' + fmtNum(latest.total_revenue, 2) + ' Cr',
+          `as of ${(latest.captured_ist || '').slice(11, 16)} IST (+${fmtElapsed(latest.elapsed_minutes)})`, '')}
+    ${kpi('Predicted EOD Revenue', latest.predicted_eod != null ? '₹' + fmtNum(latest.predicted_eod, 2) + ' Cr' : '—',
+          intradayMethodLabel(latest.pred_method), 'positive')}
+    ${kpi('Day Type', (hourly.day_type || '—').replace('_', '-'), hourly.weekday_name || '', '')}
+    ${kpi('Polls Landed Today', String(samples.length), samples.length === 1 ? 'sample' : 'samples', '')}
+  </div>` : `
+  <div class="chart-panel" style="text-align:center;padding:32px;color:var(--color-text-muted);margin-bottom:var(--space-4)">
+    <div style="font-size:14px;font-weight:600">No live poll recorded yet today</div>
+    <div style="font-size:12px;margin-top:6px">GitHub Actions polls every few minutes during market hours, though not on a precise schedule — check back shortly.</div>
+  </div>`;
+
+  // ── Historical "% of EOD revenue by hour" curve ──
+  const byType = {
+    all:        days,
+    normal:     days.filter(d => d.day_type === 'normal'),
+    expiry:     days.filter(d => d.day_type === 'expiry'),
+    pre_expiry: days.filter(d => d.day_type === 'pre_expiry'),
+  };
+  const typeOptions = [
+    { key: 'all',        label: 'All Days' },
+    { key: 'normal',     label: 'Normal' },
+    { key: 'expiry',     label: 'Expiry' },
+    { key: 'pre_expiry', label: 'Pre-Expiry' },
+  ];
+  const toggleHTML = `
+  <div class="share-dma-toggle">
+    <span class="share-dma-label">Days</span>
+    ${typeOptions.map(t => `<button class="share-range-btn intraday-daytype-btn-${exchange}${t.key === 'all' ? ' active' : ''}" data-daytype="${t.key}">${t.label} (${byType[t.key].length})</button>`).join('')}
+  </div>`;
+
+  const tableRows = days.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20).map(d => `
+    <tr>
+      <td>${d.date}</td>
+      <td>${d.weekday_name}</td>
+      <td style="text-transform:capitalize">${(d.day_type || '').replace('_', '-')}</td>
+      <td style="text-align:right">₹${fmtNum(d.eod_revenue, 2)} Cr</td>
+      <td style="text-align:right">${d.n_samples}</td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+  ${liveHTML}
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div class="chart-title">${exLabel} — Trading Activity by Period of Day</div>
+    <p class="section-desc">% of EOD revenue earned within each window, not cumulative — this is what tells you which part of the day is busiest. Based on ${days.length} archived trading day${days.length === 1 ? '' : 's'}; only days with a real intraday poll besides the closing figure contribute (see below).</p>
+    <div style="margin-bottom:var(--space-3)">${toggleHTML}</div>
+    <div id="barsIntradayPeriod${exLabel}"></div>
+  </div>
+  <div class="chart-panel" style="margin-bottom:var(--space-4)">
+    <div class="chart-title">${exLabel} — % of EOD Revenue Reached, by Time of Day (Cumulative)</div>
+    <p class="section-desc">The running total behind the chart above — e.g. "by 12:00 we're typically at X% of the day's revenue."</p>
+    <div class="chart-wrapper"><canvas id="chartIntraday${exLabel}"></canvas></div>
+  </div>
+  <div class="chart-panel">
+    <div class="chart-title">Archived Days (most recent 20)</div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Weekday</th><th>Day Type</th><th style="text-align:right">EOD Revenue</th><th style="text-align:right">Samples</th></tr></thead>
+        <tbody>${tableRows || '<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted)">No archived days yet</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  // Fixed windows the cumulative checkpoints imply — first one starts at market
+  // open (9:15), so it's the only one with a known, non-computed left edge (0%).
+  const PERIODS = [
+    { label: 'Open–10:00', fromMin: 0,   toMin: 45  },
+    { label: '10:00–11:00', fromMin: 45,  toMin: 105 },
+    { label: '11:00–12:00', fromMin: 105, toMin: 165 },
+    { label: '12:00–13:00', fromMin: 165, toMin: 225 },
+    { label: '13:00–14:00', fromMin: 225, toMin: 285 },
+    { label: '14:00–15:00', fromMin: 285, toMin: 345 },
+    { label: '15:00–15:30', fromMin: 345, toMin: 375 },
+  ];
+  const minToFrac = (fracs, mins) => mins === 0 ? 0 : (fracs[INTRADAY_CHECKPOINTS.find(([, m]) => m === mins)[0]] ?? null);
+
+  function periodDeltas(fracs) {
+    return PERIODS.map(p => {
+      const a = minToFrac(fracs, p.fromMin), b = minToFrac(fracs, p.toMin);
+      return (a != null && b != null) ? Math.round((b - a) * 1000) / 10 : null;
+    });
+  }
+
+  // Plain CSS bars instead of a Chart.js bar chart — this dashboard's Chart.js
+  // setup (see applyChartDefaults' Chart.defaults.scale.grid/border overrides)
+  // reliably breaks bar-element geometry (rect() ends up called with a null
+  // y/height, painting nothing) while leaving line charts unaffected; simple
+  // divs sidestep that entirely for this 7-category comparison.
+  function renderPeriodBars(daytype) {
+    const fracs = avgCheckpointFractions(byType[daytype] || []);
+    const values = periodDeltas(fracs);
+    const maxVal = Math.max(1, ...values.filter(v => v != null));
+    const rowsHTML = PERIODS.map((p, i) => {
+      const v = values[i];
+      const widthPct = v != null ? Math.max(2, (v / maxVal) * 100) : 0;
+      return `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="width:110px;flex-shrink:0;font-size:11px;color:var(--color-text-muted)">${p.label}</div>
+        <div style="flex:1;background:var(--color-border);border-radius:3px;overflow:hidden;height:22px">
+          ${v != null ? `<div style="width:${widthPct}%;height:100%;background:${CHART_COLORS[1]};border-radius:3px"></div>` : ''}
+        </div>
+        <div style="width:56px;flex-shrink:0;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums">${v != null ? v.toFixed(1) + '%' : '—'}</div>
+      </div>`;
+    }).join('');
+    const barsEl = document.getElementById(`barsIntradayPeriod${exLabel}`);
+    if (barsEl) barsEl.innerHTML = rowsHTML;
+  }
+
+  function renderCumulativeChart(daytype) {
+    const fracs = avgCheckpointFractions(byType[daytype] || []);
+    const cumKey = `intraday${exLabel}`;
+    if (charts[cumKey]) { charts[cumKey].destroy(); charts[cumKey] = null; }
+    const cumLabels = INTRADAY_CHECKPOINTS.map(([label]) => label);
+    const cumValues = INTRADAY_CHECKPOINTS.map(([label]) => fracs[label] != null ? Math.round(fracs[label] * 1000) / 10 : null);
+
+    setCanvasHeight(`chartIntraday${exLabel}`, 240);
+    charts[cumKey] = new Chart(document.getElementById(`chartIntraday${exLabel}`), {
+      type: 'line',
+      data: {
+        labels: cumLabels,
+        datasets: [{
+          label: '% of EOD revenue', data: cumValues,
+          borderColor: CHART_COLORS[0], backgroundColor: CHART_COLORS[0] + '22',
+          borderWidth: 2, pointRadius: 4, tension: 0.25, fill: true, spanGaps: true,
+        }],
+      },
+      options: {
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ctx.raw != null ? `${ctx.raw.toFixed(1)}% of EOD revenue by ${ctx.label}` : 'No data for this checkpoint' } },
+        },
+        scales: {
+          y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, title: { display: true, text: '% of EOD Revenue' } },
+          x: { title: { display: true, text: 'Time of Day (IST)' } },
+        },
+      },
+    });
+  }
+
+  function renderAll(daytype) {
+    renderPeriodBars(daytype);
+    renderCumulativeChart(daytype);
+  }
+
+  let activeDaytype = 'all';
+  renderAll(activeDaytype);
+  // The cumulative line chart is still Chart.js-based, and (like every other
+  // chart in this app) can end up built while its tab is still display:none —
+  // line charts don't get the bar bug above, but do need a resize once
+  // visible; the CSS bars need no such recovery.
+  INTRADAY_RERENDER[exchange] = () => renderCumulativeChart(activeDaytype);
+
+  el.querySelectorAll(`.intraday-daytype-btn-${exchange}`).forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll(`.intraday-daytype-btn-${exchange}`).forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeDaytype = btn.dataset.daytype;
+      renderAll(activeDaytype);
     });
   });
 }
