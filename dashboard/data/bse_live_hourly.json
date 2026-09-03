@@ -1,0 +1,18 @@
+{
+  "date": "2026-09-03",
+  "weekday": 3,
+  "weekday_name": "Thursday",
+  "day_type": "expiry",
+  "samples": [
+    {
+      "captured_ist": "2026-09-03T19:21:25",
+      "elapsed_minutes": 606,
+      "total_revenue": 32.96,
+      "cash_revenue": 0.8,
+      "options_revenue": 32.16,
+      "futures_revenue": 0.0,
+      "predicted_eod": 32.96,
+      "pred_method": "historical/expiry/wd3"
+    }
+  ]
+}
