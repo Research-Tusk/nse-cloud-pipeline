@@ -1,0 +1,18 @@
+{
+  "date": "2026-09-03",
+  "weekday": 3,
+  "weekday_name": "Thursday",
+  "day_type": "normal",
+  "samples": [
+    {
+      "captured_ist": "2026-09-03T18:10:32",
+      "elapsed_minutes": 535,
+      "total_revenue": 31.77,
+      "cash_revenue": 6.83,
+      "options_revenue": 22.69,
+      "futures_revenue": 2.25,
+      "predicted_eod": 22.27,
+      "pred_method": "linear"
+    }
+  ]
+}
