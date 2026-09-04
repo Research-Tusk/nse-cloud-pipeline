@@ -49,3 +49,29 @@ for kw in ["Turnover", "turnover", "MarketWatch", "GetMarket", "Volume", "premiu
         print(f"\n--- context around '{kw}' (first {len(idxs)} hits) ---")
         for i in idxs:
             print(repr(html[max(0, i-80):i+80]))
+
+# Fetch the JS files that likely drive the market-watch table and search
+# them for the actual AJAX/fetch endpoint.
+js_files = [
+    "/assets/customjs/marketWatch.js",
+    "/assets/customjs/data.js",
+    "/assets/js/market-data.js",
+]
+for path in js_files:
+    js_url = "https://www.mcxindia.com" + path.split("?")[0]
+    try:
+        jr = session.get(js_url, impersonate="chrome", timeout=15)
+        js = jr.text
+        print(f"\n=== {js_url} === status {jr.status_code}, length {len(js)}")
+        calls = re.findall(
+            r'(?:url\s*[:=]\s*["\']([^"\']{3,150})["\']'
+            r'|\$\.(?:get|post|ajax|getJSON)\(\s*["\']([^"\']+)["\']'
+            r'|fetch\(\s*["\']([^"\']+)["\'])',
+            js,
+        )
+        uniq = sorted({x for tup in calls for x in tup if x})
+        print(f"--- {len(uniq)} unique url-like matches ---")
+        for u in uniq:
+            print(u)
+    except Exception as e:
+        print(f"\n=== {js_url} === ERROR: {e}")
