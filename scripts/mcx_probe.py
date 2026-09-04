@@ -63,15 +63,20 @@ for path in js_files:
         jr = session.get(js_url, impersonate="chrome", timeout=15)
         js = jr.text
         print(f"\n=== {js_url} === status {jr.status_code}, length {len(js)}")
-        calls = re.findall(
-            r'(?:url\s*[:=]\s*["\']([^"\']{3,150})["\']'
-            r'|\$\.(?:get|post|ajax|getJSON)\(\s*["\']([^"\']+)["\']'
-            r'|fetch\(\s*["\']([^"\']+)["\'])',
-            js,
-        )
-        uniq = sorted({x for tup in calls for x in tup if x})
-        print(f"--- {len(uniq)} unique url-like matches ---")
-        for u in uniq:
-            print(u)
+
+        # Broad net: any quoted string containing a slash (likely a path),
+        # any mention of http(s), any of these keywords.
+        quoted_paths = set(re.findall(r'["\']([^"\']*/[^"\']{2,150})["\']', js))
+        quoted_paths = {p for p in quoted_paths if not p.startswith(('http://www.w3','data:'))}
+        print(f"--- {len(quoted_paths)} quoted strings containing '/' ---")
+        for p in sorted(quoted_paths)[:60]:
+            print(p)
+
+        for kw in ["http", "Service", "signalR", "socket", "GetData", "hub", "Hub"]:
+            idxs = [m.start() for m in re.finditer(re.escape(kw), js)][:5]
+            if idxs:
+                print(f"--- context around '{kw}' ({len(idxs)} shown) ---")
+                for i in idxs:
+                    print(repr(js[max(0, i-60):i+60]))
     except Exception as e:
         print(f"\n=== {js_url} === ERROR: {e}")
