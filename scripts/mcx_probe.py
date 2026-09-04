@@ -3,8 +3,18 @@ One-off diagnostic: can we reach MCX's site/API from a GitHub Actions
 runner using the same curl_cffi Chrome-impersonation approach that already
 works for NSE/BSE? Not part of the regular pipeline — meant to be run once
 via workflow_dispatch and then deleted.
+
+FOUND (via real-browser Network tab inspection): the market-watch page
+calls GET /market-data/market-watch/GetMarketWatch?culture=en (note: "en",
+NOT "en-US" -- that was the reason earlier guesses 404'd) and gets back a
+JSON payload with live per-contract data for all ~3100 active MCX
+contracts: Symbol, InstrumentName (FUTCOM/OPTFUT), Volume, ValueInLacs
+(turnover), etc. This final check verifies that endpoint works as a COLD,
+STATELESS call (fresh session, no prior page load, no cookies) since
+that's how a real poller would call it.
 """
 
+import json
 import re
 from curl_cffi import requests as cffi_requests
 
@@ -12,12 +22,39 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                   "AppleWebKit/537.36 (KHTML, like Gecko) "
                   "Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Referer": "https://www.mcxindia.com/",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "X-Requested-With": "XMLHttpRequest",
+    "Referer": "https://www.mcxindia.com/market-data/market-watch",
 }
 
 session = cffi_requests.Session()
 session.headers.update(HEADERS)
+
+print("=== COLD stateless call to GetMarketWatch (no prior page load) ===")
+cold_url = "https://www.mcxindia.com/market-data/market-watch/GetMarketWatch?culture=en"
+cr = session.get(cold_url, impersonate="chrome", timeout=15)
+print(f"status: {cr.status_code}, content-type: {cr.headers.get('content-type')}, length: {len(cr.text)}")
+if cr.status_code == 200:
+    try:
+        payload = cr.json()
+        rows = payload.get("data", {}).get("Data", [])
+        print(f"success={payload.get('success')}, AsOn={payload.get('data',{}).get('Summary',{}).get('AsOn')}, rows={len(rows)}")
+        by_instr = {}
+        for r in rows:
+            k = r.get("InstrumentName")
+            by_instr.setdefault(k, {"count": 0, "value_lacs": 0.0, "volume": 0})
+            by_instr[k]["count"] += 1
+            by_instr[k]["value_lacs"] += r.get("ValueInLacs") or 0
+            by_instr[k]["volume"] += r.get("Volume") or 0
+        print("--- breakdown by InstrumentName ---")
+        for k, v in by_instr.items():
+            print(f"{k}: {v['count']} contracts, volume={v['volume']}, ValueInLacs sum={v['value_lacs']:.2f}")
+        print("--- sample row ---")
+        print(json.dumps(rows[0], indent=2) if rows else "no rows")
+    except Exception as e:
+        print(f"JSON parse error: {e}")
+        print(repr(cr.text[:500]))
+print()
 
 url = "https://www.mcxindia.com/market-data/market-watch"
 r = session.get(url, impersonate="chrome", timeout=15)
