@@ -859,45 +859,154 @@ function computeMonthExpiryDates(dailyAll, exchange) {
   return results.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
 }
 
-function buildExpiryComparisonHTML(exchange, segKey) {
+// Same idea as computeMonthExpiryDates but scoped to each ISO week instead of
+// each calendar month: that week's Tuesday (NSE) / Thursday (BSE), or the
+// nearest earlier trading day if that's a holiday — bounded to not walk back
+// past that week's own Monday (a holiday-shift never borrows from last week).
+function computeWeekExpiryDates(dailyAll, exchange) {
+  const targetDow = exchange === 'bse' ? 4 : 2; // Thu=4, Tue=2 (Sun=0 .. Sat=6)
+  const tradingDates = new Set(dailyAll.map(r => r.date));
+  const pad2 = n => String(n).padStart(2, '0');
+  const toStr = d => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+  const parseUTC = s => new Date(s + 'T00:00:00Z');
+  const mondayOf = d => {
+    const day = d.getUTCDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const m = new Date(d);
+    m.setUTCDate(m.getUTCDate() + diff);
+    return m;
+  };
+
+  const weeksSet = new Set();
+  dailyAll.forEach(r => weeksSet.add(toStr(mondayOf(parseUTC(r.date)))));
+
+  const results = [];
+  weeksSet.forEach(weekStartStr => {
+    const monday = parseUTC(weekStartStr);
+    const target = new Date(monday);
+    target.setUTCDate(monday.getUTCDate() + (targetDow - 1)); // Monday=1 in this offset scheme
+    const cursor = new Date(target);
+    let dateStr = toStr(cursor);
+    while (!tradingDates.has(dateStr) && cursor.getTime() >= monday.getTime()) {
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+      dateStr = toStr(cursor);
+    }
+    if (tradingDates.has(dateStr) && cursor.getTime() >= monday.getTime()) {
+      results.push({ weekStart: weekStartStr, expiryDate: dateStr });
+    }
+  });
+  return results.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+}
+
+// ── Month-end expiry lookups, by index into DATA.monthly/DATA.quarterly —
+// mirrors getMAvg/getQAvg's indexing scheme so the dropdown rows can reuse
+// the same mOpts/qOpts option lists and default-selection logic.
+function getExpiryDateForMonthLabel(exchange, monthLabel, dailyAll) {
+  const rec0 = dailyAll.find(r => r.fy_month === monthLabel);
+  if (!rec0) return null;
+  const monthKey = rec0.date.slice(0, 7);
+  const match = computeMonthExpiryDates(dailyAll, exchange).find(e => e.monthKey === monthKey);
+  return match ? match.expiryDate : null;
+}
+
+function getExpiryValueForMonthIdx(mIdx, exchange, segKey) {
+  const m = DATA.monthly?.[mIdx];
+  if (!m) return null;
+  const dailyAll = DATA.daily_all || [];
+  const expiryDate = getExpiryDateForMonthLabel(exchange, m.month, dailyAll);
+  const rec = expiryDate ? dailyAll.find(r => r.date === expiryDate) : null;
+  if (!rec) return null;
   const rf = getRevFieldObj(segKey);
+  return { label: m.month, value: rec[rf.dField] || 0 };
+}
+
+function getExpiryValueForQuarterLabel(quarterLabel, exchange, segKey) {
+  if (!quarterLabel) return null;
+  const dailyAll = DATA.daily_all || [];
+  const rf = getRevFieldObj(segKey);
+  const byDate = new Map(dailyAll.map(r => [r.date, r]));
+  const vals = computeMonthExpiryDates(dailyAll, exchange)
+    .map(e => byDate.get(e.expiryDate))
+    .filter(rec => rec && rec.fy_quarter === quarterLabel)
+    .map(rec => rec[rf.dField] || 0);
+  if (!vals.length) return null;
+  return { label: quarterLabel, value: vals.reduce((s, v) => s + v, 0) / vals.length };
+}
+
+function getExpiryValueForQuarterIdx(qIdx, exchange, segKey) {
+  const q = DATA.quarterly?.[qIdx];
+  return q ? getExpiryValueForQuarterLabel(q.quarter, exchange, segKey) : null;
+}
+
+function renderExpiryMonthRow(rowNum, mIdx, exchange, segKey) {
+  const cur   = getExpiryValueForMonthIdx(mIdx, exchange, segKey);
+  const valEl = document.getElementById(`expiryMVal${rowNum}-${segKey}`);
+  const chgEl = document.getElementById(`expiryMChg${rowNum}-${segKey}`);
+  if (valEl) valEl.innerHTML = cur ? wireVal(cur.value, 2) : '—';
+  if (chgEl) {
+    // True calendar-adjacent previous month, independent of whatever the row above shows.
+    const prev = getExpiryValueForMonthIdx(mIdx - 1, exchange, segKey);
+    chgEl.innerHTML = (prev && prev.value && cur) ? wireChg((cur.value - prev.value) / prev.value) : '';
+  }
+}
+
+function renderExpiryQuarterRow(rowNum, qIdx, exchange, segKey) {
+  const cur   = getExpiryValueForQuarterIdx(qIdx, exchange, segKey);
+  const q     = DATA.quarterly?.[qIdx];
+  const valEl = document.getElementById(`expiryQVal${rowNum}-${segKey}`);
+  const chgEl = document.getElementById(`expiryQChg${rowNum}-${segKey}`);
+  const yoyEl = document.getElementById(`expiryQYoy${rowNum}-${segKey}`);
+  if (valEl) valEl.innerHTML = cur ? wireVal(cur.value, 2) : '—';
+  if (chgEl) {
+    const prev = getExpiryValueForQuarterIdx(qIdx - 1, exchange, segKey);
+    chgEl.innerHTML = (prev && prev.value && cur) ? wireChg((cur.value - prev.value) / prev.value) : '';
+  }
+  if (yoyEl) {
+    const yoyLabel = q ? getYoYQuarter(q.quarter) : null;
+    const yoyRef   = yoyLabel ? getExpiryValueForQuarterLabel(yoyLabel, exchange, segKey) : null;
+    yoyEl.innerHTML = (yoyRef && yoyRef.value && cur) ? wireChg((cur.value - yoyRef.value) / yoyRef.value) : '';
+  }
+}
+
+function syncExpiryM(rowNum, mIdx) {
+  XL_SEGS.forEach(sk => {
+    const sel = document.getElementById(`expiryM${rowNum}-${sk}`);
+    if (sel && parseInt(sel.value) !== mIdx) sel.value = mIdx;
+    renderExpiryMonthRow(rowNum, mIdx, currentExchange, sk);
+  });
+}
+
+function syncExpiryQ(rowNum, qIdx) {
+  XL_SEGS.forEach(sk => {
+    const sel = document.getElementById(`expiryQ${rowNum}-${sk}`);
+    if (sel && parseInt(sel.value) !== qIdx) sel.value = qIdx;
+    renderExpiryQuarterRow(rowNum, qIdx, currentExchange, sk);
+  });
+}
+
+function buildExpiryComparisonHTML(exchange, segKey, mOpts, qOpts) {
   const dailyAll = DATA.daily_all || [];
   if (!dailyAll.length) return '';
 
-  const byDate = new Map(dailyAll.map(r => [r.date, r]));
-  const expiries = computeMonthExpiryDates(dailyAll, exchange)
-    .map(({ expiryDate }) => {
-      const rec = byDate.get(expiryDate);
-      return rec ? { expiryDate, fy_month: rec.fy_month, fy_quarter: rec.fy_quarter, value: rec[rf.dField] || 0 } : null;
-    })
-    .filter(Boolean);
-  if (!expiries.length) return '';
+  const mkSel = (id, opts) => `<select class="xl-row-sel" id="${id}">${opts}</select>`;
 
-  const monthly = expiries.slice(-8);
-  const monthlyRows = monthly.map((e, i) => {
-    const prev = i > 0 ? monthly[i - 1] : null;
-    const mom = prev && prev.value ? (e.value - prev.value) / prev.value : null;
-    return `<tr><td>${e.fy_month}</td><td class="wire-value">${wireVal(e.value, 2)}</td>${wireDeltaTd(mom)}</tr>`;
-  }).join('');
+  // 8 + 6 independently selectable rows — values/deltas populated after
+  // render by wireExpiryDropdowns() (called from buildRevenueSummary), same
+  // two-pass approach the FY/Quarter/Month table already uses.
+  const monthRowsHTML = Array.from({ length: 8 }, (_, r) => `
+    <tr>
+      <td>${mkSel(`expiryM${r}-${segKey}`, mOpts)}</td>
+      <td class="wire-value" id="expiryMVal${r}-${segKey}"></td>
+      <td id="expiryMChg${r}-${segKey}"></td>
+    </tr>`).join('');
 
-  const byQuarter = new Map();
-  expiries.forEach(e => {
-    if (!byQuarter.has(e.fy_quarter)) byQuarter.set(e.fy_quarter, []);
-    byQuarter.get(e.fy_quarter).push(e.value);
-  });
-  const quarterAvg = q => {
-    const vals = byQuarter.get(q);
-    return vals && vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
-  };
-  const quarterly = [...byQuarter.keys()].sort((a, b) => quarterSortKey(a) - quarterSortKey(b)).slice(-6);
-  const quarterlyRows = quarterly.map((q, i) => {
-    const cur     = quarterAvg(q);
-    const prevVal = i > 0 ? quarterAvg(quarterly[i - 1]) : null;
-    const yoyVal  = quarterAvg(getYoYQuarter(q));
-    const qoq = prevVal ? (cur - prevVal) / prevVal : null;
-    const yoy = yoyVal ? (cur - yoyVal) / yoyVal : null;
-    return `<tr><td>${q}</td><td class="wire-value">${wireVal(cur, 2)}</td>${wireDeltaTd(qoq)}${wireDeltaTd(yoy)}</tr>`;
-  }).join('');
+  const quarterRowsHTML = Array.from({ length: 6 }, (_, r) => `
+    <tr>
+      <td>${mkSel(`expiryQ${r}-${segKey}`, qOpts)}</td>
+      <td class="wire-value" id="expiryQVal${r}-${segKey}"></td>
+      <td id="expiryQChg${r}-${segKey}"></td>
+      <td id="expiryQYoy${r}-${segKey}"></td>
+    </tr>`).join('');
 
   const expiryWeekday = exchange === 'bse' ? 'Thursday' : 'Tuesday';
   return `
@@ -907,15 +1016,73 @@ function buildExpiryComparisonHTML(exchange, segKey) {
       <div class="wire-table-scroll" style="flex:1;min-width:260px">
         <table class="wire-table">
           <thead><tr><th>Month</th><th>Val (In Cr)</th><th>MoM</th></tr></thead>
-          <tbody>${monthlyRows}</tbody>
+          <tbody>${monthRowsHTML}</tbody>
         </table>
       </div>
       <div class="wire-table-scroll" style="flex:1;min-width:260px">
         <table class="wire-table">
           <thead><tr><th>Quarter</th><th>Val (In Cr)</th><th>QoQ</th><th>YoY</th></tr></thead>
-          <tbody>${quarterlyRows}</tbody>
+          <tbody>${quarterRowsHTML}</tbody>
         </table>
       </div>
+    </div>
+  </div>`;
+}
+
+// Isolates "is month-end special" from "is this just a normal weekly expiry":
+// for each month, averages that month's OTHER weekly-expiry days (excluding
+// the month-end one itself) and compares against the month-end figure.
+function buildWeeklyVsMonthEndHTML(exchange, segKey) {
+  const rf = getRevFieldObj(segKey);
+  const dailyAll = DATA.daily_all || [];
+  if (!dailyAll.length) return '';
+  const byDate = new Map(dailyAll.map(r => [r.date, r]));
+
+  const monthEndByKey = new Map(computeMonthExpiryDates(dailyAll, exchange).map(e => [e.monthKey, e.expiryDate]));
+
+  const weeksByMonth = new Map();
+  computeWeekExpiryDates(dailyAll, exchange).forEach(w => {
+    const mk = w.expiryDate.slice(0, 7);
+    if (!weeksByMonth.has(mk)) weeksByMonth.set(mk, []);
+    weeksByMonth.get(mk).push(w.expiryDate);
+  });
+
+  const rows = [];
+  weeksByMonth.forEach((weekDates, monthKey) => {
+    const meDate = monthEndByKey.get(monthKey);
+    const meRec  = meDate ? byDate.get(meDate) : null;
+    if (!meRec) return;
+    const otherVals = weekDates
+      .filter(d => d !== meDate)
+      .map(d => byDate.get(d))
+      .filter(Boolean)
+      .map(r => r[rf.dField] || 0);
+    if (!otherVals.length) return; // month had no other weekly expiry to compare against
+    const avgWeekly = otherVals.reduce((s, v) => s + v, 0) / otherVals.length;
+    const monthEndVal = meRec[rf.dField] || 0;
+    const diff = avgWeekly ? (monthEndVal - avgWeekly) / avgWeekly : null;
+    rows.push({ monthKey, fy_month: meRec.fy_month, avgWeekly, monthEndVal, diff });
+  });
+  rows.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+  if (!rows.length) return '';
+
+  const recent = rows.slice(-8);
+  const rowsHTML = recent.map(r => `
+    <tr>
+      <td>${r.fy_month}</td>
+      <td class="wire-value">${wireVal(r.avgWeekly, 2)}</td>
+      <td class="wire-value">${wireVal(r.monthEndVal, 2)}</td>
+      ${wireDeltaTd(r.diff)}
+    </tr>`).join('');
+
+  return `
+  <div style="margin-top:var(--space-4)">
+    <div class="xl-seg-header">${exchange.toUpperCase()} Weekly vs Month-End Expiry <span class="xl-seg-unit">avg of that month's other weekly expiries vs the month-end one · ₹ Cr</span></div>
+    <div class="wire-table-scroll" style="margin-top:var(--space-3)">
+      <table class="wire-table">
+        <thead><tr><th>Month</th><th>Avg Weekly Expiry</th><th>Month-End Expiry</th><th>Difference</th></tr></thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
     </div>
   </div>`;
 }
@@ -1319,7 +1486,9 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
 
       </div>
 
-      ${(currentExchange === 'nse' || currentExchange === 'bse') ? buildExpiryComparisonHTML(currentExchange, segKey) : ''}
+      ${(currentExchange === 'nse' || currentExchange === 'bse')
+        ? buildExpiryComparisonHTML(currentExchange, segKey, mOpts, qOpts) + buildWeeklyVsMonthEndHTML(currentExchange, segKey)
+        : ''}
 
     </div>`;
 }
@@ -1690,6 +1859,28 @@ function buildRevenueSummary() {
         });
       });
     });
+
+    // Month-End Expiry Comparison's 8 month rows + 6 quarter rows (NSE/BSE
+    // only — buildExpiryComparisonHTML returns '' for MCX, so these ids
+    // won't exist there and the optional-chained lookups below just no-op).
+    if (currentExchange === 'nse' || currentExchange === 'bse') {
+      const defaultExpiryMonthIdxs = Array.from({ length: 8 }, (_, i) => nM - 8 + i).filter(i => i >= 0);
+      const defaultExpiryQuarterIdxs = Array.from({ length: 6 }, (_, i) => nQ - 6 + i).filter(i => i >= 0);
+      defaultExpiryMonthIdxs.forEach((mi, r) => {
+        const sel = document.getElementById(`expiryM${r}-${sk}`);
+        if (!sel) return;
+        sel.value = mi;
+        renderExpiryMonthRow(r, mi, currentExchange, sk);
+        sel.addEventListener('change', function() { syncExpiryM(r, parseInt(this.value)); });
+      });
+      defaultExpiryQuarterIdxs.forEach((qi, r) => {
+        const sel = document.getElementById(`expiryQ${r}-${sk}`);
+        if (!sel) return;
+        sel.value = qi;
+        renderExpiryQuarterRow(r, qi, currentExchange, sk);
+        sel.addEventListener('change', function() { syncExpiryQ(r, parseInt(this.value)); });
+      });
+    }
   });
 }
 
@@ -5243,13 +5434,102 @@ async function downloadWeeklyReport() {
       </table>`;
     }
 
-    function buildExchangeSection(label, enriched, includeSegments) {
+    // Compact expiry comparison for the printed report — Total revenue only
+    // (the report has no segment sub-tabs), fewer rows than the on-screen
+    // version. Reuses computeMonthExpiryDates/computeWeekExpiryDates/
+    // getYoYQuarter/quarterSortKey, all defined at module scope.
+    function buildExpiryReportTable(dashData, exchange) {
+      const dailyAll = dashData.daily_all || dashData.daily || [];
+      if (!dailyAll.length) return '';
+      const byDate = new Map(dailyAll.map(r => [r.date, r]));
+
+      const monthExpiries = computeMonthExpiryDates(dailyAll, exchange)
+        .map(({ monthKey, expiryDate }) => {
+          const rec = byDate.get(expiryDate);
+          return rec ? { monthKey, expiryDate, fy_month: rec.fy_month, fy_quarter: rec.fy_quarter, value: rec.total_rev || 0 } : null;
+        })
+        .filter(Boolean);
+      if (!monthExpiries.length) return '';
+
+      const monthly = monthExpiries.slice(-6);
+      const monthlyRows = monthly.map((e, i) => {
+        const prev = i > 0 ? monthly[i - 1] : null;
+        const mom = prev && prev.value ? (e.value - prev.value) / prev.value : null;
+        return `<tr><td>${e.fy_month}</td><td>${n(e.value)}</td><td>${prFmt(mom)}</td></tr>`;
+      }).join('');
+
+      const byQuarter = new Map();
+      monthExpiries.forEach(e => {
+        if (!byQuarter.has(e.fy_quarter)) byQuarter.set(e.fy_quarter, []);
+        byQuarter.get(e.fy_quarter).push(e.value);
+      });
+      const qAvg = q => {
+        const v = byQuarter.get(q);
+        return v && v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
+      };
+      const quarters = [...byQuarter.keys()].sort((a, b) => quarterSortKey(a) - quarterSortKey(b)).slice(-4);
+      const quarterlyRows = quarters.map((q, i) => {
+        const cur     = qAvg(q);
+        const prevVal = i > 0 ? qAvg(quarters[i - 1]) : null;
+        const yoyVal  = qAvg(getYoYQuarter(q));
+        const qoq = prevVal ? (cur - prevVal) / prevVal : null;
+        const yoy = yoyVal ? (cur - yoyVal) / yoyVal : null;
+        return `<tr><td>${q}</td><td>${n(cur)}</td><td>${prFmt(qoq)}</td><td>${prFmt(yoy)}</td></tr>`;
+      }).join('');
+
+      const monthEndByKey = new Map(monthExpiries.map(e => [e.monthKey, e]));
+      const weeksByMonth = new Map();
+      computeWeekExpiryDates(dailyAll, exchange).forEach(w => {
+        const mk = w.expiryDate.slice(0, 7);
+        if (!weeksByMonth.has(mk)) weeksByMonth.set(mk, []);
+        weeksByMonth.get(mk).push(w.expiryDate);
+      });
+      const wvmRows = [];
+      weeksByMonth.forEach((dates, mk) => {
+        const me = monthEndByKey.get(mk);
+        if (!me) return;
+        const otherVals = dates
+          .filter(d => d !== me.expiryDate)
+          .map(d => byDate.get(d))
+          .filter(Boolean)
+          .map(r => r.total_rev || 0);
+        if (!otherVals.length) return;
+        const avgWeekly = otherVals.reduce((s, v) => s + v, 0) / otherVals.length;
+        const diff = avgWeekly ? (me.value - avgWeekly) / avgWeekly : null;
+        wvmRows.push({ monthKey: mk, fy_month: me.fy_month, avgWeekly, monthEnd: me.value, diff });
+      });
+      wvmRows.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+      const wvmRecent = wvmRows.slice(-6);
+      const wvmRowsHTML = wvmRecent.map(r =>
+        `<tr><td>${r.fy_month}</td><td>${n(r.avgWeekly)}</td><td>${n(r.monthEnd)}</td><td>${prFmt(r.diff)}</td></tr>`
+      ).join('');
+
+      const expiryWeekday = exchange === 'bse' ? 'Thursday' : 'Tuesday';
+      return `
+      <div class="pr-sub-header">Month-End Expiry Comparison (Total Rev, ₹ Cr) — last trading day on/before month's last ${expiryWeekday}</div>
+      <table class="pr-table" style="margin-bottom:8px">
+        <thead><tr><th>Month</th><th>₹ Cr</th><th>MoM</th></tr></thead>
+        <tbody>${monthlyRows}</tbody>
+      </table>
+      <table class="pr-table" style="margin-bottom:8px">
+        <thead><tr><th>Quarter</th><th>₹ Cr</th><th>QoQ</th><th>YoY</th></tr></thead>
+        <tbody>${quarterlyRows}</tbody>
+      </table>
+      <div class="pr-sub-header">Weekly vs Month-End Expiry (Total Rev, ₹ Cr)</div>
+      <table class="pr-table">
+        <thead><tr><th>Month</th><th>Avg Weekly Expiry</th><th>Month-End Expiry</th><th>Difference</th></tr></thead>
+        <tbody>${wvmRowsHTML}</tbody>
+      </table>`;
+    }
+
+    function buildExchangeSection(label, enriched, includeSegments, dashData, exchangeKey) {
       return `<div class="pr-section">
         <div class="pr-section-header">${label}</div>
         <div class="pr-section-body">
           ${buildTotalRevenueTable(enriched)}
           ${buildDowTable(enriched)}
           ${includeSegments ? buildSegmentTable(enriched) : ''}
+          ${dashData && exchangeKey ? buildExpiryReportTable(dashData, exchangeKey) : ''}
         </div>
       </div>`;
     }
@@ -5316,8 +5596,8 @@ async function downloadWeeklyReport() {
         <span class="pr-title">NSE/BSE Weekly Update – Week of ${weekRange}</span>
         <span class="pr-subtitle">Generated: ${genTime}</span>
       </div>
-      ${buildExchangeSection('NSE Update', nseEnrich, true)}
-      ${buildExchangeSection('BSE Update', bseEnrich, false)}
+      ${buildExchangeSection('NSE Update', nseEnrich, true, nseDash, 'nse')}
+      ${buildExchangeSection('BSE Update', bseEnrich, false, bseDash, 'bse')}
       ${buildRegressionSection(bseShare, 'BSE')}
       ${buildMarketShareSection()}
       ${mcxEnrich ? buildExchangeSection('MCX Update', mcxEnrich, true) : ''}
