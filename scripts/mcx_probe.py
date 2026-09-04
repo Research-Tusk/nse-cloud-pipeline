@@ -80,3 +80,42 @@ for path in js_files:
                     print(repr(js[max(0, i-60):i+60]))
     except Exception as e:
         print(f"\n=== {js_url} === ERROR: {e}")
+
+# Print the full GetData / GetDataUrl function bodies from data.js verbatim
+data_js_url = "https://www.mcxindia.com/assets/customjs/data.js"
+dr = session.get(data_js_url, impersonate="chrome", timeout=15)
+djs = dr.text
+for fn in ["function GetData(", "function GetDataSynchronus(", "function GetDataUrl("]:
+    i = djs.find(fn)
+    if i >= 0:
+        end = djs.find("\n}", i)
+        print(f"\n=== {fn} body ===")
+        print(djs[i:end+2])
+
+# Also print the marketWatch.js snippet around the GetMarketWatch call for full context
+mw_url = "https://www.mcxindia.com/assets/customjs/marketWatch.js"
+mr = session.get(mw_url, impersonate="chrome", timeout=15)
+mjs = mr.text
+i = mjs.find("GetMarketWatch")
+if i >= 0:
+    print("\n=== marketWatch.js context around GetMarketWatch call ===")
+    print(mjs[max(0, i-500):i+800])
+
+# Now actually TRY calling the endpoint a few plausible ways.
+candidates = [
+    ("GET",  "https://www.mcxindia.com/GetMarketWatch?culture=en-US"),
+    ("GET",  "https://www.mcxindia.com/market-data/market-watch/GetMarketWatch?culture=en-US"),
+    ("POST", "https://www.mcxindia.com/market-data/market-watch/GetMarketWatch?culture=en-US"),
+    ("POST", "https://www.mcxindia.com/GetMarketWatch?culture=en-US"),
+]
+print("\n=== live endpoint attempts ===")
+for method, curl in candidates:
+    try:
+        if method == "GET":
+            cr = session.get(curl, impersonate="chrome", timeout=15)
+        else:
+            cr = session.post(curl, impersonate="chrome", timeout=15, json={})
+        print(f"{method} {curl} -> {cr.status_code}, len={len(cr.text)}, ct={cr.headers.get('content-type')}")
+        print(repr(cr.text[:300]))
+    except Exception as e:
+        print(f"{method} {curl} -> ERROR: {e}")
