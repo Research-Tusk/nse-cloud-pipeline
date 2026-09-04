@@ -829,6 +829,97 @@ function getYoYQuarter(qLabel) {
   return m[1] + ' FY ' + (parseInt(m[2]) - 1);
 }
 
+// ── Month-end expiry comparison (NSE & BSE only) ──────────────────────────────
+// Derived purely from observed trading dates in DATA.daily_all — no separate
+// holiday calendar needed. Expiry = the calendar month's last Tuesday (NSE) /
+// Thursday (BSE); if that exact date isn't an actual trading day (holiday),
+// walk back one calendar day at a time until landing on one that is.
+function computeMonthExpiryDates(dailyAll, exchange) {
+  const targetDow = exchange === 'bse' ? 4 : 2; // Thu=4, Tue=2 (Sun=0 .. Sat=6)
+  const tradingDates = new Set(dailyAll.map(r => r.date));
+  const monthsSet = new Set(dailyAll.map(r => r.date.slice(0, 7)));
+  const pad2 = n => String(n).padStart(2, '0');
+  const toStr = d => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+
+  const results = [];
+  monthsSet.forEach(monthKey => {
+    const [y, m] = monthKey.split('-').map(Number);
+    const lastDayNum = new Date(Date.UTC(y, m, 0)).getUTCDate(); // last calendar day of month m
+    const cursor = new Date(Date.UTC(y, m - 1, lastDayNum));
+    while (cursor.getUTCDay() !== targetDow) cursor.setUTCDate(cursor.getUTCDate() - 1);
+
+    let dateStr = toStr(cursor);
+    let guard = 10; // holidays cluster at most a few days; bail out rather than loop unbounded
+    while (!tradingDates.has(dateStr) && guard-- > 0) {
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+      dateStr = toStr(cursor);
+    }
+    if (tradingDates.has(dateStr)) results.push({ monthKey, expiryDate: dateStr });
+  });
+  return results.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+}
+
+function buildExpiryComparisonHTML(exchange, segKey) {
+  const rf = getRevFieldObj(segKey);
+  const dailyAll = DATA.daily_all || [];
+  if (!dailyAll.length) return '';
+
+  const byDate = new Map(dailyAll.map(r => [r.date, r]));
+  const expiries = computeMonthExpiryDates(dailyAll, exchange)
+    .map(({ expiryDate }) => {
+      const rec = byDate.get(expiryDate);
+      return rec ? { expiryDate, fy_month: rec.fy_month, fy_quarter: rec.fy_quarter, value: rec[rf.dField] || 0 } : null;
+    })
+    .filter(Boolean);
+  if (!expiries.length) return '';
+
+  const monthly = expiries.slice(-8);
+  const monthlyRows = monthly.map((e, i) => {
+    const prev = i > 0 ? monthly[i - 1] : null;
+    const mom = prev && prev.value ? (e.value - prev.value) / prev.value : null;
+    return `<tr><td>${e.fy_month}</td><td class="wire-value">${wireVal(e.value, 2)}</td>${wireDeltaTd(mom)}</tr>`;
+  }).join('');
+
+  const byQuarter = new Map();
+  expiries.forEach(e => {
+    if (!byQuarter.has(e.fy_quarter)) byQuarter.set(e.fy_quarter, []);
+    byQuarter.get(e.fy_quarter).push(e.value);
+  });
+  const quarterAvg = q => {
+    const vals = byQuarter.get(q);
+    return vals && vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  };
+  const quarterly = [...byQuarter.keys()].sort((a, b) => quarterSortKey(a) - quarterSortKey(b)).slice(-6);
+  const quarterlyRows = quarterly.map((q, i) => {
+    const cur     = quarterAvg(q);
+    const prevVal = i > 0 ? quarterAvg(quarterly[i - 1]) : null;
+    const yoyVal  = quarterAvg(getYoYQuarter(q));
+    const qoq = prevVal ? (cur - prevVal) / prevVal : null;
+    const yoy = yoyVal ? (cur - yoyVal) / yoyVal : null;
+    return `<tr><td>${q}</td><td class="wire-value">${wireVal(cur, 2)}</td>${wireDeltaTd(qoq)}${wireDeltaTd(yoy)}</tr>`;
+  }).join('');
+
+  const expiryWeekday = exchange === 'bse' ? 'Thursday' : 'Tuesday';
+  return `
+  <div style="margin-top:var(--space-4)">
+    <div class="xl-seg-header">${exchange.toUpperCase()} Month-End Expiry Comparison <span class="xl-seg-unit">last trading day on/before the month's last ${expiryWeekday} · ₹ Cr</span></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:var(--space-3)">
+      <div class="wire-table-scroll" style="flex:1;min-width:260px">
+        <table class="wire-table">
+          <thead><tr><th>Month</th><th>Val (In Cr)</th><th>MoM</th></tr></thead>
+          <tbody>${monthlyRows}</tbody>
+        </table>
+      </div>
+      <div class="wire-table-scroll" style="flex:1;min-width:260px">
+        <table class="wire-table">
+          <thead><tr><th>Quarter</th><th>Val (In Cr)</th><th>QoQ</th><th>YoY</th></tr></thead>
+          <tbody>${quarterlyRows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
 function computeQuarterMetrics(qIdx, segKey) {
   const rf = getRevFieldObj(segKey);
   const allQ = DATA.quarterly;
@@ -1043,6 +1134,34 @@ function syncXLQ(rowNum, qIdx) {
   });
 }
 
+// ── Quarter wire-table (Day-of-Week × Quarter) — independently selectable
+// per-weekday quarter rows. Unlike getQAvg (whole-quarter daily average from
+// the pre-aggregated DATA.quarterly), this filters DATA.daily_all down to a
+// single weekday within the chosen quarter, since no pre-aggregated
+// per-weekday-per-quarter figure exists for arbitrary quarters (the pipeline
+// only ever computed it for the fixed current/prev/YoY trio).
+function getWeekdayQAvg(weekday, qIdx, segKey) {
+  const rf = getRevFieldObj(segKey);
+  const q  = DATA.quarterly[qIdx];
+  if (!q) return null;
+  const rows = (DATA.daily_all || []).filter(r => r.day === weekday && r.fy_quarter === q.quarter);
+  if (!rows.length) return null;
+  return rows.reduce((s, r) => s + (r[rf.dField] || 0), 0) / rows.length;
+}
+
+function renderWireQRow(weekday, rowNum, qIdx, segKey) {
+  const valEl = document.getElementById(`wireQVal-${weekday}-${rowNum}-${segKey}`);
+  if (valEl) valEl.innerHTML = wireVal(getWeekdayQAvg(weekday, qIdx, segKey), 1);
+}
+
+function syncWireQ(weekday, rowNum, qIdx) {
+  XL_SEGS.forEach(sk => {
+    const sel = document.getElementById(`wireQ-${weekday}-${rowNum}-${sk}`);
+    if (sel && parseInt(sel.value) !== qIdx) sel.value = qIdx;
+    renderWireQRow(weekday, rowNum, qIdx, sk);
+  });
+}
+
 function syncXLM(rowNum, mIdx) {
   XL_SEGS.forEach(sk => {
     const sel = document.getElementById('xlM' + rowNum + '-' + sk);
@@ -1076,6 +1195,8 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
     ? `<tr class="wire-detail"><td>${label}</td><td class="wire-value">${wireVal(val, 1)}</td><td></td><td></td></tr>` : '';
   const wireSpacerRow = '<tr class="wire-day-spacer"><td colspan="4"></td></tr>';
 
+  const mkSel = (id, opts) => `<select class="xl-row-sel" id="${id}">${opts}</select>`;
+
   const dowRows = dayFull.map((d) => {
     const dd = dow[d] || {};
     return `<tr class="wire-day-main">
@@ -1088,6 +1209,16 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
     ${wireDetailRow('Average of last 10 ' + d + 's', dd.avg_10d)}`;
   }).join(wireSpacerRow);
 
+  // Quarter wire-table: 3 independently selectable quarters per weekday
+  // (was a fixed current/prev/YoY trio computed server-side — see
+  // getWeekdayQAvg/renderWireQRow/syncWireQ for the client-side recompute).
+  const wireQSelRow = (weekday, rowNum) => `
+    <tr class="wire-detail">
+      <td>${mkSel(`wireQ-${weekday}-${rowNum}-${segKey}`, qOpts)}</td>
+      <td class="wire-value" id="wireQVal-${weekday}-${rowNum}-${segKey}"></td>
+      <td></td><td></td>
+    </tr>`;
+
   const qdowRows = dayFull.map((d) => {
     const dd = dow[d] || {};
     return `<tr class="wire-day-main">
@@ -1096,12 +1227,10 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
       ${wireDeltaTd(dd.qoq)}
       ${wireDeltaTd(dd.yoy)}
     </tr>
-    ${wireDetailRow(dd.cur_q_label, dd.cur_q_avg)}
-    ${wireDetailRow(dd.prev_q_label, dd.prev_q_avg)}
-    ${wireDetailRow(dd.yoy_q_label, dd.yoy_q_avg)}`;
+    ${wireQSelRow(d, 0)}
+    ${wireQSelRow(d, 1)}
+    ${wireQSelRow(d, 2)}`;
   }).join(wireSpacerRow);
-
-  const mkSel = (id, opts) => `<select class="xl-row-sel" id="${id}">${opts}</select>`;
 
   // FY: 2 independently selectable rows
   const fyRows = [0, 1].map(r => `
@@ -1189,6 +1318,9 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
         </div>
 
       </div>
+
+      ${(currentExchange === 'nse' || currentExchange === 'bse') ? buildExpiryComparisonHTML(currentExchange, segKey) : ''}
+
     </div>`;
 }
 
@@ -1432,6 +1564,8 @@ function buildOverview() {
   el.innerHTML = xlStaticSegmentBlock(combined, 'Total — NSE + BSE + MCX');
 }
 
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
 function buildRevenueSummary() {
   const ed = ENRICHED_DATA;
   if (!ed || !ed.summary_total) return;
@@ -1522,6 +1656,17 @@ function buildRevenueSummary() {
     [defQ0, defQ1, defQ2, defQ3].forEach((qi, r) => renderQRow(r, qi, sk));
     renderMRow(0, defM0, sk); renderMRow(1, defM1, sk);
 
+    // Quarter wire-table's 3 per-weekday selectable rows — same current/prev/
+    // same-Q-last-year defaults the fixed trio used to show.
+    const wireQDefaults = [defQ0, defQ1, defQ3];
+    WEEKDAYS.forEach(d => {
+      wireQDefaults.forEach((qi, r) => {
+        const sel = document.getElementById(`wireQ-${d}-${r}-${sk}`);
+        if (sel) sel.value = qi;
+        renderWireQRow(d, r, qi, sk);
+      });
+    });
+
     // Wire event listeners
     [0, 1].forEach(r => {
       document.getElementById('xlFY' + r + '-' + sk).addEventListener('change', function() {
@@ -1536,6 +1681,13 @@ function buildRevenueSummary() {
     [0, 1].forEach(r => {
       document.getElementById('xlM' + r + '-' + sk).addEventListener('change', function() {
         syncXLM(r, parseInt(this.value));
+      });
+    });
+    WEEKDAYS.forEach(d => {
+      [0, 1, 2].forEach(r => {
+        document.getElementById(`wireQ-${d}-${r}-${sk}`)?.addEventListener('change', function() {
+          syncWireQ(d, r, parseInt(this.value));
+        });
       });
     });
   });
