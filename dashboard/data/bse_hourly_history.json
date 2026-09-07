@@ -721,6 +721,44 @@
           "fraction": 1.0
         }
       }
+    },
+    {
+      "date": "2026-09-04",
+      "weekday": 4,
+      "weekday_name": "Friday",
+      "day_type": "normal",
+      "eod_revenue": 6.2,
+      "n_samples": 3,
+      "checkpoints": {
+        "10:00": {
+          "revenue": 0.8123,
+          "fraction": 0.131
+        },
+        "11:00": {
+          "revenue": 1.8955,
+          "fraction": 0.3057
+        },
+        "12:00": {
+          "revenue": 2.9786,
+          "fraction": 0.4804
+        },
+        "13:00": {
+          "revenue": 4.0617,
+          "fraction": 0.6551
+        },
+        "14:00": {
+          "revenue": 4.5629,
+          "fraction": 0.736
+        },
+        "15:00": {
+          "revenue": 4.9995,
+          "fraction": 0.8064
+        },
+        "15:30": {
+          "revenue": 6.2,
+          "fraction": 1.0
+        }
+      }
     }
   ]
 }
