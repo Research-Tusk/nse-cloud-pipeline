@@ -1351,11 +1351,21 @@ function xlSegmentBlock(segData, label, segKey, fyOpts, qOpts, mOpts) {
   const dow = s.day_of_week;
   const dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
+  // "Last 5 Days" above is a naive trailing slice of the last 5 trading rows
+  // (see seg_summary in scripts/nse_pipeline.py / bse_pipeline.py) — when a
+  // holiday shifts that window back far enough, it can catch the same weekday
+  // (e.g. BSE's Thursday expiry) twice, skewing the average. The center
+  // "Week>>" wire-table already shows one "latest" value per weekday, so
+  // averaging those 5 gives a like-for-like week (one of each weekday,
+  // expiry day included exactly once) with no holiday distortion possible.
+  const dowLatestAvg = dayFull.reduce((sum, d) => sum + ((dow[d] || {}).latest || 0), 0) / dayFull.length;
+
   const wRows = [
     `<tr class="xl-r-cur"><td>Last 5 Days</td><td>${xlValPlain(wl5.value, 2)}</td><td>${wireChg(wl5.wow)}</td><td>${wireChg(wl5.wo10w)}</td></tr>`,
     `<tr><td>Prev 5 Days</td><td>${xlValPlain(wp5.value, 2)}</td><td></td><td></td></tr>`,
     `<tr><td>Last 20 Days</td><td>${xlValPlain(w20.value, 2)}</td><td></td><td></td></tr>`,
     `<tr><td>Last 45 Days</td><td>${xlValPlain(w50.value, 2)}</td><td></td><td></td></tr>`,
+    `<tr><td>Mon–Fri Avg (Latest)</td><td>${xlValPlain(dowLatestAvg, 2)}</td><td></td><td></td></tr>`,
   ].join('');
 
   const wireDetailRow = (label, val) => label
