@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-21T18:19:55",
+  "updated_at": "2026-09-21T20:07:15",
   "ticker": "MCX.NS",
   "ma_window": 45,
   "regression_start": "2025-01-01",
@@ -722,7 +722,7 @@
       "date": "2022-07-25",
       "revenue_cr": 2.966,
       "rev_ma": 3.2433,
-      "price": 271.68,
+      "price": 271.67,
       "price_pred": 1110.2
     },
     {
@@ -891,7 +891,7 @@
       "revenue_cr": 3.4673,
       "rev_ma": 3.3887,
       "price": 249.62,
-      "price_pred": 1139.23
+      "price_pred": 1139.22
     },
     {
       "date": "2022-09-01",
@@ -1976,7 +1976,7 @@
       "revenue_cr": 2.9588,
       "rev_ma": 2.7492,
       "price": 284.99,
-      "price_pred": 1011.57
+      "price_pred": 1011.56
     },
     {
       "date": "2023-04-21",
@@ -2578,7 +2578,7 @@
       "revenue_cr": 3.6905,
       "rev_ma": 3.113,
       "price": 310.94,
-      "price_pred": 1084.18
+      "price_pred": 1084.17
     },
     {
       "date": "2023-08-24",
@@ -2991,7 +2991,7 @@
       "revenue_cr": 3.9061,
       "rev_ma": 3.8669,
       "price": 576.79,
-      "price_pred": 1234.69
+      "price_pred": 1234.68
     },
     {
       "date": "2023-11-22",
@@ -3816,7 +3816,7 @@
       "date": "2024-05-17",
       "revenue_cr": 5.0757,
       "rev_ma": 4.0721,
-      "price": 798.87,
+      "price": 798.86,
       "price_pred": 1275.66
     },
     {
@@ -3978,7 +3978,7 @@
       "revenue_cr": 3.2176,
       "rev_ma": 4.4836,
       "price": 759.9,
-      "price_pred": 1357.82
+      "price_pred": 1357.81
     },
     {
       "date": "2024-06-25",
@@ -5350,7 +5350,7 @@
       "revenue_cr": 6.2007,
       "rev_ma": 4.2233,
       "price": 1033.39,
-      "price_pred": 1305.84
+      "price_pred": 1305.83
     },
     {
       "date": "2025-04-09",
@@ -5846,7 +5846,7 @@
       "date": "2025-07-22",
       "revenue_cr": 4.8264,
       "rev_ma": 4.9629,
-      "price": 1620.53,
+      "price": 1620.52,
       "price_pred": 1453.49
     },
     {
@@ -6106,7 +6106,7 @@
       "revenue_cr": 5.5108,
       "rev_ma": 4.9606,
       "price": 1547.51,
-      "price_pred": 1453.04
+      "price_pred": 1453.03
     },
     {
       "date": "2025-09-16",
@@ -6456,7 +6456,7 @@
       "revenue_cr": 5.0584,
       "rev_ma": 8.902,
       "price": 2079.8,
-      "price_pred": 2239.89
+      "price_pred": 2239.88
     },
     {
       "date": "2025-11-28",
