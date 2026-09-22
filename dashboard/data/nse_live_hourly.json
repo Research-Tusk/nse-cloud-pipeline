@@ -1,37 +1,17 @@
 {
-  "date": "2026-09-21",
-  "weekday": 0,
-  "weekday_name": "Monday",
-  "day_type": "pre_expiry",
+  "date": "2026-09-22",
+  "weekday": 1,
+  "weekday_name": "Tuesday",
+  "day_type": "expiry",
   "samples": [
     {
-      "captured_ist": "2026-09-21T14:14:21",
-      "elapsed_minutes": 299,
-      "total_revenue": 29.94,
-      "cash_revenue": 4.68,
-      "options_revenue": 23.44,
-      "futures_revenue": 1.82,
-      "predicted_eod": 42.25,
-      "pred_method": "historical/overall"
-    },
-    {
-      "captured_ist": "2026-09-21T20:51:28",
-      "elapsed_minutes": 696,
-      "total_revenue": 37.77,
-      "cash_revenue": 6.23,
-      "options_revenue": 29.08,
-      "futures_revenue": 2.46,
-      "predicted_eod": 37.77,
-      "pred_method": "historical/overall"
-    },
-    {
-      "captured_ist": "2026-09-21T22:11:57",
-      "elapsed_minutes": 776,
-      "total_revenue": 37.77,
-      "cash_revenue": 6.23,
-      "options_revenue": 29.08,
-      "futures_revenue": 2.46,
-      "predicted_eod": 37.77,
+      "captured_ist": "2026-09-22T13:52:50",
+      "elapsed_minutes": 277,
+      "total_revenue": 37.89,
+      "cash_revenue": 4.59,
+      "options_revenue": 30.83,
+      "futures_revenue": 2.47,
+      "predicted_eod": 55.58,
       "pred_method": "historical/overall"
     }
   ]
