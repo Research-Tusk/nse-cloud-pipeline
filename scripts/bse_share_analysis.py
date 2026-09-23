@@ -71,12 +71,18 @@ def load_pipeline(path):
 
 
 def fetch_yfinance_prices(start_date_str):
-    """Returns {date_str: close_price} from yfinance BSE.NS."""
+    """Returns {date_str: close_price} from yfinance BSE.NS.
+
+    yfinance can return a NaN Close for the most recent day (e.g. fetched
+    mid-session before the close posts) — drop those rather than let a
+    single bad value poison the whole regression downstream.
+    """
     import yfinance as yf
     hist = yf.Ticker("BSE.NS").history(start=start_date_str)
     return {
         str(d)[:10]: round(float(c), 2)
         for d, c in zip(hist.index, hist["Close"])
+        if np.isfinite(c)
     }
 
 
@@ -122,9 +128,14 @@ def build_dataset(seed, pipeline):
         if rev is None:
             continue
 
-        # Price: seed first, yfinance as extension
-        price = seed.get(d, {}).get("price") or yf_prices.get(d)
-        if price is None:
+        # Price: seed first, yfinance as extension. `or` would let a NaN
+        # seed price incorrectly win over a valid yfinance one (NaN is
+        # truthy in Python), so check finiteness explicitly.
+        seed_price = seed.get(d, {}).get("price")
+        if seed_price is not None and not np.isfinite(seed_price):
+            seed_price = None
+        price = seed_price if seed_price is not None else yf_prices.get(d)
+        if price is None or not np.isfinite(price):
             continue
 
         rows.append({"date": d, "revenue_cr": rev, "price": price})
@@ -181,10 +192,13 @@ def main():
     window_results = {}
     for window in MA_WINDOWS:
         mas = rolling_ma(revenues, window)
+        # Defense in depth: a single non-finite price/MA here would otherwise
+        # poison the entire np.polyfit/np.corrcoef fit (numpy propagates one
+        # NaN to every output), not just that one row's prediction.
         reg = [
             {"date": r["date"], "rev_ma": mas[i], "price": r["price"], "revenue_cr": r["revenue_cr"]}
             for i, r in enumerate(all_rows)
-            if r["date"] >= REGRESSION_START and mas[i] is not None
+            if r["date"] >= REGRESSION_START and mas[i] is not None and np.isfinite(r["price"])
         ]
         if len(reg) < 10:
             continue
@@ -262,7 +276,11 @@ def main():
     }
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_FILE.write_text(json.dumps(output, indent=2))
+    # allow_nan=False: fail the run loudly if a NaN/Inf ever reaches this
+    # point instead of silently writing invalid JSON (a literal `NaN` token
+    # is not valid JSON — the browser's JSON.parse() throws on it, which is
+    # exactly what broke the Regression/Valuation tabs last time).
+    OUTPUT_FILE.write_text(json.dumps(output, indent=2, allow_nan=False))
     print(
         f"\nWrote {OUTPUT_FILE.name} "
         f"({len(series)} total rows, {len(reg_series)} in regression window)"
