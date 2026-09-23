@@ -72,7 +72,13 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add data/dashboard_data.json data/enriched_data.json dashboard/data/nse_dashboard_data.json dashboard/data/nse_enriched_data.json
           git commit -m "📊 NSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
-          git push
+          for i in 1 2 3 4 5; do
+            git push && break
+            echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done
 
   bse-update:
     runs-on: ubuntu-latest
@@ -125,7 +131,13 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add data/bse_dashboard_data.json data/bse_enriched_data.json dashboard/data/bse_dashboard_data.json dashboard/data/bse_enriched_data.json
           git commit -m "📊 BSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
-          git push
+          for i in 1 2 3 4 5; do
+            git push && break
+            echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done
 
   mcx-update:
     runs-on: ubuntu-latest
@@ -174,7 +186,13 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add data/mcx_dashboard_data.json data/mcx_enriched_data.json dashboard/data/mcx_dashboard_data.json dashboard/data/mcx_enriched_data.json
           git commit -m "📊 MCX update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
-          git push
+          for i in 1 2 3 4 5; do
+            git push && break
+            echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done
 
   excel-sync:
     needs: [nse-update, bse-update]
@@ -249,7 +267,13 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add dashboard/data/bse_share_analysis.json
           git commit -m "📈 BSE share analysis: $(date +%Y-%m-%d)" || true
-          git push
+          for i in 1 2 3 4 5; do
+            git push && break
+            echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done
 
   mcx-share-analysis:
     needs: [mcx-update]
@@ -288,7 +312,13 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add dashboard/data/mcx_share_analysis.json
           git commit -m "📈 MCX share analysis: $(date +%Y-%m-%d)" || true
-          git push
+          for i in 1 2 3 4 5; do
+            git push && break
+            echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done
 
   deploy:
     needs: [nse-update, bse-update, mcx-update, bse-share-analysis, mcx-share-analysis]
