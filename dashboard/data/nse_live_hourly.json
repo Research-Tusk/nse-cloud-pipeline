@@ -1,28 +1,18 @@
 {
-  "date": "2026-09-23",
-  "weekday": 2,
-  "weekday_name": "Wednesday",
+  "date": "2026-09-24",
+  "weekday": 3,
+  "weekday_name": "Thursday",
   "day_type": "normal",
   "samples": [
     {
-      "captured_ist": "2026-09-23T13:54:34",
-      "elapsed_minutes": 279,
-      "total_revenue": 24.0,
-      "cash_revenue": 4.79,
-      "options_revenue": 16.35,
-      "futures_revenue": 2.85,
-      "predicted_eod": 30.4,
-      "pred_method": "historical/normal/wd2"
-    },
-    {
-      "captured_ist": "2026-09-23T19:17:24",
-      "elapsed_minutes": 602,
-      "total_revenue": 32.19,
-      "cash_revenue": 6.65,
-      "options_revenue": 21.49,
-      "futures_revenue": 4.05,
-      "predicted_eod": 32.19,
-      "pred_method": "historical/normal/wd2"
+      "captured_ist": "2026-09-24T13:20:59",
+      "elapsed_minutes": 245,
+      "total_revenue": 28.36,
+      "cash_revenue": 4.45,
+      "options_revenue": 17.1,
+      "futures_revenue": 6.81,
+      "predicted_eod": 47.61,
+      "pred_method": "historical/normal/wd3"
     }
   ]
 }
