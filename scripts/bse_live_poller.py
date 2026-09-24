@@ -28,7 +28,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import sys
-import requests
+from curl_cffi import requests as cffi_requests
 sys.path.insert(0, str(Path(__file__).parent))
 from live_common import save_hourly_snapshot
 
@@ -74,7 +74,7 @@ HEADERS = {
     "Origin":      "https://www.bseindia.com",
 }
 
-SESSION = requests.Session()
+SESSION = cffi_requests.Session()
 SESSION.headers.update(HEADERS)
 
 
@@ -93,7 +93,7 @@ def _parse(val):
 
 def _get(url):
     try:
-        r = SESSION.get(url, timeout=15)
+        r = SESSION.get(url, timeout=15, impersonate="chrome")
         print(f"  {url.split('/')[-1]}: {r.status_code} {len(r.text)} bytes")
         if r.status_code == 200 and r.text.strip():
             return r.json()
