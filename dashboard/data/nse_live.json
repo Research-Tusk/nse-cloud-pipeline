@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-24T23:25:54",
+  "updated_at": "2026-09-24T23:31:19",
   "market_status": {
     "marketState": [
       {
@@ -15,7 +15,7 @@
       {
         "market": "Currency",
         "marketStatus": "Closed",
-        "tradeDate": "24-Sep-2026",
+        "tradeDate": "25-Sep-2026",
         "index": "",
         "last": "",
         "variation": "",
@@ -25,7 +25,7 @@
       {
         "market": "Commodity",
         "marketStatus": "Closed",
-        "tradeDate": "24-Sep-2026",
+        "tradeDate": "25-Sep-2026",
         "index": "",
         "last": "",
         "variation": "",
@@ -35,7 +35,7 @@
       {
         "market": "Debt",
         "marketStatus": "Closed",
-        "tradeDate": "24-Sep-2026",
+        "tradeDate": "25-Sep-2026",
         "index": "",
         "last": "",
         "variation": "",
@@ -52,7 +52,7 @@
       {
         "market": "currencyfuture",
         "marketStatus": "Closed",
-        "tradeDate": "24-Sep-2026",
+        "tradeDate": "25-Sep-2026",
         "index": "",
         "last": "95.9800",
         "variation": "",
