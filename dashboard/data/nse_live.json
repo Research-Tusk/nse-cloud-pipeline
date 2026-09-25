@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-25T11:01:35",
+  "updated_at": "2026-09-25T11:05:50",
   "market_status": {
     "marketState": [
       {
@@ -54,14 +54,14 @@
         "marketStatus": "Open",
         "tradeDate": "25-Sep-2026",
         "index": "",
-        "last": "95.8025",
+        "last": "95.7700",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Sep-2026",
         "underlying": "USDINR",
-        "updated_time": "25-Sep-2026 16:30",
-        "tradeDateFormatted": "25-Sep-2026 16:30",
+        "updated_time": "25-Sep-2026 16:35",
+        "tradeDateFormatted": "25-Sep-2026 16:35",
         "slickclass": "slick-item"
       }
     ],
@@ -88,16 +88,16 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 135441,
-      "DAYCHANGE": 2,
+      "CONTRACTSTRADED": 135463,
+      "DAYCHANGE": 8.5,
       "EXPIRYDATE": "29-Sep-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 23190.5,
+      "LASTPRICE": 23197,
       "OPTIONTYPE": "-",
-      "PERCHANGE": 0.01,
+      "PERCHANGE": 0.04,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "25-Sep-2026 16:29",
+      "TIMESTMP": "25-Sep-2026 16:34",
       "id": "1/NIFTYFUTIDX29-Sep-2026--"
     },
     "niftyusd": {
@@ -470,6 +470,25 @@
         "options_revenue": 29.3179,
         "cash_revenue": 7.0812,
         "total_revenue": 47.1985,
+        "source": "historical"
+      }
+    },
+    {
+      "timestamp": "25-Sep-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "25-Sep-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 102762.23,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 6.3096,
+        "total_revenue": 6.3096,
         "source": "historical"
       }
     }
