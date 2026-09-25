@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-25T10:11:08",
+  "updated_at": "2026-09-25T10:16:05",
   "market_status": {
     "marketState": [
       {
@@ -60,18 +60,18 @@
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Sep-2026",
         "underlying": "USDINR",
-        "updated_time": "25-Sep-2026 15:40",
-        "tradeDateFormatted": "25-Sep-2026 15:40",
+        "updated_time": "25-Sep-2026 15:45",
+        "tradeDateFormatted": "25-Sep-2026 15:45",
         "slickclass": "slick-item"
       }
     ],
     "marketcap": {
-      "timeStamp": "24-Sep-2026",
-      "marketCapinTRDollars": 4.96,
-      "marketCapinLACCRRupees": 475.8441296475943,
-      "marketCapinCRRupees": 47584412.96,
-      "marketCapinCRRupeesFormatted": "47,584,412.96",
-      "marketCapinLACCRRupeesFormatted": "475.84",
+      "timeStamp": "25-Sep-2026",
+      "marketCapinTRDollars": 4.97,
+      "marketCapinLACCRRupees": 477.0469538119364,
+      "marketCapinCRRupees": 47704695.38,
+      "marketCapinCRRupeesFormatted": "47,704,695.38",
+      "marketCapinLACCRRupeesFormatted": "477.05",
       "underlying": "Market Cap"
     },
     "indicativenifty50": {
