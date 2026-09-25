@@ -1,15 +1,15 @@
 {
-  "updated_at": "2026-09-25T03:31:27",
+  "updated_at": "2026-09-25T03:35:52",
   "market_status": {
     "marketState": [
       {
         "market": "Capital Market",
         "marketStatus": "Open",
-        "tradeDate": "25-Sep-2026 09:00",
+        "tradeDate": "25-Sep-2026 09:05",
         "index": "NIFTY 50",
-        "last": 22786.85,
-        "variation": -276.25,
-        "percentChange": -1.2,
+        "last": 23068,
+        "variation": 4.900000000001455,
+        "percentChange": 0.02,
         "marketStatusMessage": "Market in Pre-Open session"
       },
       {
@@ -44,24 +44,24 @@
       },
       {
         "index": "NIFTY50 USD",
-        "last": 8234.45,
-        "change": -93.02999999999884,
-        "percentChange": -1.11,
-        "timestamp": "25-Sep-2026 09:00"
+        "last": 8318.75,
+        "change": -8.729999999999563,
+        "percentChange": -0.1,
+        "timestamp": "25-Sep-2026 09:05"
       },
       {
         "market": "currencyfuture",
         "marketStatus": "Open",
         "tradeDate": "25-Sep-2026",
         "index": "",
-        "last": "95.9100",
+        "last": "95.9150",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Sep-2026",
         "underlying": "USDINR",
-        "updated_time": "25-Sep-2026 09:00",
-        "tradeDateFormatted": "25-Sep-2026 09:00",
+        "updated_time": "25-Sep-2026 09:05",
+        "tradeDateFormatted": "25-Sep-2026 09:05",
         "slickclass": "slick-item"
       }
     ],
@@ -88,24 +88,24 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 8903,
-      "DAYCHANGE": -4.5,
+      "CONTRACTSTRADED": 9011,
+      "DAYCHANGE": 0,
       "EXPIRYDATE": "29-Sep-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 23101,
+      "LASTPRICE": 23105.5,
       "OPTIONTYPE": "-",
-      "PERCHANGE": -0.02,
+      "PERCHANGE": 0,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "25-Sep-2026 08:58",
+      "TIMESTMP": "25-Sep-2026 09:04",
       "id": "0/NIFTYFUTIDX29-Sep-2026--"
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
-      "last": 8234.45,
-      "change": -93.02999999999884,
-      "percentChange": -1.11,
-      "timestamp": "25-Sep-2026 09:00"
+      "last": 8318.75,
+      "change": -8.729999999999563,
+      "percentChange": -0.1,
+      "timestamp": "25-Sep-2026 09:05"
     }
   },
   "revenue": {
