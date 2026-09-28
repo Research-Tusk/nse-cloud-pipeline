@@ -33,6 +33,10 @@ OUTPUT_FILE  = REPO_ROOT / "dashboard" / "data" / "nse_share_analysis.json"
 
 TICKER        = "NSE.BO"
 LISTING_DATE  = "2026-09-24"
+# screener.in company page /company/544937/ — its public price-chart API needs no
+# login. Used only to fill days Yahoo is missing (Yahoo's NSE.BO daily history has
+# skipped days, e.g. Fri 2026-09-25) and as a fallback if Yahoo fails entirely.
+SCREENER_COMPANY_ID = 1274230
 MA_WINDOWS    = [20, 30, 45, 50, 60, 90]
 FIXED_MA      = 45
 
@@ -61,6 +65,28 @@ def fetch_yfinance_prices(start_date_str):
         price = float(c)
         if math.isfinite(price):
             result[str(d)[:10]] = round(price, 2)
+    return result
+
+
+def fetch_screener_prices():
+    """Returns {date_str: close} from screener.in's public chart API ('Price on BSE')."""
+    from curl_cffi import requests as cffi_requests
+    url = (f"https://www.screener.in/api/company/{SCREENER_COMPANY_ID}/chart/"
+           f"?q=Price&days=400&consolidated=true")
+    r = cffi_requests.get(url, impersonate="chrome", timeout=20,
+                          headers={"Referer": "https://www.screener.in/company/544937/consolidated/"})
+    r.raise_for_status()
+    result = {}
+    for ds in r.json().get("datasets", []):
+        if ds.get("metric") != "Price":
+            continue
+        for d, v in ds.get("values", []):
+            try:
+                price = float(v)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(price) and d >= LISTING_DATE:
+                result[d] = round(price, 2)
     return result
 
 
@@ -95,10 +121,22 @@ def main():
     except Exception as e:
         print(f"yfinance error: {e}")
         prices = {}
+    if prices:
+        print(f"yfinance: {len(prices)} prices  ({min(prices)} → {max(prices)})")
+
+    try:
+        screener = fetch_screener_prices()
+    except Exception as e:
+        print(f"screener error: {e}")
+        screener = {}
+    filled = sorted(d for d in screener if d not in prices)
+    if screener:
+        print(f"screener: {len(screener)} prices, filling {len(filled)} day(s) Yahoo lacks: {filled}")
+    for d in filled:
+        prices[d] = screener[d]
     if not prices:
-        print("ERROR: No price data available — aborting")
+        print("ERROR: No price data from Yahoo or screener — aborting")
         return
-    print(f"yfinance: {len(prices)} prices  ({min(prices)} → {max(prices)})")
 
     # Only days with BOTH a price and a revenue row are usable (revenue posts a
     # little after the close, so the newest price can be ahead of the newest revenue).
