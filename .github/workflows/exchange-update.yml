@@ -275,6 +275,51 @@ jobs:
             sleep $((RANDOM % 5 + 1))
           done
 
+  nse-share-analysis:
+    needs: [nse-update]
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run NSE share price analysis
+        run: python scripts/nse_share_analysis.py
+
+      - name: Commit analysis
+        run: |
+          git config user.name "Research-Tusk"
+          git config user.email "research@tuskinvest.com"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git add dashboard/data/nse_share_analysis.json
+          git commit -m "📈 NSE share analysis: $(date +%Y-%m-%d)" || true
+          for i in 1 2 3 4 5; do
+            git push && break
+            echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done
+
   mcx-share-analysis:
     needs: [mcx-update]
     if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.mcx-update.outputs.new_days != '0') }}
@@ -321,7 +366,7 @@ jobs:
           done
 
   deploy:
-    needs: [nse-update, bse-update, mcx-update, bse-share-analysis, mcx-share-analysis]
+    needs: [nse-update, bse-update, mcx-update, nse-share-analysis, bse-share-analysis, mcx-share-analysis]
     if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0' || needs.mcx-update.outputs.new_days != '0') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5

@@ -231,6 +231,7 @@ const EXCHANGE_TABS = {
     { id: 'revenue',    label: 'Revenue Summary',    icon: 'revenue' },
     { id: 'prediction', label: 'PAT Prediction',      icon: 'prediction' },
     { id: 'intraday',   label: 'Live Predictor',      icon: 'temporal' },
+    { id: 'share',      label: 'Regression',          icon: 'share' },
     { id: 'valuation',  label: 'Valuation Model',     icon: 'advanced' },
   ],
   bse: [
@@ -260,6 +261,7 @@ const TAB_TITLES = {
     revenue: 'Revenue Summary',
     prediction: 'PAT Prediction Engine',
     intraday: 'Live EOD Predictor',
+    share: 'Share Price Analytics',
     valuation: 'NSE Valuation Model',
   },
   bse: {
@@ -421,6 +423,7 @@ function toggleExchangeContent(exchange) {
   show('nsePredictionContent', isNSE);
   show('nseValuationContent', isNSE);
   show('nseIntradayContent',  isNSE);
+  show('nse-share-inner',     isNSE);
 
   // BSE-only sections
   show('bseSegmentContent',   isBSE);
@@ -499,18 +502,19 @@ async function loadExchangeData(exchange) {
     fetch(`./data/${exchange}_dashboard_data.json`),
     fetch(`./data/${exchange}_enriched_data.json`),
   ];
-  if (exchange === 'bse' || exchange === 'mcx') {
+  const hasShareFeed = exchange === 'nse' || exchange === 'bse' || exchange === 'mcx';
+  if (hasShareFeed) {
     fetches.push(fetch(`./data/${exchange}_share_analysis.json`).catch(() => null));
   }
   const results = await Promise.all(fetches);
   DATA = await results[0].json();
   ENRICHED_DATA = await results[1].json();
-  if ((exchange === 'bse' || exchange === 'mcx') && results[2]) {
+  if (hasShareFeed && results[2]) {
     SHARE_DATA = await results[2].json().catch(() => null);
   } else {
     SHARE_DATA = null;
   }
-  if (SHARE_DATA && (exchange === 'bse' || exchange === 'mcx')) {
+  if (SHARE_DATA && hasShareFeed) {
     await applyLiveStockPrice(SHARE_DATA, exchange);
   }
 }
@@ -797,6 +801,7 @@ function rebuildAll() {
     initNSEPEValuation();
     initNSEPrediction();
     buildNSEValuation();
+    buildNSEShareAnalysis();
     buildIntradayPredictor('nse', 'nseIntradayContent');
   } else if (currentExchange === 'bse') {
     buildBSERevenuePredictor();
@@ -3601,10 +3606,14 @@ function computeOLS(xs, ys) {
 // `lag` (trading days, default 0) pairs each date's price with the revenue MA
 // from `lag` trading days earlier — i.e. tests whether revenue trends lead
 // price with a delay, rather than the same-day comparison.
-function buildSeriesWithDMA(rawSeries, dmaWindow, regStart, lag = 0) {
-  const mas = computeRollingMA(rawSeries.map(r => r.revenue_cr), dmaWindow);
+// `prefix` = extra revenue-only rows that PRECEDE rawSeries (NSE: the price series
+// starts at its 2026-09-24 listing, but the revenue MA needs the history before it).
+// They feed the moving average / lag lookback only; the returned series is rawSeries.
+function buildSeriesWithDMA(rawSeries, dmaWindow, regStart, lag = 0, prefix = []) {
+  const offset = prefix.length;
+  const mas = computeRollingMA(prefix.concat(rawSeries).map(r => r.revenue_cr), dmaWindow);
   const withMA = rawSeries.map((r, i) => {
-    const maIdx = i - lag;
+    const maIdx = offset + i - lag;
     const ma = maIdx >= 0 ? mas[maIdx] : null;
     return ma != null ? { ...r, rev_ma: ma } : null;
   }).filter(Boolean);
@@ -4162,9 +4171,9 @@ const QUICK_VAL_DEFAULTS = {
   // 243/251/257 trading days in FY24/FY25/FY26 respectively, a rising trend, so the
   // most recent completed year (257) is used rather than NSE/BSE's ~247.
   mcx: { patMarginPct: 50, otherIncomeMode: 'fixed', otherIncomeCr: 0,        peBear: 25, peBase: 30, peBull: 35, tradingDays: 257 },
-  // NSE has no CMP (unlisted — not traded on itself or any other exchange), and
-  // its other income is modeled as a % of total revenue (incl. other income)
-  // rather than a fixed ₹Cr figure, per the user's explicit assumption.
+  // NSE's other income is modeled as a % of total revenue (incl. other income)
+  // rather than a fixed ₹Cr figure, per the user's explicit assumption. (NSE
+  // listed 2026-09-24, so it now has a CMP like BSE/MCX.)
   nse: { patMarginPct: 55, otherIncomeMode: 'pctOfTotal', otherIncomePct: 30, peBear: 25, peBase: 35, peBull: 45, tradingDays: 247 },
 };
 const QUICK_VAL_SCENARIOS = ['bear', 'base', 'bull'];
@@ -4250,7 +4259,7 @@ function buildQuickValuationPanel(el, exchange, dailySeries, cmp) {
     set(`qv-${exchange}-totalIncome`,   fmt(result.totalIncome));
     set(`qv-${exchange}-pat`,           fmt(result.pat));
     set(`qv-${exchange}-eps`,           result.eps != null ? '₹' + fmtNum(result.eps, 2) : '—');
-    set(`qv-${exchange}-cmp`,           result.cmp != null ? fmtPrice(result.cmp) : '— (unlisted)');
+    set(`qv-${exchange}-cmp`,           result.cmp != null ? fmtPrice(result.cmp) : '— (no price yet)');
     QUICK_VAL_SCENARIOS.forEach(key => {
       const s = result.scenarios[key];
       set(`qv-${exchange}-target-${key}`, s.targetPrice != null ? fmtPrice(s.targetPrice) : '—');
@@ -4930,6 +4939,361 @@ function buildMCXShareAnalysis() {
 }
 
 // ========================
+// NSE SHARE ANALYTICS — cloned from the MCX block above (same layout/behaviour).
+// NSE listed 2026-09-24; see renderNSECollecting for the pre-regression state.
+// ========================
+
+// NSE listed on 2026-09-24, so there is no price history to regress against yet.
+// Until nse_share_analysis.json reaches status="ready" (min_days_required trading
+// days) this shows collection progress plus the raw price / revenue-MA rows.
+function renderNSECollecting(el) {
+  const s      = SHARE_DATA;
+  const n      = s.n_days || 0;
+  const need   = s.min_days_required || 20;
+  const lat    = s.latest || {};
+  const pct    = Math.min(100, Math.round(n / need * 100));
+  const sinceListing = s.first_price && lat.price_actual ? (lat.price_actual / s.first_price - 1) : null;
+
+  const rows = [...(s.series || [])].reverse().map(r => `
+    <tr>
+      <td>${r.date}</td>
+      <td class="wire-value">₹${fmtNum(r.price, 2)}</td>
+      <td class="wire-value">${fmtNum(r.revenue_cr, 2)}</td>
+      <td class="wire-value">${fmtNum(r.rev_ma, 2)}</td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+  <div class="share-kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-4)">
+    ${kpi('Days Collected', `${n} / ${need}`, 'regression starts at ' + need + ' trading days', '')}
+    ${kpi(lat.is_live ? 'Share Price 🟢 Live' : 'Share Price', '₹' + fmtNum(lat.price_actual, 2), 'ticker ' + s.ticker, '')}
+    ${kpi('Since Listing', sinceListing == null ? '—' : fmtPctSigned(sinceListing), 'vs first close ₹' + fmtNum(s.first_price, 2), sinceListing == null ? '' : (sinceListing >= 0 ? 'positive' : 'negative'))}
+    ${kpi('Listed On', s.listing_date, 'NSE (National Stock Exchange of India)', '')}
+  </div>
+  <div class="chart-panel" style="margin-bottom:var(--space-4);padding:20px 24px">
+    <div class="chart-title">Collecting price history</div>
+    <p class="section-desc">NSE shares only started trading on ${s.listing_date}, so there aren't enough price observations to fit a revenue → price regression yet. Daily closes are being collected automatically; once ${need} trading days are available the regression, charts and predicted price appear here on their own (using the 45-day revenue moving average, same as BSE and MCX).</p>
+    <div style="height:10px;border-radius:5px;background:var(--color-border);overflow:hidden;margin-top:12px">
+      <div style="height:100%;width:${pct}%;background:${CHART_COLORS[0]}"></div>
+    </div>
+    <div style="font-size:11px;color:var(--color-text-muted);margin-top:6px">${n} of ${need} trading days · ${pct}%</div>
+  </div>
+  <div class="chart-panel">
+    <div class="chart-title">Daily closes since listing</div>
+    <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Close</th><th>Revenue (₹ Cr)</th><th>45D Rev MA (₹ Cr)</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" style="color:var(--color-text-muted)">No overlapping price / revenue days yet</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function buildNSECharts(viewSer, reg, maWin) {
+  ['nseSharePrice', 'nseRevMaVsPrice', 'nseRatioSD', 'nseShareScatter'].forEach(k => {
+    if (charts[k]) { charts[k].destroy(); charts[k] = null; }
+  });
+  if (!viewSer.length) return;
+
+  const labels  = viewSer.map(r => fmtChartDate(r.date));
+  const actuals = viewSer.map(r => r.price);
+  const preds   = viewSer.map(r => r.price_pred);
+  const revMA   = viewSer.map(r => r.rev_ma);
+  const revRaw  = viewSer.map(r => r.revenue_cr);
+
+  setCanvasHeight('chartNseSharePrice', 280);
+  charts.nseSharePrice = new Chart(document.getElementById('chartNseSharePrice'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Actual Price',    data: actuals, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2,   pointRadius: 0, tension: 0.2 },
+        { label: 'Model Prediction', data: preds,  borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, borderDash: [5, 3] },
+      ]
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 0) } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
+        y: { ticks: { callback: v => '₹' + fmtNum(v, 0) } }
+      }
+    }
+  });
+
+  setCanvasHeight('chartNseRevMaVsPrice', 300);
+  charts.nseRevMaVsPrice = new Chart(document.getElementById('chartNseRevMaVsPrice'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: maWin + '-Day MA Revenue (₹ Cr)', data: revMA,   borderColor: CHART_COLORS[4], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'yRev' },
+        { label: 'NSE Share Price (₹)',             data: actuals, borderColor: CHART_COLORS[0], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'yPrice' },
+      ]
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.yAxisID === 'yRev'
+              ? ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 2) + ' Cr'
+              : ctx.dataset.label + ': ₹' + fmtNum(ctx.raw, 0)
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+        yRev: {
+          type: 'linear', position: 'left',
+          title: { display: true, text: maWin + '-Day MA Rev (₹ Cr)', font: { size: 10 } },
+          ticks: { callback: v => '₹' + fmtNum(v, 1) + ' Cr', font: { size: 10 } },
+        },
+        yPrice: {
+          type: 'linear', position: 'right',
+          title: { display: true, text: 'Share Price (₹)', font: { size: 10 } },
+          ticks: { callback: v => '₹' + fmtNum(v, 0), font: { size: 10 } },
+          grid: { drawOnChartArea: false },
+        },
+      }
+    }
+  });
+
+  const ratios = viewSer.map(r => r.price / r.rev_ma);
+  const n      = ratios.length;
+  const mean   = ratios.reduce((a, b) => a + b, 0) / n;
+  const std    = Math.sqrt(ratios.reduce((a, b) => a + (b - mean) ** 2, 0) / n);
+  const flat   = val => viewSer.map(() => val);
+  const sdBandOuter = CHART_COLORS[0] + '18';
+  const sdBandInner = CHART_COLORS[0] + '30';
+  const sdLineOuter = CHART_COLORS[0] + '55';
+  const sdLineInner = CHART_COLORS[0] + '80';
+
+  setCanvasHeight('chartNseRatioSD', 300);
+  charts.nseRatioSD = new Chart(document.getElementById('chartNseRatioSD'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '+2σ',          data: flat(mean + 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 4 }, backgroundColor: sdBandOuter },
+        { label: '+1σ',          data: flat(mean + std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: { target: 3 }, backgroundColor: sdBandInner },
+        { label: 'Mean',         data: flat(mean),           borderColor: CHART_COLORS[4], borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+        { label: '−1σ',          data: flat(mean - std),     borderColor: sdLineInner, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+        { label: '−2σ',          data: flat(mean - 2 * std), borderColor: sdLineOuter, borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, backgroundColor: 'transparent' },
+        { label: 'Price / Rev MA', data: ratios, borderColor: CHART_COLORS[1], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
+      ]
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw.toFixed(1);
+              if (ctx.dataset.label === 'Price / Rev MA') {
+                const zVal = (ctx.raw - mean) / std;
+                return `Ratio: ${v}  (${zVal >= 0 ? '+' : ''}${zVal.toFixed(1)}σ)`;
+              }
+              const target = ctx.raw * revMA[ctx.dataIndex];
+              return `${ctx.dataset.label}: ${v}  →  ₹${fmtNum(target, 0)} target`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+        y: {
+          ticks: { font: { size: 10 }, callback: v => v.toFixed(0) },
+          title: { display: true, text: 'Price ÷ Rev MA' + maWin, font: { size: 10 } },
+        }
+      }
+    }
+  });
+
+  const scatterData = viewSer.map(r => ({ x: r.rev_ma, y: r.price }));
+  const xVals = viewSer.map(r => r.rev_ma);
+  const xMin  = Math.min(...xVals);
+  const xMax  = Math.max(...xVals);
+  const regLine = [
+    { x: xMin, y: reg.slope * xMin + reg.intercept },
+    { x: xMax, y: reg.slope * xMax + reg.intercept },
+  ];
+
+  setCanvasHeight('chartNseShareScatter', 260);
+  charts.nseShareScatter = new Chart(document.getElementById('chartNseShareScatter'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label: 'Price vs Rev MA',  data: scatterData, backgroundColor: CHART_COLORS[0] + '88', pointRadius: 3 },
+        { label: 'Regression Line', data: regLine, type: 'line', borderColor: CHART_COLORS[2], backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 3], pointRadius: 0 },
+      ]
+    },
+    options: {
+      plugins: {
+        tooltip: { callbacks: { label: ctx => `Rev MA${maWin}: ₹${fmtNum(ctx.parsed.x, 1)} Cr | Price: ₹${fmtNum(ctx.parsed.y, 0)}` } }
+      },
+      scales: {
+        x: { title: { display: true, text: maWin + '-Day MA Revenue (₹ Cr)' }, ticks: { callback: v => '₹' + fmtNum(v, 1) } },
+        y: { title: { display: true, text: 'NSE Share Price (₹)' },            ticks: { callback: v => '₹' + fmtNum(v, 0) } }
+      }
+    }
+  });
+}
+
+function buildNSEShareAnalysis() {
+  const el = document.getElementById('nse-share-inner');
+  if (!el) return;
+
+  if (!SHARE_DATA) {
+    el.innerHTML = `<div class="chart-panel" style="text-align:center;padding:48px;color:var(--color-text-muted)">
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px">Share analytics data not available</div>
+      <div style="font-size:12px">Run scripts/nse_share_analysis.py to generate nse_share_analysis.json</div>
+    </div>`;
+    return;
+  }
+
+  // Fewer than SHARE_DATA.min_days_required trading days since listing: show
+  // collection progress instead of a (statistically meaningless) fit.
+  if (SHARE_DATA.status === 'collecting' || !SHARE_DATA.regression) {
+    renderNSECollecting(el);
+    return;
+  }
+
+  const reg      = SHARE_DATA.regression;
+  const lat      = SHARE_DATA.latest;
+  const ser      = SHARE_DATA.series || [];
+  const maWin    = SHARE_DATA.ma_window;
+  const regStart = SHARE_DATA.regression_start || '2026-09-24';
+
+  const infoHTML = shareRegressionInfoHTML(
+    reg, lat.price_pred, lat.price_actual, lat.is_live, lat.date,
+    maWin, regStart, SHARE_DATA.n_days, SHARE_DATA.ticker, 0
+  );
+
+  const regLabel = new Date(regStart + 'T00:00:00').toLocaleString('en-IN', { month: 'short', year: 'numeric' }) + '+';
+  const ranges = [
+    { key: '1m',      label: '1M' },
+    { key: '3m',      label: '3M' },
+    { key: '6m',      label: '6M' },
+    { key: 'nov2024', label: regLabel },
+  ];
+  const rangeToggleHTML = `
+  <div class="share-range-toggle">
+    ${ranges.map(r => `<button class="share-range-btn nse-range-btn${r.key === 'nov2024' ? ' active' : ''}" data-range="${r.key}">${r.label}</button>`).join('')}
+  </div>`;
+
+  const dmaToggleHTML = `
+  <div class="share-dma-toggle">
+    <span class="share-dma-label">DMA</span>
+    ${[10, 20, 45].map(w => `<button class="share-range-btn nse-dma-btn${w === 45 ? ' active' : ''}" data-dma="${w}">${w}D</button>`).join('')}
+  </div>`;
+
+  const lagToggleHTML = `
+  <div class="share-dma-toggle">
+    <span class="share-dma-label">Lag</span>
+    ${[0, 45, 60, 90].map(l => `<button class="share-range-btn nse-lag-btn${l === 0 ? ' active' : ''}" data-lag="${l}">${l === 0 ? 'None' : l + 'D'}</button>`).join('')}
+  </div>`;
+
+  const chartsHTML = `
+  <div style="margin-top:var(--space-4)">
+    <div class="chart-panel" style="margin-bottom:var(--space-4)">
+      <div class="chart-title">NSE Share Price: Actual vs Model</div>
+      <div class="chart-wrapper"><canvas id="chartNseSharePrice"></canvas></div>
+    </div>
+    <div class="chart-panel" style="margin-bottom:var(--space-4)">
+      <div class="chart-title" id="nseDmaChartTitle">${maWin}-Day MA Revenue vs NSE Share Price</div>
+      <div class="chart-wrapper"><canvas id="chartNseRevMaVsPrice"></canvas></div>
+    </div>
+    <div class="chart-panel" style="margin-bottom:var(--space-4)">
+      <div class="chart-title" id="nseRatioChartTitle">Price ÷ Rev MA${maWin} Ratio — Mean ± SD</div>
+      <div class="chart-wrapper"><canvas id="chartNseRatioSD"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">Revenue → Price Scatter</div>
+      <div class="chart-wrapper" style="max-height:300px"><canvas id="chartNseShareScatter"></canvas></div>
+    </div>
+  </div>`;
+
+  const sectionHTML = `
+  <div style="margin-top:var(--space-5)">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:var(--space-4);padding-bottom:var(--space-2);border-bottom:1px solid var(--color-border)">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)">Charts</span>
+        ${dmaToggleHTML}
+        ${lagToggleHTML}
+      </div>
+      ${rangeToggleHTML}
+    </div>
+    ${chartsHTML}
+  </div>`;
+
+  const limitedBanner = SHARE_DATA.limited_data ? `
+  <div class="chart-panel" style="margin-bottom:var(--space-4);padding:12px 18px;border-left:3px solid var(--color-warning, #d97706);font-size:12px;color:var(--color-text-muted)">
+    <strong style="color:var(--color-text)">Limited data.</strong> NSE listed on ${SHARE_DATA.listing_date}; this fit uses only ${SHARE_DATA.n_days} trading days of price history. Treat R² and the predicted price as indicative until ~60 days accumulate — the model refits automatically every day.
+  </div>` : '';
+
+  el.innerHTML = limitedBanner + `<div id="nseShareInfo">${infoHTML}</div>` + sectionHTML;
+
+  let nseActiveDma   = 45;
+  let nseActiveLag   = 0;
+  let nseActiveRange = 'nov2024';
+  const nseDmaCache  = { '45_0': { series: ser, reg } };
+
+  function getNseDmaData(w, lag) {
+    const key = `${w}_${lag}`;
+    if (!nseDmaCache[key]) nseDmaCache[key] = buildSeriesWithDMA(ser, w, regStart, lag, SHARE_DATA.revenue_prefix || []);
+    return nseDmaCache[key];
+  }
+
+  function refreshNSECharts() {
+    const d = getNseDmaData(nseActiveDma, nseActiveLag);
+    if (!d) return;
+    buildNSECharts(filterShareSeries(d.series, nseActiveRange, regStart), d.reg, nseActiveDma);
+    const lagSuffix = nseActiveLag ? ` (lag ${nseActiveLag}d)` : '';
+    const t1 = document.getElementById('nseDmaChartTitle');
+    if (t1) t1.textContent = `${nseActiveDma}-Day MA Revenue vs NSE Share Price${lagSuffix}`;
+    const t2 = document.getElementById('nseRatioChartTitle');
+    if (t2) t2.textContent = `Price ÷ Rev MA${nseActiveDma} Ratio — Mean ± SD${lagSuffix}`;
+    const infoEl = document.getElementById('nseShareInfo');
+    if (infoEl) {
+      const latestRow = latestShareRow(d.series, lat.date);
+      infoEl.innerHTML = shareRegressionInfoHTML(
+        d.reg, latestRow.price_pred, latestRow.price, lat.is_live, lat.date,
+        nseActiveDma, regStart, SHARE_DATA.n_days, SHARE_DATA.ticker, nseActiveLag
+      );
+    }
+  }
+
+  refreshNSECharts();
+
+  el.querySelectorAll('.nse-dma-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.nse-dma-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      nseActiveDma = parseInt(btn.dataset.dma);
+      refreshNSECharts();
+    });
+  });
+
+  el.querySelectorAll('.nse-lag-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.nse-lag-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      nseActiveLag = parseInt(btn.dataset.lag);
+      refreshNSECharts();
+    });
+  });
+
+  el.querySelectorAll('.nse-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.nse-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      nseActiveRange = btn.dataset.range;
+      refreshNSECharts();
+    });
+  });
+}
+
+// ========================
 // LIVE EOD PREDICTOR (NSE + BSE) — revenue-so-far -> predicted EOD from the
 // live poller's intraday samples, plus the historical "% of EOD revenue
 // reached by hour N" curve derived from dashboard/data/{exchange}_hourly_history.json.
@@ -5166,8 +5530,8 @@ async function buildIntradayPredictor(exchange, containerId) {
   });
 }
 
-// NSE has no CMP — it is unlisted, not traded on itself or any other exchange —
-// so upside-vs-CMP will always show "—" here; that's expected, not a bug.
+// NSE listed on 2026-09-24 (ticker NSE.BO), so CMP comes from the same share
+// feed as BSE/MCX. Before the first price posts it is null and upside shows "—".
 function buildNSEValuation() {
   const el = document.getElementById('nseValuationContent');
   if (!el) return;
@@ -5176,7 +5540,7 @@ function buildNSEValuation() {
   if (!nseSeries.length) { el.innerHTML = ''; return; }
 
   el.innerHTML = `<div id="nseQuickValPanel"></div>`;
-  buildQuickValuationPanel(el.querySelector('#nseQuickValPanel'), 'nse', nseSeries, null);
+  buildQuickValuationPanel(el.querySelector('#nseQuickValPanel'), 'nse', nseSeries, SHARE_DATA?.latest?.price_actual ?? null);
 }
 
 function buildMCXValuation() {
@@ -5349,7 +5713,7 @@ async function downloadWeeklyReport() {
   if (btn) { btn.textContent = 'Building…'; btn.disabled = true; }
 
   try {
-    const [nseEnrich, bseEnrich, mcxEnrich, nseDash, bseDash, bseShare, mcxShare] = await Promise.all([
+    const [nseEnrich, bseEnrich, mcxEnrich, nseDash, bseDash, bseShare, mcxShare, nseShare] = await Promise.all([
       fetch('./data/nse_enriched_data.json').then(r => r.json()),
       fetch('./data/bse_enriched_data.json').then(r => r.json()),
       fetch('./data/mcx_enriched_data.json').then(r => r.json()).catch(() => null),
@@ -5357,6 +5721,7 @@ async function downloadWeeklyReport() {
       fetch('./data/bse_dashboard_data.json').then(r => r.json()),
       fetch('./data/bse_share_analysis.json').then(r => r.json()).catch(() => null),
       fetch('./data/mcx_share_analysis.json').then(r => r.json()).catch(() => null),
+      fetch('./data/nse_share_analysis.json').then(r => r.json()).catch(() => null),
     ]);
 
     // ── Week range from latest NSE daily date ──
@@ -5597,6 +5962,34 @@ async function downloadWeeklyReport() {
       </div>`;
     }
 
+    // NSE listed 2026-09-24: until nse_share_analysis.json reaches status="ready"
+    // (20 trading days) there is no fit to print, so show collection progress.
+    function buildNSEShareSection(shareData) {
+      if (!shareData) return '';
+      const ready = shareData.status === 'ready' && shareData.regression;
+      if (ready) {
+        const note = shareData.limited_data
+          ? `<div class="pr-summary" style="margin:0 10px 8px">Limited data: only ${shareData.n_days} trading days since the ${shareData.listing_date} listing — treat the fit as indicative.</div>`
+          : '';
+        return buildRegressionSection(shareData, 'NSE').replace(/(<div class="pr-section-body">)/, '$1' + note);
+      }
+      const lat   = shareData.latest || {};
+      const first = shareData.first_price;
+      const since = first && lat.price_actual ? ((lat.price_actual / first - 1) * 100).toFixed(1) + '%' : '—';
+      return `<div class="pr-section">
+        <div class="pr-section-header">NSE Share Price Regression</div>
+        <div class="pr-section-body">
+          <div class="pr-regression-stats">
+            <div class="pr-reg-stat"><div class="pr-reg-stat-label">Days Collected</div><div class="pr-reg-stat-value">${shareData.n_days} / ${shareData.min_days_required}</div></div>
+            <div class="pr-reg-stat"><div class="pr-reg-stat-label">Latest Close</div><div class="pr-reg-stat-value">₹${lat.price_actual != null ? fmtNum(lat.price_actual, 2) : '—'}</div></div>
+            <div class="pr-reg-stat"><div class="pr-reg-stat-label">Since Listing</div><div class="pr-reg-stat-value">${since}</div></div>
+            <div class="pr-reg-stat"><div class="pr-reg-stat-label">Listed On</div><div class="pr-reg-stat-value">${shareData.listing_date}</div></div>
+          </div>
+          <div class="pr-summary">NSE listed on ${shareData.listing_date}. The revenue → share price regression starts automatically once ${shareData.min_days_required} trading days of price history are available; prices are being collected daily.</div>
+        </div>
+      </div>`;
+    }
+
     function buildMarketShareSection() {
       const chartResults = buildMarketShareChartImgs(nseDash, bseDash);
       if (!chartResults.length) return '';
@@ -5617,6 +6010,7 @@ async function downloadWeeklyReport() {
         <span class="pr-subtitle">Generated: ${genTime}</span>
       </div>
       ${buildExchangeSection('NSE Update', nseEnrich, true, nseDash, 'nse')}
+      ${buildNSEShareSection(nseShare)}
       ${buildExchangeSection('BSE Update', bseEnrich, false, bseDash, 'bse')}
       ${buildRegressionSection(bseShare, 'BSE')}
       ${buildMarketShareSection()}

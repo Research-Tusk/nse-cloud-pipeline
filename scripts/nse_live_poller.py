@@ -290,6 +290,31 @@ def supabase_upsert(sb, ts_iso, market_status, revenue):
 
 
 # ---------------------------------------------------------------------------
+# NSE's own listed share price (intraday quote, ~15 min delayed) — listed 2026-09-24
+# ---------------------------------------------------------------------------
+
+def fetch_stock_price(ticker="NSE.BO"):
+    try:
+        import yfinance as yf
+        fi = yf.Ticker(ticker).fast_info
+        last = fi.last_price
+        prev_close = fi.previous_close
+        if last is None:
+            return None
+        return {
+            "last_price":     round(float(last), 2),
+            "previous_close": round(float(prev_close), 2) if prev_close else None,
+            "open":           round(float(fi.open), 2) if fi.open else None,
+            "day_high":       round(float(fi.day_high), 2) if fi.day_high else None,
+            "day_low":        round(float(fi.day_low), 2) if fi.day_low else None,
+            "pct_change":     round((last - prev_close) / prev_close * 100, 2) if prev_close else None,
+        }
+    except Exception as e:
+        print(f"  stock price fetch error: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -334,12 +359,19 @@ def main():
     if sb:
         supabase_upsert(sb, ts_iso, market_status, revenue)
 
+    # ── 7b. NSE's own share price ──
+    print("Stock price:")
+    stock_price = fetch_stock_price("NSE.BO")
+    if stock_price:
+        print(f"  NSE.BO {stock_price['last_price']}  ({stock_price['pct_change']}%)")
+
     # ── 8. Write nse_live.json ──
     payload = {
         "updated_at":    ts_iso,
         "market_status": market_status,
         "revenue":       revenue,
         "history":       month_history,
+        "stock_price":   stock_price,
     }
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(json.dumps(payload, indent=2, default=str))
