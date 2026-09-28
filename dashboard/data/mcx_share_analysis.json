@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-28T07:15:49",
+  "updated_at": "2026-09-28T19:50:20",
   "ticker": "MCX.NS",
   "ma_window": 45,
   "regression_start": "2025-01-01",
@@ -1030,7 +1030,7 @@
       "date": "2022-09-28",
       "revenue_cr": 4.3359,
       "rev_ma": 3.4787,
-      "price": 228.71,
+      "price": 228.72,
       "price_pred": 1153.09
     },
     {
