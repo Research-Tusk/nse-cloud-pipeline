@@ -10,3 +10,5 @@ node_modules/
 turnover_log.csv
 .vercel
 .env*
+.new_mcx_days_count
+.playwright-mcp/
