@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-28T02:21:10",
+  "updated_at": "2026-09-28T02:25:45",
   "market_status": {
     "marketState": [
       {
@@ -88,7 +88,7 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 2269,
+      "CONTRACTSTRADED": 2288,
       "DAYCHANGE": -132.5,
       "EXPIRYDATE": "29-Sep-2026",
       "INSTRUMENTTYPE": "FUTIDX",
