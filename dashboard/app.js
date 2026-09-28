@@ -838,6 +838,7 @@ function computeMonthExpiryDates(dailyAll, exchange) {
   const targetDow = exchange === 'bse' ? 4 : 2; // Thu=4, Tue=2 (Sun=0 .. Sat=6)
   const tradingDates = new Set(dailyAll.map(r => r.date));
   const monthsSet = new Set(dailyAll.map(r => r.date.slice(0, 7)));
+  const lastDataDate = dailyAll.reduce((mx, r) => (r.date > mx ? r.date : mx), '');
   const pad2 = n => String(n).padStart(2, '0');
   const toStr = d => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
 
@@ -847,6 +848,11 @@ function computeMonthExpiryDates(dailyAll, exchange) {
     const lastDayNum = new Date(Date.UTC(y, m, 0)).getUTCDate(); // last calendar day of month m
     const cursor = new Date(Date.UTC(y, m - 1, lastDayNum));
     while (cursor.getUTCDay() !== targetDow) cursor.setUTCDate(cursor.getUTCDate() - 1);
+
+    // Expiry still in the future (e.g. this month's last Tuesday hasn't happened
+    // yet): skip it. Otherwise the holiday walk-back below would misread the
+    // missing date as a holiday and label an ordinary earlier day as the expiry.
+    if (toStr(cursor) > lastDataDate) return;
 
     let dateStr = toStr(cursor);
     let guard = 10; // holidays cluster at most a few days; bail out rather than loop unbounded
@@ -877,6 +883,7 @@ function computeWeekExpiryDates(dailyAll, exchange) {
     return m;
   };
 
+  const lastDataDate = dailyAll.reduce((mx, r) => (r.date > mx ? r.date : mx), '');
   const weeksSet = new Set();
   dailyAll.forEach(r => weeksSet.add(toStr(mondayOf(parseUTC(r.date)))));
 
@@ -885,6 +892,9 @@ function computeWeekExpiryDates(dailyAll, exchange) {
     const monday = parseUTC(weekStartStr);
     const target = new Date(monday);
     target.setUTCDate(monday.getUTCDate() + (targetDow - 1)); // Monday=1 in this offset scheme
+    // Same future-expiry guard as computeMonthExpiryDates: this week's expiry
+    // day may not have happened yet.
+    if (toStr(target) > lastDataDate) return;
     const cursor = new Date(target);
     let dateStr = toStr(cursor);
     while (!tradingDates.has(dateStr) && cursor.getTime() >= monday.getTime()) {
