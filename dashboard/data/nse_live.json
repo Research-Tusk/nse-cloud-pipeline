@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-29T13:25:51",
+  "updated_at": "2026-09-29T13:31:18",
   "market_status": {
     "marketState": [
       {
@@ -88,16 +88,16 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 74723,
-      "DAYCHANGE": -7,
+      "CONTRACTSTRADED": 74757,
+      "DAYCHANGE": -6,
       "EXPIRYDATE": "27-Oct-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 22823,
+      "LASTPRICE": 22824,
       "OPTIONTYPE": "-",
       "PERCHANGE": -0.03,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "29-Sep-2026 18:53",
+      "TIMESTMP": "29-Sep-2026 19:00",
       "id": "2/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
