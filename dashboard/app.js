@@ -5902,10 +5902,22 @@ async function downloadWeeklyReport() {
         wvmRows.push({ monthKey: mk, fy_month: me.fy_month, avgWeekly, monthEnd: me.value, diff });
       });
       wvmRows.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
-      const wvmRecent = wvmRows.slice(-6);
+      const wvmRecent = wvmRows.slice(-12);
       const wvmRowsHTML = wvmRecent.map(r =>
         `<tr><td>${r.fy_month}</td><td>${n(r.avgWeekly)}</td><td>${n(r.monthEnd)}</td><td>${prFmt(r.diff)}</td></tr>`
       ).join('');
+
+      // Same trailing-average summary rows as the on-screen Weekly vs Month-End
+      // Expiry table, drawn from the full wvmRows history (not just the 12
+      // displayed above) so they stay correct if that window is ever narrowed.
+      const avgOf = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+      const wvmSummaryHTML = [3, 6, 12].map(nMonths => {
+        const w = wvmRows.slice(-nMonths);
+        const avgWeekly = avgOf(w.map(r => r.avgWeekly));
+        const avgMonthEnd = avgOf(w.map(r => r.monthEnd));
+        const diff = avgWeekly ? (avgMonthEnd - avgWeekly) / avgWeekly : null;
+        return `<tr style="font-weight:700"><td>Last ${nMonths} Months Avg</td><td>${n(avgWeekly)}</td><td>${n(avgMonthEnd)}</td><td>${prFmt(diff)}</td></tr>`;
+      }).join('');
 
       const expiryWeekday = exchange === 'bse' ? 'Thursday' : 'Tuesday';
       return `
@@ -5921,7 +5933,7 @@ async function downloadWeeklyReport() {
       <div class="pr-sub-header">Weekly vs Month-End Expiry (Total Rev, ₹ Cr)</div>
       <table class="pr-table">
         <thead><tr><th>Month</th><th>Avg Weekly Expiry</th><th>Month-End Expiry</th><th>Difference</th></tr></thead>
-        <tbody>${wvmRowsHTML}</tbody>
+        <tbody>${wvmRowsHTML}${wvmSummaryHTML}</tbody>
       </table>`;
     }
 
