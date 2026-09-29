@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-29T10:11:03",
+  "updated_at": "2026-09-29T10:16:00",
   "market_status": {
     "marketState": [
       {
@@ -54,24 +54,24 @@
         "marketStatus": "Open",
         "tradeDate": "29-Sep-2026",
         "index": "",
-        "last": "96.3050",
+        "last": "96.3025",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Oct-2026",
         "underlying": "USDINR",
-        "updated_time": "29-Sep-2026 15:40",
-        "tradeDateFormatted": "29-Sep-2026 15:40",
+        "updated_time": "29-Sep-2026 15:46",
+        "tradeDateFormatted": "29-Sep-2026 15:46",
         "slickclass": "slick-item"
       }
     ],
     "marketcap": {
-      "timeStamp": "28-Sep-2026",
-      "marketCapinTRDollars": 4.89,
-      "marketCapinLACCRRupees": 469.1315620643061,
-      "marketCapinCRRupees": 46913156.21,
-      "marketCapinCRRupeesFormatted": "46,913,156.21",
-      "marketCapinLACCRRupeesFormatted": "469.13",
+      "timeStamp": "29-Sep-2026",
+      "marketCapinTRDollars": 4.86,
+      "marketCapinLACCRRupees": 466.9376580236369,
+      "marketCapinCRRupees": 46693765.8,
+      "marketCapinCRRupeesFormatted": "46,693,765.80",
+      "marketCapinLACCRRupeesFormatted": "466.94",
       "underlying": "Market Cap"
     },
     "indicativenifty50": {
@@ -88,17 +88,17 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 4,
-      "DAYCHANGE": -550,
-      "EXPIRYDATE": "23-Nov-2026",
+      "CONTRACTSTRADED": 1,
+      "DAYCHANGE": -67.5,
+      "EXPIRYDATE": "27-Oct-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 22850,
+      "LASTPRICE": 22835.5,
       "OPTIONTYPE": "-",
-      "PERCHANGE": -2.35,
+      "PERCHANGE": -0.29,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "29-Sep-2026 12:33",
-      "id": "1/NIFTYFUTIDX23-Nov-2026--"
+      "TIMESTMP": "29-Sep-2026 15:39",
+      "id": "0/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
@@ -513,11 +513,11 @@
     }
   ],
   "stock_price": {
-    "last_price": 1767.15,
+    "last_price": 1769.9,
     "previous_close": 1761.2,
     "open": 1762.7,
     "day_high": 1793.7,
     "day_low": 1762.1,
-    "pct_change": 0.34
+    "pct_change": 0.49
   }
 }
