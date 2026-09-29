@@ -1081,7 +1081,7 @@ function buildWeeklyVsMonthEndHTML(exchange, segKey) {
   rows.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
   if (!rows.length) return '';
 
-  const recent = rows.slice(-8);
+  const recent = rows.slice(-12);
   const rowsHTML = recent.map(r => `
     <tr>
       <td>${r.fy_month}</td>
@@ -1090,13 +1090,31 @@ function buildWeeklyVsMonthEndHTML(exchange, segKey) {
       ${wireDeltaTd(r.diff)}
     </tr>`).join('');
 
+  // Summary rows: avg of each column over the trailing N months, drawn from the
+  // full `rows` history (not just the 12 displayed above) so "Last 3/6 Months"
+  // stay correct even if the table's own window were ever narrowed.
+  const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+  const summaryHTML = [3, 6, 12].map(n => {
+    const window = rows.slice(-n);
+    const avgWeekly = avg(window.map(r => r.avgWeekly));
+    const avgMonthEnd = avg(window.map(r => r.monthEndVal));
+    const diff = avgWeekly ? (avgMonthEnd - avgWeekly) / avgWeekly : null;
+    return `
+    <tr class="xl-r-cur">
+      <td>Last ${n} Months Avg</td>
+      <td class="wire-value">${wireVal(avgWeekly, 2)}</td>
+      <td class="wire-value">${wireVal(avgMonthEnd, 2)}</td>
+      ${wireDeltaTd(diff)}
+    </tr>`;
+  }).join('');
+
   return `
   <div style="margin-top:var(--space-4)">
     <div class="xl-seg-header">${exchange.toUpperCase()} Weekly vs Month-End Expiry <span class="xl-seg-unit">avg of that month's other weekly expiries vs the month-end one · ₹ Cr</span></div>
     <div class="wire-table-scroll" style="margin-top:var(--space-3)">
       <table class="wire-table">
         <thead><tr><th>Month</th><th>Avg Weekly Expiry</th><th>Month-End Expiry</th><th>Difference</th></tr></thead>
-        <tbody>${rowsHTML}</tbody>
+        <tbody>${rowsHTML}${summaryHTML}</tbody>
       </table>
     </div>
   </div>`;
