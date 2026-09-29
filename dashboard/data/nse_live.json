@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-29T11:11:03",
+  "updated_at": "2026-09-29T11:16:06",
   "market_status": {
     "marketState": [
       {
@@ -54,14 +54,14 @@
         "marketStatus": "Open",
         "tradeDate": "29-Sep-2026",
         "index": "",
-        "last": "96.2550",
+        "last": "96.2700",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Oct-2026",
         "underlying": "USDINR",
-        "updated_time": "29-Sep-2026 16:40",
-        "tradeDateFormatted": "29-Sep-2026 16:40",
+        "updated_time": "29-Sep-2026 16:45",
+        "tradeDateFormatted": "29-Sep-2026 16:45",
         "slickclass": "slick-item"
       }
     ],
@@ -88,16 +88,16 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 72877,
-      "DAYCHANGE": 2.5,
+      "CONTRACTSTRADED": 72932,
+      "DAYCHANGE": 1.5,
       "EXPIRYDATE": "27-Oct-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 22832.5,
+      "LASTPRICE": 22831.5,
       "OPTIONTYPE": "-",
       "PERCHANGE": 0.01,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "29-Sep-2026 16:39",
+      "TIMESTMP": "29-Sep-2026 16:43",
       "id": "1/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
@@ -508,6 +508,25 @@
         "options_revenue": 48.9293,
         "cash_revenue": 6.1729,
         "total_revenue": 66.7926,
+        "source": "historical"
+      }
+    },
+    {
+      "timestamp": "29-Sep-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "29-Sep-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 161564.73,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 9.9201,
+        "total_revenue": 9.9201,
         "source": "historical"
       }
     }
