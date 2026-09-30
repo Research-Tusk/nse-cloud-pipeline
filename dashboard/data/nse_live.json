@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-30T10:21:04",
+  "updated_at": "2026-09-30T10:25:48",
   "market_status": {
     "marketState": [
       {
@@ -54,14 +54,14 @@
         "marketStatus": "Open",
         "tradeDate": "30-Sep-2026",
         "index": "",
-        "last": "96.1250",
+        "last": "96.1275",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Oct-2026",
         "underlying": "USDINR",
-        "updated_time": "30-Sep-2026 15:49",
-        "tradeDateFormatted": "30-Sep-2026 15:49",
+        "updated_time": "30-Sep-2026 15:55",
+        "tradeDateFormatted": "30-Sep-2026 15:55",
         "slickclass": "slick-item"
       }
     ],
@@ -116,14 +116,14 @@
     "index_options_premium": 39700.81,
     "stock_options_premium": 6192.36,
     "options_premium": 45893.17,
-    "cash_traded_value": 125572.08,
+    "cash_traded_value": 125690.96,
     "take_rate_futures": 3.66e-05,
     "take_rate_options": 0.0007106,
     "take_rate_cash": 6.14e-05,
     "futures_revenue": 2.5521,
     "options_revenue": 32.6117,
-    "cash_revenue": 7.7101,
-    "total_revenue": 42.8739,
+    "cash_revenue": 7.7174,
+    "total_revenue": 42.8812,
     "has_data": true,
     "source": "live"
   },
@@ -385,14 +385,14 @@
         "index_options_premium": 39700.81,
         "stock_options_premium": 6192.36,
         "options_premium": 45893.17,
-        "cash_traded_value": 125572.08,
+        "cash_traded_value": 125690.96,
         "take_rate_futures": 3.66e-05,
         "take_rate_options": 0.0007106,
         "take_rate_cash": 6.14e-05,
         "futures_revenue": 2.5521,
         "options_revenue": 32.6117,
-        "cash_revenue": 7.7101,
-        "total_revenue": 42.8739,
+        "cash_revenue": 7.7174,
+        "total_revenue": 42.8812,
         "has_data": true,
         "source": "live"
       }
