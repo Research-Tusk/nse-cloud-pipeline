@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-09-30T23:55:49",
+  "updated_at": "2026-10-01T00:01:36",
   "market_status": {
     "marketState": [
       {
         "market": "Capital Market",
-        "marketStatus": "Closed",
+        "marketStatus": "Open",
         "tradeDate": "30-Sep-2026 15:30",
         "index": "NIFTY 50",
         "last": 22620.45,
@@ -14,7 +14,7 @@
       },
       {
         "market": "Currency",
-        "marketStatus": "Closed",
+        "marketStatus": "Open",
         "tradeDate": "01-Oct-2026",
         "index": "",
         "last": "",
@@ -24,7 +24,7 @@
       },
       {
         "market": "Commodity",
-        "marketStatus": "Closed",
+        "marketStatus": "Open",
         "tradeDate": "01-Oct-2026",
         "index": "",
         "last": "",
@@ -34,7 +34,7 @@
       },
       {
         "market": "Debt",
-        "marketStatus": "Closed",
+        "marketStatus": "Open",
         "tradeDate": "01-Oct-2026",
         "index": "",
         "last": "",
@@ -51,7 +51,7 @@
       },
       {
         "market": "currencyfuture",
-        "marketStatus": "Closed",
+        "marketStatus": "Open",
         "tradeDate": "01-Oct-2026",
         "index": "",
         "last": "96.1025",
