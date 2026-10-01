@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-10-01T09:40:29",
+  "updated_at": "2026-10-01T09:41:03",
   "sensex": {
-    "last": 71944.19,
-    "change": -536.1,
-    "pct_change": -0.74,
+    "last": 71975.19,
+    "change": -505.1,
+    "pct_change": -0.7,
     "prev_close": 72480.29,
     "open": 72192.89,
     "high": 72572.9,
     "low": 71292.88,
-    "datetime": "01 Oct 26 | 15:09",
+    "datetime": "01 Oct 26 | 15:10",
     "status": "Open"
   },
   "market_stat": {
@@ -34,11 +34,11 @@
     "source": "live"
   },
   "stock_price": {
-    "last_price": 3036.9,
+    "last_price": 3035.0,
     "previous_close": 3092.0,
     "open": 3089.9,
     "day_high": 3139.0,
     "day_low": 3000.0,
-    "pct_change": -1.78
+    "pct_change": -1.84
   }
 }
