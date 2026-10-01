@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-01T03:15:59",
+  "updated_at": "2026-10-01T03:20:56",
   "sensex": {
     "last": 72480.29,
     "change": -48.78,
@@ -12,13 +12,13 @@
     "status": "Closed"
   },
   "market_stat": {
-    "market_cap_cr": 47186380.74,
+    "market_cap_cr": 47186292.16,
     "market_cap_usd_t": 4.92,
-    "turnover_cr": 11650.05,
+    "turnover_cr": 11649.74,
     "listed_companies": 5272,
-    "advances": 2077,
+    "advances": 2076,
     "declines": 2314,
-    "unchanged": 219
+    "unchanged": 232
   },
   "revenue": {
     "trade_date": "30/09/26",
