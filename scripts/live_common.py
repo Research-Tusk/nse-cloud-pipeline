@@ -38,7 +38,7 @@ Historical file: dashboard/data/{exchange}_hourly_history.json
         "checkpoints": {
           "10:00": {"revenue": 28.1, "fraction": 0.305},
           ...
-          "15:30": {"revenue": 92.3, "fraction": 1.0}
+          "16:00": {"revenue": 92.3, "fraction": 1.0}
         }
       }
     ]
@@ -61,9 +61,15 @@ from datetime import date, timedelta
 from pathlib import Path
 
 MARKET_OPEN_MIN  = 9 * 60 + 15   # 9:15 AM IST
-MARKET_TOTAL_MIN = 375            # → 15:30
+# SEBI's Closing Auction Session (effective 2026-08-03) moved the cash segment's
+# effective close from 3:30 PM to 4:00 PM: CAS runs 3:15-3:35pm, then a
+# post-close session 3:50-4:00pm executes trades at the closing price
+# (equity derivatives separately extended to 3:40pm). Treated as a single
+# 4:00 PM EOD point here rather than modelling CAS/post-close as their own
+# checkpoints.
+MARKET_TOTAL_MIN = 405            # → 16:00
 MIN_SAMPLES       = 3              # minimum archived days to trust historical fractions
-EOD_MIN_ELAPSED   = 330            # a day's last sample must be at/after ~14:45 IST to trust as EOD
+EOD_MIN_ELAPSED   = 360            # a day's last sample must be at/after ~15:00 IST to trust as EOD
 
 WEEKDAY_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 
@@ -71,7 +77,7 @@ WEEKDAY_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","
 # the historical "% of EOD revenue by hour N" model is built on.
 REFERENCE_CHECKPOINTS = [
     ("10:00", 45), ("11:00", 105), ("12:00", 165), ("13:00", 225),
-    ("14:00", 285), ("15:00", 345), ("15:30", 375),
+    ("14:00", 285), ("15:00", 345), ("16:00", 405),
 ]
 
 # NSE expiry = Tuesday (1); BSE expiry = Thursday (3)
@@ -234,8 +240,8 @@ def predict_eod_live(elapsed_now, revenue_now, history_file: Path,
     if curve:
         points = sorted(
             [(0, 0.0)] + [(mins, curve[label]) for label, mins in REFERENCE_CHECKPOINTS
-                          if label in curve and mins != 375]
-            + [(375, 1.0)]  # EOD is definitionally fraction 1.0 — force a reliable right edge
+                          if label in curve and mins != MARKET_TOTAL_MIN]
+            + [(MARKET_TOTAL_MIN, 1.0)]  # EOD is definitionally fraction 1.0 — force a reliable right edge
         )
         frac = _interp(points, elapsed_now)
         if frac is None:
@@ -286,7 +292,7 @@ def archive_completed_day(day_record: dict, history_file: Path, exchange: str = 
 
     checkpoints = {}
     for label, mins in REFERENCE_CHECKPOINTS:
-        if label == "15:30":
+        if mins == MARKET_TOTAL_MIN:
             rev = eod_revenue
         elif has_intraday_signal:
             rev = _interp(points, mins)

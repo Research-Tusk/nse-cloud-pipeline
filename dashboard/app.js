@@ -5319,9 +5319,12 @@ function buildNSEShareAnalysis() {
 // ========================
 
 // (label, minutes elapsed since 9:15 market open) — mirrors scripts/live_common.py's REFERENCE_CHECKPOINTS.
+// Final checkpoint is 16:00 (4:00 PM), not the old 15:30 close — SEBI's Closing
+// Auction Session (effective 2026-08-03) moved the cash segment's effective
+// close to 4:00 PM (CAS 3:15-3:35pm, post-close session 3:50-4:00pm).
 const INTRADAY_CHECKPOINTS = [
   ['10:00', 45], ['11:00', 105], ['12:00', 165], ['13:00', 225],
-  ['14:00', 285], ['15:00', 345], ['15:30', 375],
+  ['14:00', 285], ['15:00', 345], ['16:00', 405],
 ];
 
 // Per-exchange "re-render my bar charts" callback, invoked by the tab click
@@ -5458,7 +5461,7 @@ async function buildIntradayPredictor(exchange, containerId) {
     { label: '12:00–13:00', fromMin: 165, toMin: 225 },
     { label: '13:00–14:00', fromMin: 225, toMin: 285 },
     { label: '14:00–15:00', fromMin: 285, toMin: 345 },
-    { label: '15:00–15:30', fromMin: 345, toMin: 375 },
+    { label: '15:00–16:00', fromMin: 345, toMin: 405 },
   ];
   const minToFrac = (fracs, mins) => mins === 0 ? 0 : (fracs[INTRADAY_CHECKPOINTS.find(([, m]) => m === mins)[0]] ?? null);
 

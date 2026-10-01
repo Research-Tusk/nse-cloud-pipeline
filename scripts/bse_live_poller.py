@@ -53,7 +53,9 @@ TR_FUT     = 0.0                  # Futures: 0% (no BSE futures fee)
 # ---------------------------------------------------------------------------
 IST              = timezone(timedelta(hours=5, minutes=30))
 MARKET_OPEN_MIN  = 9 * 60 + 15   # 9:15 AM
-MARKET_TOTAL_MIN = 375            # → 3:30 PM
+# SEBI's Closing Auction Session (effective 2026-08-03) moved the cash segment's
+# effective close to 4:00 PM — see the matching comment in live_common.py.
+MARKET_TOTAL_MIN = 405            # → 4:00 PM
 
 # ---------------------------------------------------------------------------
 # BSE endpoints
