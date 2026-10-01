@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-01T10:10:58",
+  "updated_at": "2026-10-01T10:16:08",
   "market_status": {
     "marketState": [
       {
@@ -54,24 +54,24 @@
         "marketStatus": "Open",
         "tradeDate": "01-Oct-2026",
         "index": "",
-        "last": "96.5200",
+        "last": "96.5300",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Oct-2026",
         "underlying": "USDINR",
-        "updated_time": "01-Oct-2026 15:40",
-        "tradeDateFormatted": "01-Oct-2026 15:40",
+        "updated_time": "01-Oct-2026 15:45",
+        "tradeDateFormatted": "01-Oct-2026 15:45",
         "slickclass": "slick-item"
       }
     ],
     "marketcap": {
-      "timeStamp": "30-Sep-2026",
-      "marketCapinTRDollars": 4.87,
-      "marketCapinLACCRRupees": 467.5431716301276,
-      "marketCapinCRRupees": 46754317.16,
-      "marketCapinCRRupeesFormatted": "46,754,317.16",
-      "marketCapinLACCRRupeesFormatted": "467.54",
+      "timeStamp": "01-Oct-2026",
+      "marketCapinTRDollars": 4.82,
+      "marketCapinLACCRRupees": 462.47403885976576,
+      "marketCapinCRRupees": 46247403.89,
+      "marketCapinCRRupeesFormatted": "46,247,403.89",
+      "marketCapinLACCRRupeesFormatted": "462.47",
       "underlying": "Market Cap"
     },
     "indicativenifty50": {
@@ -88,17 +88,17 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": null,
-      "DAYCHANGE": null,
-      "EXPIRYDATE": null,
-      "INSTRUMENTTYPE": null,
-      "LASTPRICE": null,
-      "OPTIONTYPE": null,
-      "PERCHANGE": null,
-      "STRIKEPRICE": null,
-      "SYMBOL": null,
-      "TIMESTMP": null,
-      "id": null
+      "CONTRACTSTRADED": 2,
+      "DAYCHANGE": -166,
+      "EXPIRYDATE": "27-Oct-2026",
+      "INSTRUMENTTYPE": "FUTIDX",
+      "LASTPRICE": 22489.5,
+      "OPTIONTYPE": "-",
+      "PERCHANGE": -0.73,
+      "STRIKEPRICE": 0,
+      "SYMBOL": "NIFTY",
+      "TIMESTMP": "01-Oct-2026 15:39",
+      "id": "0/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
@@ -551,11 +551,11 @@
     }
   ],
   "stock_price": {
-    "last_price": 1736.55,
+    "last_price": 1737.0,
     "previous_close": 1761.9,
     "open": 1763.05,
     "day_high": 1765.0,
     "day_low": 1735.1,
-    "pct_change": -1.44
+    "pct_change": -1.41
   }
 }
