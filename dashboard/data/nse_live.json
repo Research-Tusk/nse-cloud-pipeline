@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-02T03:40:57",
+  "updated_at": "2026-10-02T03:45:56",
   "market_status": {
     "marketState": [
       {
@@ -173,9 +173,9 @@
   "stock_price": {
     "last_price": 1741.3,
     "previous_close": 1761.9,
-    "open": 1763.05,
-    "day_high": 1765.0,
-    "day_low": 1735.1,
+    "open": null,
+    "day_high": null,
+    "day_low": null,
     "pct_change": -1.17
   }
 }
