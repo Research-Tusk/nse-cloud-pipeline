@@ -494,10 +494,14 @@ def seg_summary(daily_data, rev_key):
     m = recompute_monthly(daily_data)
     cm = m[-1] if m else None
     pm = m[-2] if len(m) > 1 else None
-    last_6m = m[-6:] if len(m) >= 6 else m
     cm_avg = float(cm[rev_key]) / max(cm["days"], 1) if cm else 0
     pm_avg = float(pm[rev_key]) / max(pm["days"], 1) if pm else 0
-    avg_6m = sum(float(x[rev_key]) / max(x["days"], 1) for x in last_6m) / max(len(last_6m), 1)
+    # 125 trading days (~6 months at ~21 trading days/month) of actual daily
+    # rows, not an average of 6 calendar-month buckets -- avoids over/under-
+    # weighting a short month (e.g. one with a cluster of holidays) the same
+    # as a full one.
+    last125 = daily_data[-125:] if len(daily_data) >= 125 else daily_data
+    avg_6m = sum(float(x[rev_key]) for x in last125) / max(len(last125), 1)
 
     monthly_data = {
         "current":  {"label": cm["month"] if cm else "", "value": round(cm_avg, 4),

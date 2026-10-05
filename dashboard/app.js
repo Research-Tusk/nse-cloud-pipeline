@@ -1160,13 +1160,15 @@ function computeMonthMetrics(mIdx, segKey) {
   const prevAvg = prev ? prev[rf.mField] / prevDays : null;
   const mom = prevAvg ? (selAvg - prevAvg) / prevAvg : null;
 
-  let sumAvg = 0, cnt = 0;
-  for (let i = Math.max(0, mIdx - 5); i <= mIdx; i++) {
-    const mDays = allM[i].trading_days || allM[i].days || 1;
-    sumAvg += allM[i][rf.mField] / mDays;
-    cnt++;
-  }
-  const avg6m = cnt > 0 ? sumAvg / cnt : null;
+  // 125 trading days (~6 months at ~21 trading days/month) of actual daily
+  // rows ending at the selected month's last trading day — matches the
+  // pipeline's avg_6m (see seg_summary in scripts/*_pipeline.py), not an
+  // average of 6 calendar-month buckets, so this agrees with the value
+  // already rendered from the JSON when the dropdown lands on "now".
+  const dailyAll = DATA.daily_all || [];
+  const endIdx = dailyAll.reduce((last, r, i) => r.fy_month === sel.month ? i : last, -1);
+  const window6m = endIdx >= 0 ? dailyAll.slice(Math.max(0, endIdx - 124), endIdx + 1) : [];
+  const avg6m = window6m.length ? window6m.reduce((s, r) => s + (r[rf.dField] || 0), 0) / window6m.length : null;
   const mo6m = avg6m ? (selAvg - avg6m) / avg6m : null;
 
   return {
