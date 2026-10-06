@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-06T10:11:10",
+  "updated_at": "2026-10-06T10:16:11",
   "market_status": {
     "marketState": [
       {
@@ -54,24 +54,24 @@
         "marketStatus": "Open",
         "tradeDate": "06-Oct-2026",
         "index": "",
-        "last": "96.6350",
+        "last": "96.6375",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Oct-2026",
         "underlying": "USDINR",
-        "updated_time": "06-Oct-2026 15:40",
-        "tradeDateFormatted": "06-Oct-2026 15:40",
+        "updated_time": "06-Oct-2026 15:45",
+        "tradeDateFormatted": "06-Oct-2026 15:45",
         "slickclass": "slick-item"
       }
     ],
     "marketcap": {
-      "timeStamp": "05-Oct-2026",
-      "marketCapinTRDollars": 4.82,
-      "marketCapinLACCRRupees": 464.7614939539791,
-      "marketCapinCRRupees": 46476149.4,
-      "marketCapinCRRupeesFormatted": "46,476,149.40",
-      "marketCapinLACCRRupeesFormatted": "464.76",
+      "timeStamp": "06-Oct-2026",
+      "marketCapinTRDollars": 4.87,
+      "marketCapinLACCRRupees": 469.64638065155793,
+      "marketCapinCRRupees": 46964638.07,
+      "marketCapinCRRupeesFormatted": "46,964,638.07",
+      "marketCapinLACCRRupeesFormatted": "469.65",
       "underlying": "Market Cap"
     },
     "indicativenifty50": {
@@ -190,11 +190,11 @@
     }
   ],
   "stock_price": {
-    "last_price": 1749.7,
+    "last_price": 1750.0,
     "previous_close": 1719.0,
     "open": 1728.0,
     "day_high": 1760.0,
     "day_low": 1727.55,
-    "pct_change": 1.79
+    "pct_change": 1.8
   }
 }
