@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-07T03:16:01",
+  "updated_at": "2026-10-07T03:21:02",
   "sensex": {
     "last": 73067.81,
     "change": 685.34,
@@ -18,7 +18,7 @@
     "listed_companies": 5287,
     "advances": 2768,
     "declines": 1619,
-    "unchanged": 236
+    "unchanged": 245
   },
   "revenue": {
     "trade_date": "06/10/26",
