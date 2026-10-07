@@ -1,15 +1,15 @@
 {
-  "updated_at": "2026-10-07T04:55:57",
+  "updated_at": "2026-10-07T05:01:41",
   "market_status": {
     "marketState": [
       {
         "market": "Capital Market",
         "marketStatus": "Open",
-        "tradeDate": "07-Oct-2026 10:25",
+        "tradeDate": "07-Oct-2026 10:30",
         "index": "NIFTY 50",
-        "last": 22668.5,
-        "variation": -107.59999999999854,
-        "percentChange": -0.47,
+        "last": 22692.3,
+        "variation": -83.79999999999927,
+        "percentChange": -0.37,
         "marketStatusMessage": "Normal Market is Open"
       },
       {
@@ -44,24 +44,24 @@
       },
       {
         "index": "NIFTY50 USD",
-        "last": 8143.35,
-        "change": -41.05999999999949,
-        "percentChange": -0.5,
-        "timestamp": "07-Oct-2026 10:25"
+        "last": 8149.85,
+        "change": -34.55999999999949,
+        "percentChange": -0.42,
+        "timestamp": "07-Oct-2026 10:30"
       },
       {
         "market": "currencyfuture",
         "marketStatus": "Open",
         "tradeDate": "07-Oct-2026",
         "index": "",
-        "last": "96.6750",
+        "last": "96.7000",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Oct-2026",
         "underlying": "USDINR",
-        "updated_time": "07-Oct-2026 10:25",
-        "tradeDateFormatted": "07-Oct-2026 10:25",
+        "updated_time": "07-Oct-2026 10:30",
+        "tradeDateFormatted": "07-Oct-2026 10:30",
         "slickclass": "slick-item"
       }
     ],
@@ -88,42 +88,42 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 16531,
-      "DAYCHANGE": -109.5,
+      "CONTRACTSTRADED": 16890,
+      "DAYCHANGE": -65.5,
       "EXPIRYDATE": "27-Oct-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 22689.5,
+      "LASTPRICE": 22733.5,
       "OPTIONTYPE": "-",
-      "PERCHANGE": -0.48,
+      "PERCHANGE": -0.29,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "07-Oct-2026 10:24",
+      "TIMESTMP": "07-Oct-2026 10:30",
       "id": "1/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
-      "last": 8143.35,
-      "change": -41.05999999999949,
-      "percentChange": -0.5,
-      "timestamp": "07-Oct-2026 10:25"
+      "last": 8149.85,
+      "change": -34.55999999999949,
+      "percentChange": -0.42,
+      "timestamp": "07-Oct-2026 10:30"
     }
   },
   "revenue": {
     "trade_date": "2026-10-07",
-    "index_futures_turnover": 5090.24,
-    "stock_futures_turnover": 16388.3,
-    "futures_turnover": 21478.54,
-    "index_options_premium": 11654.42,
-    "stock_options_premium": 2262.88,
-    "options_premium": 13917.3,
-    "cash_traded_value": 30313.53,
+    "index_futures_turnover": 5521.97,
+    "stock_futures_turnover": 17497.06,
+    "futures_turnover": 23019.03,
+    "index_options_premium": 12694.37,
+    "stock_options_premium": 2395.81,
+    "options_premium": 15090.18,
+    "cash_traded_value": 32226.22,
     "take_rate_futures": 3.66e-05,
     "take_rate_options": 0.0007106,
     "take_rate_cash": 6.14e-05,
-    "futures_revenue": 0.7861,
-    "options_revenue": 9.8896,
-    "cash_revenue": 1.8613,
-    "total_revenue": 12.537,
+    "futures_revenue": 0.8425,
+    "options_revenue": 10.7231,
+    "cash_revenue": 1.9787,
+    "total_revenue": 13.5443,
     "has_data": true,
     "source": "live"
   },
@@ -189,31 +189,31 @@
       "timestamp": "2026-10-07",
       "revenue": {
         "trade_date": "2026-10-07",
-        "index_futures_turnover": 5090.24,
-        "stock_futures_turnover": 16388.3,
-        "futures_turnover": 21478.54,
-        "index_options_premium": 11654.42,
-        "stock_options_premium": 2262.88,
-        "options_premium": 13917.3,
-        "cash_traded_value": 30313.53,
+        "index_futures_turnover": 5521.97,
+        "stock_futures_turnover": 17497.06,
+        "futures_turnover": 23019.03,
+        "index_options_premium": 12694.37,
+        "stock_options_premium": 2395.81,
+        "options_premium": 15090.18,
+        "cash_traded_value": 32226.22,
         "take_rate_futures": 3.66e-05,
         "take_rate_options": 0.0007106,
         "take_rate_cash": 6.14e-05,
-        "futures_revenue": 0.7861,
-        "options_revenue": 9.8896,
-        "cash_revenue": 1.8613,
-        "total_revenue": 12.537,
+        "futures_revenue": 0.8425,
+        "options_revenue": 10.7231,
+        "cash_revenue": 1.9787,
+        "total_revenue": 13.5443,
         "has_data": true,
         "source": "live"
       }
     }
   ],
   "stock_price": {
-    "last_price": 1737.65,
+    "last_price": 1737.4,
     "previous_close": 1749.85,
     "open": 1752.0,
     "day_high": 1752.95,
     "day_low": 1736.45,
-    "pct_change": -0.7
+    "pct_change": -0.71
   }
 }
