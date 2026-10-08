@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-08T03:11:07",
+  "updated_at": "2026-10-08T03:15:55",
   "market_status": {
     "marketState": [
       {
@@ -88,16 +88,16 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 2267,
-      "DAYCHANGE": 43.5,
+      "CONTRACTSTRADED": 2403,
+      "DAYCHANGE": 43,
       "EXPIRYDATE": "27-Oct-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 22601.5,
+      "LASTPRICE": 22601,
       "OPTIONTYPE": "-",
       "PERCHANGE": 0.19,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "08-Oct-2026 08:39",
+      "TIMESTMP": "08-Oct-2026 08:43",
       "id": "0/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
@@ -109,22 +109,22 @@
     }
   },
   "revenue": {
-    "trade_date": "2026-10-07",
-    "index_futures_turnover": 14011.72,
-    "stock_futures_turnover": 61095.71,
-    "futures_turnover": 75107.43,
-    "index_options_premium": 40961.74,
-    "stock_options_premium": 6557.05,
-    "options_premium": 47518.79,
-    "cash_traded_value": 114928.73,
+    "trade_date": "2026-10-08",
+    "index_futures_turnover": 0.0,
+    "stock_futures_turnover": 0.0,
+    "futures_turnover": 0.0,
+    "index_options_premium": 0.0,
+    "stock_options_premium": 0.0,
+    "options_premium": 0.0,
+    "cash_traded_value": 0.0,
     "take_rate_futures": 3.66e-05,
     "take_rate_options": 0.0007106,
     "take_rate_cash": 6.14e-05,
-    "futures_revenue": 2.7489,
-    "options_revenue": 33.7669,
-    "cash_revenue": 7.0566,
-    "total_revenue": 43.5724,
-    "has_data": true,
+    "futures_revenue": 0.0,
+    "options_revenue": 0.0,
+    "cash_revenue": 0.0,
+    "total_revenue": 0.0,
+    "has_data": false,
     "source": "live"
   },
   "history": [
@@ -202,28 +202,6 @@
         "cash_revenue": 7.0775,
         "total_revenue": 43.5933,
         "source": "historical"
-      }
-    },
-    {
-      "timestamp": "2026-10-07",
-      "revenue": {
-        "trade_date": "2026-10-07",
-        "index_futures_turnover": 14011.72,
-        "stock_futures_turnover": 61095.71,
-        "futures_turnover": 75107.43,
-        "index_options_premium": 40961.74,
-        "stock_options_premium": 6557.05,
-        "options_premium": 47518.79,
-        "cash_traded_value": 114928.73,
-        "take_rate_futures": 3.66e-05,
-        "take_rate_options": 0.0007106,
-        "take_rate_cash": 6.14e-05,
-        "futures_revenue": 2.7489,
-        "options_revenue": 33.7669,
-        "cash_revenue": 7.0566,
-        "total_revenue": 43.5724,
-        "has_data": true,
-        "source": "live"
       }
     }
   ],
