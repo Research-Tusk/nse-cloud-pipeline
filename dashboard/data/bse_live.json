@@ -1,16 +1,6 @@
 {
-  "updated_at": "2026-10-11T13:31:29",
-  "sensex": {
-    "last": 72472.33,
-    "change": 879.09,
-    "pct_change": 1.23,
-    "prev_close": 71593.24,
-    "open": 71776.67,
-    "high": 72669.2,
-    "low": 71739.49,
-    "datetime": "09 Oct 26 | 16:00",
-    "status": "Closed"
-  },
+  "updated_at": "2026-10-11T13:35:53",
+  "sensex": null,
   "market_stat": {
     "market_cap_cr": 46531684.68,
     "market_cap_usd_t": 4.82,
