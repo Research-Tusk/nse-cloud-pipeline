@@ -86,6 +86,35 @@ def fetch_yfinance_prices(start_date_str):
     }
 
 
+# screener.in company page /company/BSE/ (BSE Ltd) — its public price-chart API
+# needs no login. Used to fill days yfinance is missing (yfinance's BSE.NS daily
+# history has skipped individual days before, e.g. when the job runs before
+# Yahoo has posted that day's close) — same fallback already used for NSE.
+SCREENER_COMPANY_ID = 1273635
+
+
+def fetch_screener_prices(start_date_str):
+    """Returns {date_str: close} from screener.in's public chart API ('Price on NSE')."""
+    from curl_cffi import requests as cffi_requests
+    url = (f"https://www.screener.in/api/company/{SCREENER_COMPANY_ID}/chart/"
+           f"?q=Price&days=400&consolidated=true")
+    r = cffi_requests.get(url, impersonate="chrome", timeout=20,
+                          headers={"Referer": "https://www.screener.in/company/BSE/consolidated/"})
+    r.raise_for_status()
+    result = {}
+    for ds in r.json().get("datasets", []):
+        if ds.get("metric") != "Price":
+            continue
+        for d, v in ds.get("values", []):
+            try:
+                price = float(v)
+            except (TypeError, ValueError):
+                continue
+            if np.isfinite(price) and d >= start_date_str:
+                result[d] = round(price, 2)
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Dataset construction
 # ---------------------------------------------------------------------------
@@ -118,6 +147,17 @@ def build_dataset(seed, pipeline):
                 )
         except Exception as e:
             print(f"yfinance error: {e}")
+
+        try:
+            screener = fetch_screener_prices(next_day)
+        except Exception as e:
+            print(f"screener error: {e}")
+            screener = {}
+        filled = sorted(d for d in screener if d not in yf_prices)
+        if screener:
+            print(f"screener: {len(screener)} prices, filling {len(filled)} day(s) yfinance lacks: {filled}")
+        for d in filled:
+            yf_prices[d] = screener[d]
 
     rows = []
     for d in all_dates:
