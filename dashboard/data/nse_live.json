@@ -1,15 +1,15 @@
 {
-  "updated_at": "2026-10-12T03:35:53",
+  "updated_at": "2026-10-12T03:41:06",
   "market_status": {
     "marketState": [
       {
         "market": "Capital Market",
         "marketStatus": "Open",
-        "tradeDate": "12-Oct-2026 09:05",
+        "tradeDate": "12-Oct-2026 09:10",
         "index": "NIFTY 50",
-        "last": 22622.15,
-        "variation": 101.70000000000073,
-        "percentChange": 0.45,
+        "last": 22593.2,
+        "variation": 72.75,
+        "percentChange": 0.32,
         "marketStatusMessage": "Market in Pre-Open session"
       },
       {
@@ -44,24 +44,24 @@
       },
       {
         "index": "NIFTY50 USD",
-        "last": 8181.2,
-        "change": 114.17000000000007,
-        "percentChange": 1.41,
-        "timestamp": "12-Oct-2026 09:05"
+        "last": 8169.55,
+        "change": 102.52000000000044,
+        "percentChange": 1.27,
+        "timestamp": "12-Oct-2026 09:10"
       },
       {
         "market": "currencyfuture",
         "marketStatus": "Open",
         "tradeDate": "12-Oct-2026",
         "index": "",
-        "last": "96.1450",
+        "last": "96.0375",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Oct-2026",
         "underlying": "USDINR",
-        "updated_time": "12-Oct-2026 09:05",
-        "tradeDateFormatted": "12-Oct-2026 09:05",
+        "updated_time": "12-Oct-2026 09:10",
+        "tradeDateFormatted": "12-Oct-2026 09:10",
         "slickclass": "slick-item"
       }
     ],
@@ -88,43 +88,43 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 1861,
-      "DAYCHANGE": 69.5,
+      "CONTRACTSTRADED": 2077,
+      "DAYCHANGE": 73,
       "EXPIRYDATE": "27-Oct-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 22656.5,
+      "LASTPRICE": 22660,
       "OPTIONTYPE": "-",
-      "PERCHANGE": 0.31,
+      "PERCHANGE": 0.32,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "12-Oct-2026 09:03",
+      "TIMESTMP": "12-Oct-2026 09:09",
       "id": "0/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
-      "last": 8181.2,
-      "change": 114.17000000000007,
-      "percentChange": 1.41,
-      "timestamp": "12-Oct-2026 09:05"
+      "last": 8169.55,
+      "change": 102.52000000000044,
+      "percentChange": 1.27,
+      "timestamp": "12-Oct-2026 09:10"
     }
   },
   "revenue": {
     "trade_date": "2026-10-12",
-    "index_futures_turnover": 0.0,
-    "stock_futures_turnover": 0.0,
-    "futures_turnover": 0.0,
+    "index_futures_turnover": 14.12,
+    "stock_futures_turnover": 44.9,
+    "futures_turnover": 59.02,
     "index_options_premium": 0.0,
     "stock_options_premium": 0.0,
     "options_premium": 0.0,
-    "cash_traded_value": 0.0,
+    "cash_traded_value": 344.04,
     "take_rate_futures": 3.66e-05,
     "take_rate_options": 0.0007106,
     "take_rate_cash": 6.14e-05,
-    "futures_revenue": 0.0,
+    "futures_revenue": 0.0022,
     "options_revenue": 0.0,
-    "cash_revenue": 0.0,
-    "total_revenue": 0.0,
-    "has_data": false,
+    "cash_revenue": 0.0211,
+    "total_revenue": 0.0233,
+    "has_data": true,
     "source": "live"
   },
   "history": [
@@ -240,6 +240,28 @@
         "cash_revenue": 6.1656,
         "total_revenue": 57.8481,
         "source": "historical"
+      }
+    },
+    {
+      "timestamp": "2026-10-12",
+      "revenue": {
+        "trade_date": "2026-10-12",
+        "index_futures_turnover": 14.12,
+        "stock_futures_turnover": 44.9,
+        "futures_turnover": 59.02,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 344.04,
+        "take_rate_futures": 3.66e-05,
+        "take_rate_options": 0.0007106,
+        "take_rate_cash": 6.14e-05,
+        "futures_revenue": 0.0022,
+        "options_revenue": 0.0,
+        "cash_revenue": 0.0211,
+        "total_revenue": 0.0233,
+        "has_data": true,
+        "source": "live"
       }
     }
   ],
