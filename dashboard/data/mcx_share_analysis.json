@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-12T06:12:48",
+  "updated_at": "2026-10-12T21:24:34",
   "ticker": "MCX.NS",
   "ma_window": 45,
   "regression_start": "2025-01-01",
@@ -37,7 +37,7 @@
     }
   },
   "regression": {
-    "slope": 204.0382,
+    "slope": 204.0383,
     "intercept": 433.76,
     "r_squared": 0.7819,
     "pearson_r": 0.8843,
@@ -282,7 +282,7 @@
       "revenue_cr": 3.086,
       "rev_ma": 3.1595,
       "price": 264.71,
-      "price_pred": 1078.43
+      "price_pred": 1078.42
     },
     {
       "date": "2022-04-27",
@@ -905,7 +905,7 @@
       "revenue_cr": 3.3285,
       "rev_ma": 3.4114,
       "price": 247.3,
-      "price_pred": 1129.82
+      "price_pred": 1129.81
     },
     {
       "date": "2022-09-05",
@@ -989,7 +989,7 @@
       "revenue_cr": 3.0503,
       "rev_ma": 3.4015,
       "price": 252.17,
-      "price_pred": 1127.8
+      "price_pred": 1127.79
     },
     {
       "date": "2022-09-21",
@@ -2256,7 +2256,7 @@
       "revenue_cr": 2.8285,
       "rev_ma": 3.0224,
       "price": 314.47,
-      "price_pred": 1050.45
+      "price_pred": 1050.44
     },
     {
       "date": "2023-06-19",
@@ -4657,7 +4657,7 @@
       "revenue_cr": 4.8888,
       "rev_ma": 4.5307,
       "price": 1213.25,
-      "price_pred": 1358.2
+      "price_pred": 1358.19
     },
     {
       "date": "2024-11-13",
@@ -5707,7 +5707,7 @@
       "revenue_cr": 6.5053,
       "rev_ma": 5.1759,
       "price": 1632.95,
-      "price_pred": 1489.85
+      "price_pred": 1489.84
     },
     {
       "date": "2025-06-25",
@@ -5846,7 +5846,7 @@
       "date": "2025-07-22",
       "revenue_cr": 4.8264,
       "rev_ma": 4.9629,
-      "price": 1620.53,
+      "price": 1620.52,
       "price_pred": 1446.38
     },
     {
@@ -5987,7 +5987,7 @@
       "revenue_cr": 4.0424,
       "rev_ma": 4.7942,
       "price": 1640.78,
-      "price_pred": 1411.96
+      "price_pred": 1411.95
     },
     {
       "date": "2025-08-21",
