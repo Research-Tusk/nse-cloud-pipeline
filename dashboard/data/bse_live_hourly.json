@@ -633,6 +633,16 @@
       "futures_revenue": 0.0,
       "predicted_eod": null,
       "pred_method": "none"
+    },
+    {
+      "captured_ist": "2026-10-14T05:21:06",
+      "elapsed_minutes": -234,
+      "total_revenue": 10.12,
+      "cash_revenue": 0.74,
+      "options_revenue": 9.38,
+      "futures_revenue": 0.0,
+      "predicted_eod": null,
+      "pred_method": "none"
     }
   ]
 }
