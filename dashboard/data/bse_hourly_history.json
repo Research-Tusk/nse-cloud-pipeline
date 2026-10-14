@@ -2013,6 +2013,44 @@
           "fraction": 1.0
         }
       }
+    },
+    {
+      "date": "2026-10-14",
+      "weekday": 2,
+      "weekday_name": "Wednesday",
+      "day_type": "pre_expiry",
+      "eod_revenue": 32.87,
+      "n_samples": 286,
+      "checkpoints": {
+        "10:00": {
+          "revenue": 6.2417,
+          "fraction": 0.1899
+        },
+        "11:00": {
+          "revenue": 10.42,
+          "fraction": 0.317
+        },
+        "12:00": {
+          "revenue": 14.8117,
+          "fraction": 0.4506
+        },
+        "13:00": {
+          "revenue": 18.4,
+          "fraction": 0.5598
+        },
+        "14:00": {
+          "revenue": 25.9283,
+          "fraction": 0.7888
+        },
+        "15:00": {
+          "revenue": 30.6317,
+          "fraction": 0.9319
+        },
+        "16:00": {
+          "revenue": 32.87,
+          "fraction": 1.0
+        }
+      }
     }
   ]
 }
