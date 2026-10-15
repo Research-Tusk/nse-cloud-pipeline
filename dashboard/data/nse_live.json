@@ -1,15 +1,15 @@
 {
-  "updated_at": "2026-10-15T08:05:53",
+  "updated_at": "2026-10-15T08:06:35",
   "market_status": {
     "marketState": [
       {
         "market": "Capital Market",
         "marketStatus": "Open",
-        "tradeDate": "15-Oct-2026 13:34",
+        "tradeDate": "15-Oct-2026 13:35",
         "index": "NIFTY 50",
-        "last": 23034.6,
-        "variation": 411.8999999999978,
-        "percentChange": 1.82,
+        "last": 23042.7,
+        "variation": 420,
+        "percentChange": 1.86,
         "marketStatusMessage": "Normal Market is Open"
       },
       {
@@ -44,30 +44,30 @@
       },
       {
         "index": "NIFTY50 USD",
-        "last": 8404.6,
-        "change": 166.60000000000036,
-        "percentChange": 2.02,
-        "timestamp": "15-Oct-2026 13:34"
+        "last": 8413.4,
+        "change": 175.39999999999964,
+        "percentChange": 2.12,
+        "timestamp": "15-Oct-2026 13:35"
       },
       {
         "market": "currencyfuture",
         "marketStatus": "Open",
         "tradeDate": "15-Oct-2026",
         "index": "",
-        "last": "95.0400",
+        "last": "95.0375",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Oct-2026",
         "underlying": "USDINR",
-        "updated_time": "15-Oct-2026 13:35",
-        "tradeDateFormatted": "15-Oct-2026 13:35",
+        "updated_time": "15-Oct-2026 13:36",
+        "tradeDateFormatted": "15-Oct-2026 13:36",
         "slickclass": "slick-item"
       }
     ],
     "marketcap": {
       "timeStamp": "14-Oct-2026",
-      "marketCapinTRDollars": 4.91,
+      "marketCapinTRDollars": 4.9,
       "marketCapinLACCRRupees": 466.2062743916851,
       "marketCapinCRRupees": 46620627.44,
       "marketCapinCRRupeesFormatted": "46,620,627.44",
@@ -102,10 +102,10 @@
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
-      "last": 8404.6,
-      "change": 166.60000000000036,
-      "percentChange": 2.02,
-      "timestamp": "15-Oct-2026 13:34"
+      "last": 8413.4,
+      "change": 175.39999999999964,
+      "percentChange": 2.12,
+      "timestamp": "15-Oct-2026 13:35"
     }
   },
   "revenue": {
