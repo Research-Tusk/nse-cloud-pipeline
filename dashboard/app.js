@@ -453,14 +453,21 @@ function toggleExchangeContent(exchange) {
 // Overrides SHARE_DATA.latest.price_actual with an intraday quote from the
 // live poller ({exchange}_live.json), when it is for a newer day than the
 // daily batch's latest close — otherwise the batch close stands.
+// Poller timestamps are UTC; older files omit the "Z", which JS would
+// otherwise read as the viewer's local time.
+function parseUtcTs(ts) {
+  if (typeof ts === 'string' && !/(Z|[+-]\d{2}:?\d{2})$/i.test(ts)) ts += 'Z';
+  return new Date(ts);
+}
+
 function istDateOf(ts) {
-  const d = ts ? new Date(ts) : new Date();
+  const d = ts ? parseUtcTs(ts) : new Date();
   return isNaN(d.getTime()) ? null : d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }
 
 async function fetchLiveFile(exchange) {
   const bust = Date.now();
-  for (const url of [`/api/live?exchange=${exchange}&file=live&t=${bust}`, `./data/${exchange}_live.json?t=${bust}`]) {
+  for (const url of [`/api/live?exchange=${exchange}&file=live`, `./data/${exchange}_live.json?t=${bust}`]) {
     try {
       const res = await fetch(url);
       if (!res.ok) continue;
@@ -479,6 +486,8 @@ async function applyLiveStockPrice(shareData, exchange) {
 
     const liveDate = istDateOf(live.updated_at);
     if (!liveDate || liveDate <= shareData.latest.date) return;  // batch already has that day's close
+    const istHHMM = parseUtcTs(live.updated_at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+    if (istHHMM < '09:15') return;  // pre-open poll: the quote is still the previous close
 
     shareData.latest.price_prev_close = shareData.latest.price_actual;
     shareData.latest.price_actual = sp.last_price;
@@ -4012,7 +4021,7 @@ function buildBSEShareAnalysis() {
     if (infoEl) {
       const latestRow = latestShareRow(d.series, lat.date);
       infoEl.innerHTML = shareRegressionInfoHTML(
-        d.reg, latestRow.price_pred, latestRow.price, lat.is_live, lat.date,
+        d.reg, latestRow.price_pred, lat.is_live ? lat.price_actual : latestRow.price, lat.is_live, lat.date,
         bseActiveDma, regStart, SHARE_DATA.n_days, SHARE_DATA.ticker, bseActiveLag
       );
     }
@@ -4958,7 +4967,7 @@ function buildMCXShareAnalysis() {
     if (infoEl) {
       const latestRow = latestShareRow(d.series, lat.date);
       infoEl.innerHTML = shareRegressionInfoHTML(
-        d.reg, latestRow.price_pred, latestRow.price, lat.is_live, lat.date,
+        d.reg, latestRow.price_pred, lat.is_live ? lat.price_actual : latestRow.price, lat.is_live, lat.date,
         mcxActiveDma, regStart, SHARE_DATA.n_days, SHARE_DATA.ticker, mcxActiveLag
       );
     }
@@ -5313,7 +5322,7 @@ function buildNSEShareAnalysis() {
     if (infoEl) {
       const latestRow = latestShareRow(d.series, lat.date);
       infoEl.innerHTML = shareRegressionInfoHTML(
-        d.reg, latestRow.price_pred, latestRow.price, lat.is_live, lat.date,
+        d.reg, latestRow.price_pred, lat.is_live ? lat.price_actual : latestRow.price, lat.is_live, lat.date,
         nseActiveDma, regStart, SHARE_DATA.n_days, SHARE_DATA.ticker, nseActiveLag
       );
     }

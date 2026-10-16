@@ -3,7 +3,7 @@
  *
  * Proxies the live JSON the pollers commit to GitHub, so the dashboard sees
  * each 5-minute poll without waiting for a Vercel deploy (live-only commits
- * are not deployed — see ignoreCommand in vercel.json). GITHUB_READ_PAT is
+ * are not deployed — see dashboard/vercel-ignore-build.sh). GITHUB_READ_PAT is
  * optional: it is only needed while the repo is private.
  *
  * Query params:

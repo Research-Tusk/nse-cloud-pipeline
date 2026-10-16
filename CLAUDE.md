@@ -12,7 +12,7 @@ Exchange revenue analytics for NSE, BSE and MCX: Python pipelines on GitHub Acti
 | `scripts/*_live_poller.py` + `live_common.py` | `*-live.yml`, dispatched every 5 min by an external cron via `dashboard/api/trigger-live-polls.js`; no-op outside Mon–Fri 08:55–16:30 IST | NSE/BSE live turnover, yfinance quote | `dashboard/data/*_live.json`, `*_live_hourly.json`, `*_hourly_history.json` (committed to `main`) |
 | `scripts/excel_sync.py` | after daily jobs | Supabase | OneDrive Excel (append-only) |
 
-Dashboard: `dashboard/index.html` + `app.js` (vanilla JS, Chart.js) + `style.css`. Serverless: `dashboard/api/live.js` (proxies live JSON from GitHub raw, so live commits need no deploy), `revenue.js` (direct NSE/BSE scrape), `trigger-live-polls.js`. `vercel.json` `ignoreCommand` skips builds for live-only commits.
+Dashboard: `dashboard/index.html` + `app.js` (vanilla JS, Chart.js) + `style.css`. Serverless: `dashboard/api/live.js` (proxies live JSON from GitHub raw, so live commits need no deploy), `revenue.js` (direct NSE/BSE scrape), `trigger-live-polls.js`. Vercel project root is `dashboard/`, so its config is `dashboard/vercel.json`; its `ignoreCommand` (`vercel-ignore-build.sh`) skips builds for live-only commits.
 
 ## Business rules
 

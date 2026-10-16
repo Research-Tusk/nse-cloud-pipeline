@@ -46,10 +46,17 @@ function fmtInt(val) {
   return Number(val).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 }
 
+// Poller timestamps are UTC; older files omit the "Z", which JS would
+// otherwise read as the viewer's local time.
+function parseUtcTs(iso) {
+  if (typeof iso === "string" && !/(Z|[+-]\d{2}:?\d{2})$/i.test(iso)) iso += "Z";
+  return new Date(iso);
+}
+
 function fmtDateTime(iso) {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("en-IN", {
+    return parseUtcTs(iso).toLocaleString("en-IN", {
       day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
     });
   } catch { return iso; }
@@ -57,7 +64,7 @@ function fmtDateTime(iso) {
 
 function staleMins(iso) {
   if (!iso) return null;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  return Math.floor((Date.now() - parseUtcTs(iso).getTime()) / 60000);
 }
 
 // ---------------------------------------------------------------------------
@@ -384,9 +391,14 @@ function App() {
   const fetchAll = useCallback(async () => {
     try {
       const bust = Date.now();
+      // /api/live serves each 5-minute poll straight from GitHub; the static
+      // copies only refresh when the site is redeployed.
+      const get = (file, path) => fetch(`/api/live?exchange=nse&file=${file}`)
+        .then(r => r.ok ? r : fetch(`${path}?t=${bust}`))
+        .catch(() => fetch(`${path}?t=${bust}`));
       const [liveRes, hourlyRes] = await Promise.all([
-        fetch(`./data/nse_live.json?t=${bust}`),
-        fetch(`./data/nse_live_hourly.json?t=${bust}`).catch(() => null),
+        get('live', './data/nse_live.json'),
+        get('hourly', './data/nse_live_hourly.json').catch(() => null),
       ]);
       if (!liveRes.ok) throw new Error(`HTTP ${liveRes.status}`);
       const liveData = await liveRes.json();

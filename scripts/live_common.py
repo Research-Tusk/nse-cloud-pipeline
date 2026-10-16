@@ -223,7 +223,7 @@ def _clean_days(days: list, trading_dates: set = None) -> list:
         try:
             if date.fromisoformat(d["date"]).weekday() > 4:
                 continue
-        except (KeyError, ValueError):
+        except (KeyError, ValueError, TypeError):
             continue
         if trading_dates and d["date"] <= last_known and d["date"] not in trading_dates:
             continue
@@ -234,14 +234,18 @@ def _clean_days(days: list, trading_dates: set = None) -> list:
 
 
 def _load_history(history_file: Path):
-    if history_file.exists():
-        try:
-            data = json.loads(history_file.read_text())
-            data["days"] = _clean_days(data.get("days", []), _trading_dates_for(history_file))
-            return data
-        except Exception:
-            pass
-    return {"days": []}
+    if not history_file.exists():
+        return {"days": []}
+    try:
+        data = json.loads(history_file.read_text())
+    except Exception:
+        return {"days": []}
+    try:
+        data["days"] = _clean_days(data.get("days", []), _trading_dates_for(history_file))
+    except Exception as e:
+        # Never let a cleaning bug wipe the history: use it uncleaned.
+        print(f"  History: cleaning failed ({e}) — using days as stored")
+    return data
 
 
 def _interp(points, target):

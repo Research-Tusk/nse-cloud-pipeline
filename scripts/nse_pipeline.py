@@ -90,19 +90,24 @@ def fetch_nse_data():
     # NSE publishes late would otherwise never be requested again.
     months = [now, prev] if now.day <= 5 else [now]
 
-    def get_json(url):
+    def get_json(url, missing_ok=False):
         print(f"Fetching: {url}")
         resp = session.get(url, impersonate="chrome", timeout=30)
         if resp.status_code != 200:
+            if missing_ok:
+                print(f"  HTTP {resp.status_code} — month not published yet, treating as empty")
+                return []
             raise RuntimeError(f"NSE returned HTTP {resp.status_code} for {url}")
         return resp.json().get("data", []) or []
 
     fo_data, cm_data = [], []
     for m in months:
+        # The current month may not exist yet in its first days
+        missing_ok = (m is now and now.day <= 5)
         fo_data += get_json("https://www.nseindia.com/api/historicalOR/fo/tbg/daily"
-                            f"?month={m.strftime('%b')}&year={m.year}")
+                            f"?month={m.strftime('%b')}&year={m.year}", missing_ok)
         cm_data += get_json("https://www.nseindia.com/api/historicalOR/cm/tbg/daily"
-                            f"?month={m.strftime('%b')}&year={m.strftime('%y')}")
+                            f"?month={m.strftime('%b')}&year={m.strftime('%y')}", missing_ok)
     if not fo_data and prev not in months:
         # First trading day of the month not published yet
         fo_data = get_json("https://www.nseindia.com/api/historicalOR/fo/tbg/daily"

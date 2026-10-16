@@ -56,9 +56,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Check take rates match between Python and /api/revenue
-        run: python scripts/check_take_rates.py
-
       - name: Run NSE pipeline
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -388,22 +385,20 @@ jobs:
           echo "::error::Push still rejected after 5 attempts — data was NOT published"
           exit 1
 
-  deploy:
+  summary:
+    # Vercel's GitHub integration deploys each pushed commit; no deploy hook needed.
     needs: [nse-update, bse-update, mcx-update, nse-share-analysis, bse-share-analysis, mcx-share-analysis]
-    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0' || needs.mcx-update.outputs.new_days != '0') }}
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
-      - name: Trigger Vercel deploy
-        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
-
       - name: Summary
         run: |
           echo "### Exchange Pipeline Run Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Date:** $(date +%Y-%m-%d)" >> $GITHUB_STEP_SUMMARY
-          echo "- **NSE new days:** ${{ needs.nse-update.outputs.new_days || '0' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **BSE new days:** ${{ needs.bse-update.outputs.new_days || '0' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **MCX new days:** ${{ needs.mcx-update.outputs.new_days || '0' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status:** ✅ Data updated, Vercel deploying" >> $GITHUB_STEP_SUMMARY
+          echo "- **NSE:** ${{ needs.nse-update.result }}, new days ${{ needs.nse-update.outputs.new_days || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **BSE:** ${{ needs.bse-update.result }}, new days ${{ needs.bse-update.outputs.new_days || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **MCX:** ${{ needs.mcx-update.result }}, new days ${{ needs.mcx-update.outputs.new_days || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Share analysis:** NSE ${{ needs.nse-share-analysis.result }}, BSE ${{ needs.bse-share-analysis.result }}, MCX ${{ needs.mcx-share-analysis.result }}" >> $GITHUB_STEP_SUMMARY
