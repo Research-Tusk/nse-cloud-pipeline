@@ -57,7 +57,8 @@ Live file: dashboard/data/{exchange}_live_hourly.json
 """
 
 import json
-from datetime import date, timedelta
+import re
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 MARKET_OPEN_MIN  = 9 * 60 + 15   # 9:15 AM IST
@@ -79,6 +80,14 @@ REFERENCE_CHECKPOINTS = [
     ("10:00", 45), ("11:00", 105), ("12:00", 165), ("13:00", 225),
     ("14:00", 285), ("15:00", 345), ("16:00", 405),
 ]
+
+# Window in which a live poll is worth running at all (IST, Mon–Fri):
+# 8:55 AM (pre-open) to 4:30 PM (after the 4:00 PM post-close session).
+# The external cron that dispatches the pollers fires around the clock, so
+# outside this window the pollers exit without writing anything — no commit,
+# no deploy, and no weekend "day" archived into the EOD model.
+SESSION_START_MIN = 8 * 60 + 55
+SESSION_END_MIN   = 16 * 60 + 30
 
 # NSE expiry = Tuesday (1); BSE expiry = Thursday (3)
 EXPIRY_WEEKDAY = {"nse": 1, "bse": 3}
@@ -148,13 +157,88 @@ def classify_day(d: date, exchange: str, market_dates: set = None) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Session guard + trade-date handling
+# ---------------------------------------------------------------------------
+
+def in_market_session(now_ist: datetime) -> bool:
+    """True on a weekday between SESSION_START_MIN and SESSION_END_MIN IST.
+    Exchange holidays are not known here; they are caught by the trade-date
+    check in save_hourly_snapshot (the exchange keeps reporting the previous
+    session's date on a closed day)."""
+    if now_ist.weekday() > 4:
+        return False
+    mins = now_ist.hour * 60 + now_ist.minute
+    return SESSION_START_MIN <= mins <= SESSION_END_MIN
+
+
+def normalize_trade_date(raw):
+    """Exchange trade date → 'YYYY-MM-DD', or None if unparseable.
+    Handles NSE '2026-10-16…', BSE '16/10/26', and '16-Oct-2026' forms."""
+    if not raw:
+        return None
+    s = str(raw).strip()
+    if re.match(r"^\d{4}-\d{2}-\d{2}", s):
+        return s[:10]
+    token = s.split(" ")[0]
+    for fmt in ("%d/%m/%y", "%d/%m/%Y", "%d-%b-%Y", "%d-%b-%y"):
+        try:
+            return datetime.strptime(token, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Core helpers
 # ---------------------------------------------------------------------------
+
+def _trading_dates_for(history_file: Path):
+    """Dates present in the exchange's daily EOD data ({ex}_dashboard_data.json
+    beside the history file), or None if unavailable. Used as the calendar of
+    sessions that actually happened."""
+    ex = history_file.name.split("_")[0]
+    daily_file = history_file.parent / f"{ex}_dashboard_data.json"
+    try:
+        rows = json.loads(daily_file.read_text()).get("daily_all") or []
+        return {r["date"] for r in rows if r.get("date")}
+    except Exception:
+        return None
+
+
+def _clean_days(days: list, trading_dates: set = None) -> list:
+    """Drop archived 'days' that were not real trading sessions.
+
+    Before the session guard existed the pollers ran 24/7, so weekends and
+    exchange holidays were archived as flat days that just repeat the
+    previous session's closing revenue (fraction 1.0 at every checkpoint),
+    dragging every historical curve up and the live EOD forecast down.
+    Weekend dates and exact repeats of the previous kept day's EOD revenue
+    are discarded. Weekend special sessions (Muhurat, Budget day) are dropped
+    too — their intraday shape is not representative of a normal session.
+    When the exchange's daily data is available, a day up to its latest date
+    must also appear in it (catches holidays with a differing stale value)."""
+    last_known = max(trading_dates) if trading_dates else ""
+    kept = []
+    for d in sorted(days, key=lambda x: x.get("date", "")):
+        try:
+            if date.fromisoformat(d["date"]).weekday() > 4:
+                continue
+        except (KeyError, ValueError):
+            continue
+        if trading_dates and d["date"] <= last_known and d["date"] not in trading_dates:
+            continue
+        if kept and d.get("eod_revenue") == kept[-1].get("eod_revenue"):
+            continue
+        kept.append(d)
+    return kept
+
 
 def _load_history(history_file: Path):
     if history_file.exists():
         try:
-            return json.loads(history_file.read_text())
+            data = json.loads(history_file.read_text())
+            data["days"] = _clean_days(data.get("days", []), _trading_dates_for(history_file))
+            return data
         except Exception:
             pass
     return {"days": []}
@@ -201,7 +285,13 @@ def _best_fraction_curve(history_file: Path, today_day_type: str, today_weekday:
       4. (None, "none") → caller falls back to linear extrapolation
     """
     data = _load_history(history_file)
-    all_days = [d for d in data.get("days", []) if d.get("eod_revenue", 0) > 0]
+    intraday_labels = {lbl for lbl, mins in REFERENCE_CHECKPOINTS if mins != MARKET_TOTAL_MIN}
+    # Only days with a measured intraday shape count towards MIN_SAMPLES — a
+    # single-sample day contributes nothing but its EOD fraction of 1.0.
+    all_days = [d for d in data.get("days", [])
+                if d.get("eod_revenue", 0) > 0
+                and any((d.get("checkpoints", {}).get(l) or {}).get("fraction") is not None
+                        for l in intraday_labels)]
 
     def try_set(days, method):
         if len(days) < MIN_SAMPLES:
@@ -288,7 +378,10 @@ def archive_completed_day(day_record: dict, history_file: Path, exchange: str = 
     # Only trust non-EOD checkpoints when there's at least one other real
     # sample to bracket them against.
     has_intraday_signal = len(ordered) >= 2
-    points = [(0, 0.0)] + [(s["elapsed_minutes"], s["total_revenue"]) for s in ordered]
+    # Pre-open samples (negative elapsed) carry no intraday shape and would
+    # leave the points list unsorted around the (0, 0) open anchor.
+    points = [(0, 0.0)] + [(s["elapsed_minutes"], s["total_revenue"])
+                           for s in ordered if s["elapsed_minutes"] > 0]
 
     checkpoints = {}
     for label, mins in REFERENCE_CHECKPOINTS:
@@ -337,6 +430,18 @@ def save_hourly_snapshot(revenue, now_ist, hourly_file: Path, history_file: Path
         return
 
     today_str  = now_ist.strftime("%Y-%m-%d")
+
+    # Key samples on the exchange's own trade date, never the wall clock: on a
+    # holiday, and before the open, the API still reports the previous
+    # session's totals under the previous session's date.
+    trade_date = normalize_trade_date(revenue.get("trade_date"))
+    if trade_date != today_str:
+        print(f"  Hourly snapshot skipped: exchange trade date {revenue.get('trade_date')!r} "
+              f"is not today ({today_str}) — market not trading yet or closed")
+        return
+    if (now_ist.hour * 60 + now_ist.minute) < MARKET_OPEN_MIN:
+        print("  Hourly snapshot skipped: before 9:15 AM open")
+        return
     today_date = now_ist.date()
     weekday    = today_date.weekday()
 

@@ -68,7 +68,7 @@
     </div>
     <div class="header-right">
       <div class="header-meta">
-        <span id="currentQuarterSpan">Q4 FY 2026</span>
+        <span id="currentQuarterSpan">—</span>
         <span style="color:var(--color-text-faint)">|</span>
         <span id="lastUpdatedSpan">Last Updated: —</span>
         <span class="live-dot"></span>
@@ -108,7 +108,7 @@
       <div id="nsePredictionContent">
         <!-- Revenue Extrapolation Panel -->
         <div class="chart-panel" style="margin-bottom:var(--space-5)">
-          <div class="chart-title">Q4 FY 2026 Revenue Extrapolation <span class="chart-badge">Data-Driven</span></div>
+          <div class="chart-title"><span class="js-current-quarter">Current Quarter</span> Revenue Extrapolation <span class="chart-badge">Data-Driven</span></div>
           <div class="extrapolation-kpis" id="extrapKpis"></div>
         </div>
         <!-- Predicted Quarterly P&L Table -->
@@ -171,7 +171,7 @@
         </div>
         <!-- PE Valuation (data-driven from ENRICHED_DATA) -->
         <div class="chart-panel" style="margin-bottom:var(--space-5)" id="peValuationPanel">
-          <div class="chart-title">Valuation — Data-Driven Estimate <span class="chart-badge">Q4 FY 2026 Extrapolation</span></div>
+          <div class="chart-title">Valuation — Data-Driven Estimate <span class="chart-badge"><span class="js-current-quarter">Current Quarter</span> Extrapolation</span></div>
           <div class="pe-inputs" id="peInputs">
             <div class="pe-input-group">
               <label for="peBear">Bear PE</label>
@@ -263,7 +263,7 @@
       <!-- BSE: Simple Revenue Predictor -->
       <div id="bsePredictionContent" style="display:none">
         <div class="chart-panel" style="margin-bottom:var(--space-5)">
-          <div class="chart-title">Revenue Extrapolation <span class="chart-badge">Q4 FY 2026</span></div>
+          <div class="chart-title">Revenue Extrapolation <span class="chart-badge js-current-quarter">Current Quarter</span></div>
           <div class="predictor-cards" id="bsePredictorKpis"></div>
           <div class="progress-bar-container" style="margin-top:var(--space-4)">
             <div class="progress-bar">

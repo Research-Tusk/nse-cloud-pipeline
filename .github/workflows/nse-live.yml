@@ -15,6 +15,12 @@ on:
 permissions:
   contents: write
 
+# One run at a time: a late scheduled run overlapping a dispatched one used to
+# rebase-conflict on the same JSON and drop that poll. Extra runs queue instead.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   poll:
     runs-on: ubuntu-latest
@@ -39,10 +45,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # No Supabase credentials: the nse_live_snapshots insert has failed on every
+      # run (table never created). Phase 2 adds a proper live_samples table.
       - name: Run NSE live poller
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python scripts/nse_live_poller.py
 
       - name: Commit data files
@@ -54,12 +59,14 @@ jobs:
           git diff --cached --quiet && echo "No changes" || \
             git commit -m "📡 Live update: $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
           for i in 1 2 3 4 5; do
-            git push && break
+            git push && exit 0
             echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
             git fetch origin main
-            git rebase origin/main
+            git rebase origin/main || { git rebase --abort; echo "::error::Rebase conflict with origin/main"; exit 1; }
             sleep $((RANDOM % 5 + 1))
           done
+          echo "::error::Push still rejected after 5 attempts — data was NOT published"
+          exit 1
 
       - name: Summary
         run: |

@@ -22,18 +22,45 @@
  * access) — GITHUB_DISPATCH_PAT should be a fine-grained PAT scoped to only
  * "Actions: write" on this one repo.
  *
+ * Outside the market session (Mon–Fri 8:55 AM–4:30 PM IST, matching
+ * SESSION_START_MIN/SESSION_END_MIN in scripts/live_common.py) it returns 200
+ * with `skipped: true` and dispatches nothing, so a round-the-clock external
+ * cron no longer produces night and weekend runs. `?force=1` overrides.
+ *
  * Example: POST /api/trigger-live-polls  (Authorization: Bearer <secret>)
  */
+
+const crypto = require('crypto');
 
 const REPO = 'Research-Tusk/nse-cloud-pipeline';
 const GITHUB_API = `https://api.github.com/repos/${REPO}/actions/workflows`;
 const WORKFLOWS = ['nse-live.yml', 'bse-live.yml', 'mcx-live.yml'];
 
+const SESSION_START_MIN = 8 * 60 + 55;
+const SESSION_END_MIN   = 16 * 60 + 30;
+
+function inMarketSession(now = new Date()) {
+  const ist = new Date(now.getTime() + 330 * 60000);   // IST = UTC+5:30, no DST
+  const day = ist.getUTCDay();                          // 0 = Sun … 6 = Sat
+  const mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  return day >= 1 && day <= 5 && mins >= SESSION_START_MIN && mins <= SESSION_END_MIN;
+}
+
+function secretMatches(header, secret) {
+  const a = Buffer.from(String(header || ''));
+  const b = Buffer.from(`Bearer ${secret}`);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 module.exports = async function handler(req, res) {
   const authHeader = req.headers.authorization;
   const secret = process.env.CRON_TRIGGER_SECRET;
-  if (!secret || authHeader !== `Bearer ${secret}`) {
+  if (!secret || !secretMatches(authHeader, secret)) {
     return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!inMarketSession() && req.query.force !== '1') {
+    return res.status(200).json({ skipped: true, reason: 'outside market session' });
   }
 
   const pat = process.env.GITHUB_DISPATCH_PAT;
@@ -67,3 +94,5 @@ module.exports = async function handler(req, res) {
     results: summary,
   });
 };
+
+module.exports.inMarketSession = inMarketSession;

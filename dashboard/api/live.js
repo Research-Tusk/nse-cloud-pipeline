@@ -1,11 +1,13 @@
 /**
  * Vercel Serverless Function: /api/live
  *
- * Proxies private GitHub raw files to the browser using a PAT stored
- * as a Vercel environment variable (GITHUB_READ_PAT).
+ * Proxies the live JSON the pollers commit to GitHub, so the dashboard sees
+ * each 5-minute poll without waiting for a Vercel deploy (live-only commits
+ * are not deployed — see ignoreCommand in vercel.json). GITHUB_READ_PAT is
+ * optional: it is only needed while the repo is private.
  *
  * Query params:
- *   exchange = nse | bse
+ *   exchange = nse | bse | mcx   (mcx has only `live`)
  *   file     = live | hourly | history | share
  *
  * Example: GET /api/live?exchange=nse&file=live
@@ -13,7 +15,7 @@
 
 const REPO_RAW = 'https://raw.githubusercontent.com/Research-Tusk/nse-cloud-pipeline/main/dashboard/data';
 
-const VALID_EXCHANGES = ['nse', 'bse'];
+const VALID_EXCHANGES = ['nse', 'bse', 'mcx'];
 
 const FILE_MAP = {
   live:    (e) => `${e}_live.json`,
@@ -33,19 +35,15 @@ module.exports = async function handler(req, res) {
   const filename = FILE_MAP[file](exchange);
   const url      = `${REPO_RAW}/${filename}`;
 
+  const headers = {
+    'Accept':     'application/json',
+    'User-Agent': 'nse-cloud-pipeline-dashboard',
+  };
   const pat = process.env.GITHUB_READ_PAT;
-  if (!pat) {
-    return res.status(500).json({ error: 'GITHUB_READ_PAT env var not set' });
-  }
+  if (pat) headers['Authorization'] = `token ${pat}`;
 
   try {
-    const ghRes = await fetch(url, {
-      headers: {
-        'Authorization': `token ${pat}`,
-        'Accept':        'application/json',
-        'User-Agent':    'nse-cloud-pipeline-dashboard',
-      },
-    });
+    const ghRes = await fetch(url, { headers });
 
     if (!ghRes.ok) {
       return res.status(502).json({ error: `GitHub returned ${ghRes.status} for ${filename}` });
@@ -53,8 +51,8 @@ module.exports = async function handler(req, res) {
 
     const data = await ghRes.json();
 
-    // 30-second edge cache; fresh within one polling interval
-    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+    // Browser + edge cache for 30 s; fresh within one polling interval
+    res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=30, stale-while-revalidate=60');
     res.setHeader('Content-Type', 'application/json');
     return res.status(200).json(data);
 

@@ -10,10 +10,11 @@
 
 const GITHUB_RAW = 'https://raw.githubusercontent.com/Research-Tusk/nse-cloud-pipeline/main/dashboard/data';
 
-// Take rates (both sides of transaction)
-const TR_FUT_NSE  = 0.00173 / 100 * 2;
-const TR_OPT_NSE  = 0.03503 / 100 * 2;
-const TR_CASH_NSE = 0.00297 / 100 * 2;
+// Take rates (both sides of transaction). Must match scripts/take_rates.py —
+// scripts/check_take_rates.py fails the deploy workflow if they drift.
+const TR_FUT_NSE  = 0.00183 / 100 * 2;
+const TR_OPT_NSE  = 0.03553 / 100 * 2;
+const TR_CASH_NSE = 0.00307 / 100 * 2;
 const TR_CASH_BSE = 0.00375 / 100 * 2;
 const TR_OPT_BSE  = 0.03250 / 100 * 2;
 

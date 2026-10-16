@@ -2,6 +2,7 @@
   "buildCommand": null,
   "outputDirectory": "dashboard",
   "framework": null,
+  "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- . ':(exclude)dashboard/data/*_live.json' ':(exclude)dashboard/data/*_live_hourly.json' ':(exclude)dashboard/data/*_hourly_history.json'",
   "rewrites": [
     { "source": "/live", "destination": "/live.html" },
     { "source": "/(.*)", "destination": "/index.html" }

@@ -451,19 +451,39 @@ function toggleExchangeContent(exchange) {
 // ========================
 
 // Overrides SHARE_DATA.latest.price_actual with an intraday quote from the
-// live poller (bse_live.json / mcx_live.json), when available — otherwise
-// the price shown is always yesterday's fixed close from the daily batch job.
+// live poller ({exchange}_live.json), when it is for a newer day than the
+// daily batch's latest close — otherwise the batch close stands.
+function istDateOf(ts) {
+  const d = ts ? new Date(ts) : new Date();
+  return isNaN(d.getTime()) ? null : d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+async function fetchLiveFile(exchange) {
+  const bust = Date.now();
+  for (const url of [`/api/live?exchange=${exchange}&file=live&t=${bust}`, `./data/${exchange}_live.json?t=${bust}`]) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const live = await res.json().catch(() => null);
+      if (live) return live;
+    } catch (e) { /* try the next source */ }
+  }
+  return null;
+}
+
 async function applyLiveStockPrice(shareData, exchange) {
   try {
-    const res = await fetch(`./data/${exchange}_live.json?t=${Date.now()}`);
-    if (!res.ok) return;
-    const live = await res.json().catch(() => null);
+    const live = await fetchLiveFile(exchange);
     const sp = live?.stock_price;
     if (!sp || sp.last_price == null || !shareData.latest) return;
+
+    const liveDate = istDateOf(live.updated_at);
+    if (!liveDate || liveDate <= shareData.latest.date) return;  // batch already has that day's close
 
     shareData.latest.price_prev_close = shareData.latest.price_actual;
     shareData.latest.price_actual = sp.last_price;
     shareData.latest.is_live = true;
+    shareData.latest.live_date = liveDate;
     shareData.latest.live_updated_at = live.updated_at;
     shareData.latest.live_pct_change = sp.pct_change;
     if (shareData.latest.price_pred != null && sp.last_price) {
@@ -471,13 +491,8 @@ async function applyLiveStockPrice(shareData, exchange) {
         Math.abs(shareData.latest.price_pred - sp.last_price) / sp.last_price * 1000
       ) / 10;
     }
-
-    // `series` (not `latest`) feeds every chart — its last row otherwise still
-    // shows yesterday's batch close even after the KPI tile above goes live.
-    const lastRow = shareData.series?.[shareData.series.length - 1];
-    if (lastRow && lastRow.date === shareData.latest.date) {
-      lastRow.price = sp.last_price;
-    }
+    // `series` is deliberately left as daily closes: it feeds the moving
+    // averages and the regression fit, and an intraday quote is neither.
   } catch (e) {
     // Live price is a nice-to-have — silently fall back to the batch close on any failure
   }
@@ -508,6 +523,9 @@ async function loadExchangeData(exchange) {
   }
   const results = await Promise.all(fetches);
   DATA = await results[0].json();
+  // P&L quarters must be chronological for the table, chart and "latest
+  // actual quarter" lookups (older pipeline output sorted them by label text).
+  if (Array.isArray(DATA.pnl)) DATA.pnl.sort((a, b) => quarterSortKey(a.quarter) - quarterSortKey(b.quarter));
   ENRICHED_DATA = await results[1].json();
   if (hasShareFeed && results[2]) {
     SHARE_DATA = await results[2].json().catch(() => null);
@@ -675,9 +693,10 @@ function updateHeaderInfo() {
     const span = document.getElementById('lastUpdatedSpan');
     if (span) span.textContent = 'Last Updated: ' + formatted;
   }
-  const cqSpan = document.getElementById('currentQuarterSpan');
-  if (cqSpan && DATA.summary) {
-    cqSpan.textContent = DATA.summary.current_quarter;
+  const cq = DATA.summary && DATA.summary.current_quarter;
+  if (cq) {
+    // Header plus every panel title that names the quarter being extrapolated
+    document.querySelectorAll('#currentQuarterSpan, .js-current-quarter').forEach(el => { el.textContent = cq; });
   }
 }
 
@@ -754,9 +773,24 @@ async function updateLatestRevBanner() {
     return days[d.getDay()] + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
   }
 
+  // LIVE only for a fresh reading of today's IST session: not the historical
+  // fallback, not a value the poller carried forward after a failed fetch, and
+  // not yesterday's totals still showing before the open or on a holiday.
+  function isoTradeDate(dateStr) {
+    if (!dateStr) return null;
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.slice(0, 10);
+    const m = /^(\d{2})\/(\d{2})\/(\d{2})$/.exec(dateStr);
+    return m ? '20' + m[3] + '-' + m[2] + '-' + m[1] : null;
+  }
+  const todayIST = istDateOf();
+  function isLiveToday(info) {
+    return !!info && info.source !== 'historical' && !info.stale_since
+      && isoTradeDate(info.trade_date) === todayIST;
+  }
+
   function chip(label, info) {
     if (!info) return '';
-    const isLive  = info.source !== 'historical';
+    const isLive  = isLiveToday(info);
     const partial = isLive && !!info.options_pending;
     const liveTag = !isLive ? '' : partial
       ? '<span class="rev-banner-live rev-banner-partial" title="Cash revenue only — BSE has not posted options premium turnover for this session yet">PARTIAL</span>'
@@ -769,7 +803,7 @@ async function updateLatestRevBanner() {
       '</span>';
   }
 
-  const hasLive = (nse && nse.source !== 'historical') || (bse && bse.source !== 'historical');
+  const hasLive = isLiveToday(nse) || isLiveToday(bse);
   const title = hasLive ? "Today's Revenue" : 'Latest Full Day Revenue';
   el.innerHTML = '<span class="rev-banner-title">' + title + '</span>' + chip('NSE', nse) + chip('BSE', bse);
 }
@@ -2690,7 +2724,7 @@ function initNSEPATPredictor() {
   otherIncomeInput.value = (p.other_income_ratio * 100).toFixed(1);
 
   document.getElementById('predictorHint').textContent =
-    'Current Q4 FY 2026 avg: ₹ ' + p.daily_avg_rev.toFixed(2) + ' Cr/day';
+    'Current ' + (p.quarter || (DATA.summary && DATA.summary.current_quarter) || 'quarter') + ' avg: ₹ ' + p.daily_avg_rev.toFixed(2) + ' Cr/day';
 
   const costParams = {
     emp_pct: cr.employee_pct || 0.044,
@@ -2811,10 +2845,12 @@ function initNSEPEValuation() {
   function updatePEResults() {
     const quarters = ENRICHED_DATA.pnl_predicted_quarters;
     if (!quarters) return;
-    const q4Data = quarters['Q4 FY 2026'];
-    if (!q4Data || !q4Data.eps) return;
+    // The quarter being extrapolated (first entry = current quarter)
+    const cqName = ENRICHED_DATA.pnl_predictor?.quarter || Object.keys(quarters)[0];
+    const cqData = quarters[cqName];
+    if (!cqData || !cqData.eps) return;
 
-    const quarterlyEPS = q4Data.eps;
+    const quarterlyEPS = cqData.eps;
     const annualizedEPS = quarterlyEPS * 4;
 
     const bearPE = Number(bearInput.value) || 25;

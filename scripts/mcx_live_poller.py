@@ -11,8 +11,15 @@ Run: python scripts/mcx_live_poller.py
 """
 
 import json
-from datetime import datetime, timezone
+import os
+import sys
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from live_common import in_market_session
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 SCRIPT_DIR  = Path(__file__).parent
 REPO_ROOT   = SCRIPT_DIR.parent
@@ -42,12 +49,21 @@ def fetch_stock_price(ticker="MCX.NS"):
 
 def main():
     now_utc = datetime.now(timezone.utc)
-    ts_iso  = now_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    ts_iso  = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"[{ts_iso}] MCX live poller starting…")
 
+    # MCX Ltd's shares trade on the NSE equity session, so the same window applies.
+    if not in_market_session(now_utc.astimezone(IST)) and os.environ.get("FORCE_POLL") != "1":
+        print("Outside market session — nothing to do")
+        return
+
     stock_price = fetch_stock_price("MCX.NS")
-    if stock_price:
-        print(f"  MCX.NS {stock_price['last_price']}  ({stock_price['pct_change']}%)")
+    if not stock_price:
+        # Leave the previous file untouched: no commit, and its updated_at
+        # keeps telling the dashboard how old the last good quote is.
+        print("  No quote — keeping previous mcx_live.json")
+        return
+    print(f"  MCX.NS {stock_price['last_price']}  ({stock_price['pct_change']}%)")
 
     payload = {
         "updated_at":  ts_iso,

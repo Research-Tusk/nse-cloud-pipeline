@@ -14,8 +14,8 @@ so the dashboard shows something better than yesterday's fixed close.
 
 Revenue take rates (both-side transaction charge):
   Cash (Equity)  : 0.00375% × 2  on traded value
-  Options        : 0.03503% × 2  on premium turnover  (BSE derivatives ≈ all options)
-  Futures        : 0.00200% × 2  on notional turnover  (BSE futures negligible but included)
+  Options        : 0.03250% × 2  on premium turnover  (BSE derivatives ≈ all options)
+  Futures        : none          (see scripts/take_rates.py)
 
 Run: python scripts/bse_live_poller.py
 Env: SUPABASE_URL, SUPABASE_KEY  (optional)
@@ -30,7 +30,7 @@ from pathlib import Path
 import sys
 from curl_cffi import requests as cffi_requests
 sys.path.insert(0, str(Path(__file__).parent))
-from live_common import save_hourly_snapshot
+from live_common import save_hourly_snapshot, in_market_session
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -44,9 +44,8 @@ HISTORY_FILE = REPO_ROOT / "dashboard" / "data" / "bse_hourly_history.json"
 # ---------------------------------------------------------------------------
 # Take rates (both sides)
 # ---------------------------------------------------------------------------
-TR_CASH    = 0.00375 / 100 * 2   # Equity cash
-TR_OPT     = 0.03250 / 100 * 2   # Options on premium (Sensex options)
-TR_FUT     = 0.0                  # Futures: 0% (no BSE futures fee)
+# Single source: scripts/take_rates.py
+from take_rates import BSE_TR_CASH as TR_CASH, BSE_TR_OPT as TR_OPT, BSE_TR_FUT as TR_FUT
 
 # ---------------------------------------------------------------------------
 # IST + market session
@@ -250,9 +249,20 @@ def fetch_stock_price(ticker="BSE.NS"):
 # ---------------------------------------------------------------------------
 def main():
     now_utc = datetime.now(timezone.utc)
-    now_ist = datetime.now(IST)
-    ts_iso  = now_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    now_ist = now_utc.astimezone(IST)
+    ts_iso  = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"[{ts_iso}] BSE live poller starting…")
+
+    if not in_market_session(now_ist) and os.environ.get("FORCE_POLL") != "1":
+        print(f"Outside market session ({now_ist:%a %H:%M} IST) — nothing to do")
+        return
+
+    previous = {}
+    if OUTPUT_FILE.exists():
+        try:
+            previous = json.loads(OUTPUT_FILE.read_text())
+        except Exception:
+            previous = {}
 
     print("Sensex:")
     sensex = fetch_sensex()
@@ -266,8 +276,16 @@ def main():
     print("Turnover:")
     revenue = fetch_turnover()
 
+    # A failed fetch keeps the last good value (flagged stale) rather than
+    # overwriting it with null.
+    if not (revenue and revenue.get("has_data")) and previous.get("revenue"):
+        revenue = {**previous["revenue"],
+                   "stale_since": previous["revenue"].get("stale_since") or previous.get("updated_at")}
+        print(f"  Turnover unavailable — keeping last good value (stale since {revenue['stale_since']})")
+
     print("Hourly snapshot:")
-    save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE, exchange="bse")
+    if revenue and not revenue.get("stale_since"):
+        save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE, exchange="bse")
 
     print("Stock price:")
     stock_price = fetch_stock_price("BSE.NS")

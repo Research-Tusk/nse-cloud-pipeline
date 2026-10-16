@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'dashboard/**'
+      - 'scripts/take_rates.py'
       - 'vercel.json'
 
 jobs:
@@ -12,8 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check take rates match between Python and /api/revenue
+        run: python3 scripts/check_take_rates.py
+
       - name: Trigger Vercel deploy
-        run: curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
 
       - name: Summary
         run: |

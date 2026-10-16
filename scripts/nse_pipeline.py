@@ -32,10 +32,8 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_ROOT / "data"
 DASHBOARD_DIR = PROJECT_ROOT / "dashboard"
 
-# ── Take Rates ──
-TR_FUT  = 3.66e-05
-TR_OPT  = 7.106e-04
-TR_CASH = 6.14e-05
+# ── Take Rates (single source: scripts/take_rates.py) ──
+from take_rates import NSE_TR_FUT as TR_FUT, NSE_TR_OPT as TR_OPT, NSE_TR_CASH as TR_CASH
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -87,36 +85,33 @@ def fetch_nse_data():
         print(f"WARNING: Homepage returned {resp.status_code}, trying API anyway...")
 
     now = datetime.now()
-    month_abbr = now.strftime("%b")      # "Mar"
-    year_full  = str(now.year)           # "2026"
-    year_short = now.strftime("%y")      # "26"
+    prev = now.replace(day=1) - timedelta(days=1)
+    # Early in a month also fetch the previous one: a month-end session that
+    # NSE publishes late would otherwise never be requested again.
+    months = [now, prev] if now.day <= 5 else [now]
 
-    # F&O API
-    fo_url = f"https://www.nseindia.com/api/historicalOR/fo/tbg/daily?month={month_abbr}&year={year_full}"
-    print(f"Fetching F&O: {fo_url}")
-    fo_resp = session.get(fo_url, impersonate="chrome")
+    def get_json(url):
+        print(f"Fetching: {url}")
+        resp = session.get(url, impersonate="chrome", timeout=30)
+        if resp.status_code != 200:
+            raise RuntimeError(f"NSE returned HTTP {resp.status_code} for {url}")
+        return resp.json().get("data", []) or []
 
-    if fo_resp.status_code != 200:
-        print(f"ERROR: F&O API returned {fo_resp.status_code}")
-        # Try previous month if current month has no data yet
-        prev = now.replace(day=1) - timedelta(days=1)
-        month_abbr = prev.strftime("%b")
-        year_full  = str(prev.year)
-        year_short = prev.strftime("%y")
-        fo_url = f"https://www.nseindia.com/api/historicalOR/fo/tbg/daily?month={month_abbr}&year={year_full}"
-        print(f"Retrying with previous month: {fo_url}")
-        fo_resp = session.get(fo_url, impersonate="chrome")
+    fo_data, cm_data = [], []
+    for m in months:
+        fo_data += get_json("https://www.nseindia.com/api/historicalOR/fo/tbg/daily"
+                            f"?month={m.strftime('%b')}&year={m.year}")
+        cm_data += get_json("https://www.nseindia.com/api/historicalOR/cm/tbg/daily"
+                            f"?month={m.strftime('%b')}&year={m.strftime('%y')}")
+    if not fo_data and prev not in months:
+        # First trading day of the month not published yet
+        fo_data = get_json("https://www.nseindia.com/api/historicalOR/fo/tbg/daily"
+                           f"?month={prev.strftime('%b')}&year={prev.year}")
+        cm_data = get_json("https://www.nseindia.com/api/historicalOR/cm/tbg/daily"
+                           f"?month={prev.strftime('%b')}&year={prev.strftime('%y')}")
 
-    # Cash API
-    cm_url = f"https://www.nseindia.com/api/historicalOR/cm/tbg/daily?month={month_abbr}&year={year_short}"
-    print(f"Fetching Cash: {cm_url}")
-    cm_resp = session.get(cm_url, impersonate="chrome")
-
-    fo_json = fo_resp.json() if fo_resp.status_code == 200 else {"data": []}
-    cm_json = cm_resp.json() if cm_resp.status_code == 200 else {"data": []}
-
-    print(f"F&O records: {len(fo_json.get('data', []))}, Cash records: {len(cm_json.get('data', []))}")
-    return fo_json, cm_json
+    print(f"F&O records: {len(fo_data)}, Cash records: {len(cm_data)}")
+    return {"data": fo_data}, {"data": cm_data}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -260,10 +255,20 @@ def fetch_all_daily(supabase):
         offset += batch_size
     return all_records
 
+def quarter_sort_key(label):
+    """'Q3 FY 2026' → (2026, 3), so quarters sort chronologically. Ordering by
+    the label text puts every Q1 before every Q2 regardless of year."""
+    try:
+        q, _, fy = str(label).split()
+        return (int(fy), int(q[1:]))
+    except (ValueError, AttributeError):
+        return (0, 0)
+
+
 def fetch_pnl(supabase):
-    """Fetch P&L data."""
-    result = supabase.table("nse_pnl").select("*").order("quarter").execute()
-    return result.data
+    """Fetch P&L data, oldest quarter first."""
+    result = supabase.table("nse_pnl").select("*").execute()
+    return sorted(result.data, key=lambda r: quarter_sort_key(r.get("quarter")))
 
 def fetch_pnl_fy(supabase):
     result = supabase.table("nse_pnl_fy").select("*").order("fy").execute()
@@ -574,8 +579,9 @@ def compute_predicted_quarters(pnl_predictor, pnl_history, quarterly):
 
     result = {}
 
-    # Current quarter: from live trading data via pnl_predictor
-    cq_name = date_to_fy_quarter(datetime.now())
+    # Current quarter: from live trading data via pnl_predictor. Named from the
+    # data (latest quarter with trading days), not the wall clock.
+    cq_name = quarterly[-1]["quarter"] if quarterly else date_to_fy_quarter(datetime.now())
     result[cq_name] = build_entry(
         pnl_predictor["transaction_rev_extrapolated"],
         pnl_predictor["total_revenue_predicted"],
@@ -587,8 +593,15 @@ def compute_predicted_quarters(pnl_predictor, pnl_history, quarterly):
         same_q_prev = f"{cq_name.split()[0]} FY {int(cq_name.split()[2]) - 1}"
         prev_q = next((q for q in quarterly if q["quarter"] == same_q_prev), None)
         curr_q = quarterly[-1]
-        if prev_q and float(prev_q.get("total_rev", 0) or 0):
-            yoy_growth = float(curr_q["total_rev"]) / float(prev_q["total_rev"]) - 1
+
+        def daily_avg(q):
+            days = int(q.get("days") or 0)
+            return float(q.get("total_rev") or 0) / days if days else 0.0
+
+        # Compare per-day averages: the current quarter is only partly through,
+        # so its running total against a full year-ago quarter is meaningless.
+        if prev_q and daily_avg(prev_q) and daily_avg(curr_q):
+            yoy_growth = daily_avg(curr_q) / daily_avg(prev_q) - 1
         else:
             yoy_growth = 0.10
     else:
@@ -622,13 +635,13 @@ def compute_enriched(daily, quarterly, pnl):
         txn_rev_extrap = daily_avg * expected_days
         total_rev_pred = txn_rev_extrap * (1 + other_income_ratio)
         enriched["pnl_predictor"] = {
+            "quarter": cq["quarter"],
             "daily_avg_rev": round(daily_avg, 4),
-            "q4_fy2026_trading_days_so_far": days_so_far,
-            "q4_fy2025_total_trading_days": expected_days,
+            "trading_days_so_far": days_so_far,
+            "expected_trading_days": expected_days,
             "transaction_rev_extrapolated": round(txn_rev_extrap, 2),
             "other_income_ratio": round(other_income_ratio, 4),
             "total_revenue_predicted": round(total_rev_pred, 2),
-            "pat_predicted": round(total_rev_pred * 0.567, 2),
         }
     else:
         enriched["pnl_predictor"] = {}
@@ -636,6 +649,11 @@ def compute_enriched(daily, quarterly, pnl):
     enriched["pnl_predicted_quarters"] = compute_predicted_quarters(
         enriched.get("pnl_predictor"), pnl, quarterly
     )
+    # One PAT figure: the current quarter's row of the predicted P&L, which uses
+    # cost ratios from the latest actual quarters (was a hardcoded 0.567).
+    cq_pred = enriched["pnl_predicted_quarters"].get(cq["quarter"]) if cq else None
+    if cq_pred:
+        enriched["pnl_predictor"]["pat_predicted"] = cq_pred["pat"]
     return enriched
 
 
@@ -718,7 +736,12 @@ def main():
     for rec in fo_records:
         parsed = parse_fo_record(rec)
         date_key = parsed["date"]
-        cm = cm_by_date.get(date_key, {})
+        cm = cm_by_date.get(date_key)
+        if not cm:
+            # Storing the day with cash = 0 would freeze it: existing dates are
+            # never re-fetched. Hold it back until NSE publishes the cash figure.
+            print(f"WARNING: {date_key} has F&O but no cash data yet — holding back until it is published")
+            continue
         parsed["cash_traded_value"] = cm.get("cash_traded_value", 0)
         parsed["cash_rev"] = cm.get("cash_rev", 0)
         parsed["total_rev"] = round(parsed["fo_rev"] + parsed["cash_rev"], 4)
@@ -756,7 +779,7 @@ def main():
             with open(existing_path) as f:
                 existing = json.load(f)
             all_daily = existing.get("daily_all", [])
-            pnl = existing.get("pnl", [])
+            pnl = sorted(existing.get("pnl", []), key=lambda r: quarter_sort_key(r.get("quarter")))
             pnl_fy = existing.get("pnl_fy", [])
             cost_ratios = existing.get("cost_ratios", {})
             # Merge new records

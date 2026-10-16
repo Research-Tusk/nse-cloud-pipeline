@@ -24,6 +24,11 @@ on:
 permissions:
   contents: write
 
+# One run at a time, so delayed scheduled runs cannot race each other's pushes.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   nse-update:
     if: ${{ github.event_name == 'schedule' || github.event.inputs.exchange == 'all' || github.event.inputs.exchange == 'nse' }}
@@ -51,6 +56,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Check take rates match between Python and /api/revenue
+        run: python scripts/check_take_rates.py
+
       - name: Run NSE pipeline
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -65,20 +73,23 @@ jobs:
           echo "NSE new trading days: $NEW_DAYS"
 
       - name: Commit NSE data
-        if: steps.check_new.outputs.new_days != '0'
+        # Manual runs always publish, so a code fix can regenerate the JSON without a new trading day
+        if: steps.check_new.outputs.new_days != '0' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "Research-Tusk"
           git config user.email "research@tuskinvest.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add data/dashboard_data.json data/enriched_data.json dashboard/data/nse_dashboard_data.json dashboard/data/nse_enriched_data.json
-          git commit -m "📊 NSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
+          git diff --cached --quiet || git commit -m "📊 NSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)"
           for i in 1 2 3 4 5; do
-            git push && break
+            git push && exit 0
             echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
             git fetch origin main
-            git rebase origin/main
+            git rebase origin/main || { git rebase --abort; echo "::error::Rebase conflict with origin/main"; exit 1; }
             sleep $((RANDOM % 5 + 1))
           done
+          echo "::error::Push still rejected after 5 attempts — data was NOT published"
+          exit 1
 
   bse-update:
     runs-on: ubuntu-latest
@@ -124,20 +135,23 @@ jobs:
           echo "BSE new trading days: $NEW_DAYS"
 
       - name: Commit BSE data
-        if: steps.check_new.outputs.new_days != '0'
+        # Manual runs always publish, so a code fix can regenerate the JSON without a new trading day
+        if: steps.check_new.outputs.new_days != '0' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "Research-Tusk"
           git config user.email "research@tuskinvest.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add data/bse_dashboard_data.json data/bse_enriched_data.json dashboard/data/bse_dashboard_data.json dashboard/data/bse_enriched_data.json
-          git commit -m "📊 BSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
+          git diff --cached --quiet || git commit -m "📊 BSE update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)"
           for i in 1 2 3 4 5; do
-            git push && break
+            git push && exit 0
             echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
             git fetch origin main
-            git rebase origin/main
+            git rebase origin/main || { git rebase --abort; echo "::error::Rebase conflict with origin/main"; exit 1; }
             sleep $((RANDOM % 5 + 1))
           done
+          echo "::error::Push still rejected after 5 attempts — data was NOT published"
+          exit 1
 
   mcx-update:
     runs-on: ubuntu-latest
@@ -179,20 +193,23 @@ jobs:
           echo "MCX new trading days: $NEW_DAYS"
 
       - name: Commit MCX data
-        if: steps.check_new.outputs.new_days != '0'
+        # Manual runs always publish, so a code fix can regenerate the JSON without a new trading day
+        if: steps.check_new.outputs.new_days != '0' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "Research-Tusk"
           git config user.email "research@tuskinvest.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add data/mcx_dashboard_data.json data/mcx_enriched_data.json dashboard/data/mcx_dashboard_data.json dashboard/data/mcx_enriched_data.json
-          git commit -m "📊 MCX update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)" || true
+          git diff --cached --quiet || git commit -m "📊 MCX update: $(date +%Y-%m-%d) — ${{ steps.check_new.outputs.new_days }} new day(s)"
           for i in 1 2 3 4 5; do
-            git push && break
+            git push && exit 0
             echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
             git fetch origin main
-            git rebase origin/main
+            git rebase origin/main || { git rebase --abort; echo "::error::Rebase conflict with origin/main"; exit 1; }
             sleep $((RANDOM % 5 + 1))
           done
+          echo "::error::Push still rejected after 5 attempts — data was NOT published"
+          exit 1
 
   excel-sync:
     needs: [nse-update, bse-update]
@@ -266,14 +283,16 @@ jobs:
           git config user.email "research@tuskinvest.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add dashboard/data/bse_share_analysis.json
-          git commit -m "📈 BSE share analysis: $(date +%Y-%m-%d)" || true
+          git diff --cached --quiet || git commit -m "📈 BSE share analysis: $(date +%Y-%m-%d)"
           for i in 1 2 3 4 5; do
-            git push && break
+            git push && exit 0
             echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
             git fetch origin main
-            git rebase origin/main
+            git rebase origin/main || { git rebase --abort; echo "::error::Rebase conflict with origin/main"; exit 1; }
             sleep $((RANDOM % 5 + 1))
           done
+          echo "::error::Push still rejected after 5 attempts — data was NOT published"
+          exit 1
 
   nse-share-analysis:
     needs: [nse-update]
@@ -311,14 +330,16 @@ jobs:
           git config user.email "research@tuskinvest.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add dashboard/data/nse_share_analysis.json
-          git commit -m "📈 NSE share analysis: $(date +%Y-%m-%d)" || true
+          git diff --cached --quiet || git commit -m "📈 NSE share analysis: $(date +%Y-%m-%d)"
           for i in 1 2 3 4 5; do
-            git push && break
+            git push && exit 0
             echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
             git fetch origin main
-            git rebase origin/main
+            git rebase origin/main || { git rebase --abort; echo "::error::Rebase conflict with origin/main"; exit 1; }
             sleep $((RANDOM % 5 + 1))
           done
+          echo "::error::Push still rejected after 5 attempts — data was NOT published"
+          exit 1
 
   mcx-share-analysis:
     needs: [mcx-update]
@@ -356,14 +377,16 @@ jobs:
           git config user.email "research@tuskinvest.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git add dashboard/data/mcx_share_analysis.json
-          git commit -m "📈 MCX share analysis: $(date +%Y-%m-%d)" || true
+          git diff --cached --quiet || git commit -m "📈 MCX share analysis: $(date +%Y-%m-%d)"
           for i in 1 2 3 4 5; do
-            git push && break
+            git push && exit 0
             echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
             git fetch origin main
-            git rebase origin/main
+            git rebase origin/main || { git rebase --abort; echo "::error::Rebase conflict with origin/main"; exit 1; }
             sleep $((RANDOM % 5 + 1))
           done
+          echo "::error::Push still rejected after 5 attempts — data was NOT published"
+          exit 1
 
   deploy:
     needs: [nse-update, bse-update, mcx-update, nse-share-analysis, bse-share-analysis, mcx-share-analysis]
@@ -373,7 +396,7 @@ jobs:
 
     steps:
       - name: Trigger Vercel deploy
-        run: curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
 
       - name: Summary
         run: |

@@ -25,7 +25,7 @@ from pathlib import Path
 
 from curl_cffi import requests as cffi_requests
 sys.path.insert(0, str(Path(__file__).parent))
-from live_common import save_hourly_snapshot
+from live_common import save_hourly_snapshot, in_market_session
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -44,9 +44,8 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # ---------------------------------------------------------------------------
 # Take rates  (one-side × 2 = round-trip)
 # ---------------------------------------------------------------------------
-TR_FUT  = 0.00183 / 100 * 2   # Futures  on INR turnover
-TR_OPT  = 0.03553 / 100 * 2   # Options  on premium turnover
-TR_CASH = 0.00307 / 100 * 2   # Cash     on traded value
+# Single source: scripts/take_rates.py
+from take_rates import NSE_TR_FUT as TR_FUT, NSE_TR_OPT as TR_OPT, NSE_TR_CASH as TR_CASH
 
 # ---------------------------------------------------------------------------
 # NSE endpoints
@@ -189,8 +188,17 @@ def fetch_live_turnover(session):
 # ---------------------------------------------------------------------------
 
 def fetch_historical_month(session):
-    """Returns list of {timestamp, revenue} dicts for current month, oldest-first."""
-    now = datetime.now()
+    """Returns list of {timestamp, revenue} dicts for current month, oldest-first,
+    or None if NSE could not be reached (caller keeps the previous history)."""
+    try:
+        return _fetch_historical_month(session)
+    except Exception as e:
+        print(f"Historical month fetch error: {e}")
+        return None
+
+
+def _fetch_historical_month(session):
+    now = datetime.now(IST)
     month_abbr = now.strftime("%b")
     year_full  = str(now.year)
     year_short = now.strftime("%y")
@@ -320,8 +328,20 @@ def fetch_stock_price(ticker="NSE.BO"):
 
 def main():
     now_utc = datetime.now(timezone.utc)
-    ts_iso  = now_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    now_ist = now_utc.astimezone(IST)
+    ts_iso  = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"[{ts_iso}] NSE live poller starting…")
+
+    if not in_market_session(now_ist) and os.environ.get("FORCE_POLL") != "1":
+        print(f"Outside market session ({now_ist:%a %H:%M} IST) — nothing to do")
+        return
+
+    previous = {}
+    if OUTPUT_FILE.exists():
+        try:
+            previous = json.loads(OUTPUT_FILE.read_text())
+        except Exception:
+            previous = {}
 
     session = make_session()
 
@@ -336,11 +356,20 @@ def main():
     # ── 2. Live turnover (primary — same source as NSE homepage) ──
     revenue = fetch_live_turnover(session)
 
+    # A failed fetch keeps the last good value (flagged stale) rather than
+    # overwriting it with null.
+    if not (revenue and revenue.get("has_data")) and previous.get("revenue"):
+        revenue = {**previous["revenue"],
+                   "stale_since": previous["revenue"].get("stale_since") or previous.get("updated_at")}
+        print(f"Live turnover unavailable — keeping last good value (stale since {revenue['stale_since']})")
+
     # ── 3. Monthly history (for chart) ──
     month_history = fetch_historical_month(session)
+    if month_history is None:
+        month_history = previous.get("history") or []
 
     # ── 4. If today's live data came back, replace/append today's entry in history ──
-    if revenue and revenue["has_data"]:
+    if revenue and revenue["has_data"] and not revenue.get("stale_since"):
         today_str = revenue["trade_date"]
         # Remove any existing entry for today from history (will be replaced by live)
         month_history = [h for h in month_history if h["timestamp"] != today_str]
@@ -351,8 +380,8 @@ def main():
         month_history.sort(key=lambda x: x["timestamp"])
 
     # ── 5. Hourly snapshot + archive ──
-    now_ist = datetime.now(IST)
-    save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE, exchange="nse")
+    if revenue and not revenue.get("stale_since"):
+        save_hourly_snapshot(revenue, now_ist, HOURLY_FILE, HISTORY_FILE, exchange="nse")
 
     # ── 7. Supabase ──
     sb = get_supabase()

@@ -33,10 +33,8 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 DATA_DIR = PROJECT_ROOT / "data"
 DASHBOARD_DIR = PROJECT_ROOT / "dashboard"
 
-# ── BSE Take Rates (both sides combined) ──
-TR_FUT  = 0           # Futures: 0 on turnover
-TR_OPT  = 0.00065     # Options: on premium turnover
-TR_CASH = 7.5e-05     # Cash: on traded value
+# ── BSE Take Rates (single source: scripts/take_rates.py) ──
+from take_rates import BSE_TR_FUT as TR_FUT, BSE_TR_OPT as TR_OPT, BSE_TR_CASH as TR_CASH
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -94,7 +92,7 @@ def fetch_bse_fo_data():
         )
         if resp.status_code != 200 or not resp.text.strip():
             print(f"ERROR: BSE F&O SearchProduct returned {resp.status_code}")
-            return []
+            return None  # an error, not "no trading days" — main() fails the run
 
         data  = resp.json()
         table = data.get("table") or data.get("Table") or []
@@ -142,7 +140,7 @@ def fetch_bse_fo_data():
 
     except Exception as e:
         print(f"ERROR: BSE F&O SearchProduct failed: {e}")
-        return []
+        return None
 
 
 def fetch_bse_cash_data():
@@ -181,6 +179,7 @@ def fetch_bse_cash_data():
     months_to_fetch.add((fy, end_dt.month))
 
     all_rows = []
+    cash_errors = 0
     for fy_year, month in sorted(months_to_fetch):
         try:
             resp = session.get(
@@ -191,6 +190,8 @@ def fetch_bse_cash_data():
             )
             if resp.status_code != 200 or not resp.text.strip():
                 print(f"  Cash API: no data for {fy_year}/{month:02d} (status={resp.status_code})")
+                if resp.status_code != 200:
+                    cash_errors += 1
                 continue
 
             data  = resp.json()
@@ -229,8 +230,11 @@ def fetch_bse_cash_data():
 
         except Exception as e:
             print(f"  Cash API error for {fy_year}/{month:02d}: {e}")
+            cash_errors += 1
 
     print(f"BSE Cash rows extracted: {len(all_rows)}")
+    if cash_errors and not all_rows:
+        return None  # every request failed — an error, not an empty month
     return all_rows
 
 
@@ -659,6 +663,11 @@ def main():
     # Step 1: Fetch from BSE
     fo_rows = fetch_bse_fo_data()
     cash_rows = fetch_bse_cash_data()
+
+    if fo_rows is None or cash_rows is None:
+        # Fail the run (red in Actions) instead of exiting green with stale data
+        print("ERROR: BSE fetch failed — see errors above.")
+        sys.exit(1)
 
     if not fo_rows and not cash_rows:
         print("No data returned from BSE. Exiting.")
