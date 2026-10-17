@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS nse_daily (
     so_premium         NUMERIC DEFAULT 0,
     io_pcr             NUMERIC DEFAULT 0,
     total_contracts    BIGINT DEFAULT 0,
+    if_contracts       BIGINT DEFAULT 0,
+    sf_contracts       BIGINT DEFAULT 0,
+    io_contracts       BIGINT DEFAULT 0,
+    so_contracts       BIGINT DEFAULT 0,
     total_turnover     NUMERIC DEFAULT 0,
     -- Computed revenue (Cr)
     if_rev             NUMERIC DEFAULT 0,
