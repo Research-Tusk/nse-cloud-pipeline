@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-19T23:55:49",
+  "updated_at": "2026-10-20T00:01:43",
   "market_status": {
     "marketState": [
       {
@@ -24,7 +24,7 @@
       },
       {
         "market": "Commodity",
-        "marketStatus": "Closed",
+        "marketStatus": "Open",
         "tradeDate": "20-Oct-2026",
         "index": "",
         "last": "",
