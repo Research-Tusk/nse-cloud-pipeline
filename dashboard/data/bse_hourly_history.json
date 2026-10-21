@@ -1,44 +1,6 @@
 {
   "days": [
     {
-      "date": "2026-04-13",
-      "weekday": 0,
-      "weekday_name": "Monday",
-      "day_type": "normal",
-      "eod_revenue": 8.43,
-      "n_samples": 1,
-      "checkpoints": {
-        "10:00": {
-          "revenue": null,
-          "fraction": null
-        },
-        "11:00": {
-          "revenue": null,
-          "fraction": null
-        },
-        "12:00": {
-          "revenue": null,
-          "fraction": null
-        },
-        "13:00": {
-          "revenue": null,
-          "fraction": null
-        },
-        "14:00": {
-          "revenue": null,
-          "fraction": null
-        },
-        "15:00": {
-          "revenue": null,
-          "fraction": null
-        },
-        "15:30": {
-          "revenue": 8.43,
-          "fraction": 1.0
-        }
-      }
-    },
-    {
       "date": "2026-04-14",
       "weekday": 1,
       "weekday_name": "Tuesday",
@@ -2276,6 +2238,44 @@
         },
         "16:00": {
           "revenue": 9.05,
+          "fraction": 1.0
+        }
+      }
+    },
+    {
+      "date": "2026-10-21",
+      "weekday": 2,
+      "weekday_name": "Wednesday",
+      "day_type": "pre_expiry",
+      "eod_revenue": 38.37,
+      "n_samples": 285,
+      "checkpoints": {
+        "10:00": {
+          "revenue": 6.0883,
+          "fraction": 0.1587
+        },
+        "11:00": {
+          "revenue": 13.0017,
+          "fraction": 0.3388
+        },
+        "12:00": {
+          "revenue": 19.5367,
+          "fraction": 0.5092
+        },
+        "13:00": {
+          "revenue": 25.875,
+          "fraction": 0.6744
+        },
+        "14:00": {
+          "revenue": 30.5983,
+          "fraction": 0.7975
+        },
+        "15:00": {
+          "revenue": 35.1683,
+          "fraction": 0.9166
+        },
+        "16:00": {
+          "revenue": 38.37,
           "fraction": 1.0
         }
       }
