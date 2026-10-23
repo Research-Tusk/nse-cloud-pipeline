@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-23T11:05:53",
+  "updated_at": "2026-10-23T11:11:08",
   "market_status": {
     "marketState": [
       {
@@ -54,14 +54,14 @@
         "marketStatus": "Open",
         "tradeDate": "23-Oct-2026",
         "index": "",
-        "last": "94.9475",
+        "last": "94.9250",
         "variation": "",
         "percentChange": "",
         "marketStatusMessage": "Market is Open",
         "expiryDate": "28-Oct-2026",
         "underlying": "USDINR",
-        "updated_time": "23-Oct-2026 16:35",
-        "tradeDateFormatted": "23-Oct-2026 16:35",
+        "updated_time": "23-Oct-2026 16:41",
+        "tradeDateFormatted": "23-Oct-2026 16:41",
         "slickclass": "slick-item"
       }
     ],
@@ -88,17 +88,17 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 143583,
-      "DAYCHANGE": 9,
+      "CONTRACTSTRADED": 143689,
+      "DAYCHANGE": 21.5,
       "EXPIRYDATE": "27-Oct-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 22617,
+      "LASTPRICE": 22629.5,
       "OPTIONTYPE": "-",
-      "PERCHANGE": 0.04,
+      "PERCHANGE": 0.1,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "23-Oct-2026 16:33",
-      "id": "0/NIFTYFUTIDX27-Oct-2026--"
+      "TIMESTMP": "23-Oct-2026 16:39",
+      "id": "1/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
@@ -413,6 +413,25 @@
         "options_revenue": 38.5193,
         "cash_revenue": 6.6375,
         "total_revenue": 56.7333,
+        "source": "historical"
+      }
+    },
+    {
+      "timestamp": "23-Oct-2026",
+      "revenue": {
+        "has_data": true,
+        "trade_date": "23-Oct-2026",
+        "futures_turnover": 0.0,
+        "options_premium": 0.0,
+        "cash_traded_value": 123123.89,
+        "index_futures_turnover": 0.0,
+        "stock_futures_turnover": 0.0,
+        "index_options_premium": 0.0,
+        "stock_options_premium": 0.0,
+        "futures_revenue": 0.0,
+        "options_revenue": 0.0,
+        "cash_revenue": 7.5598,
+        "total_revenue": 7.5598,
         "source": "historical"
       }
     }
