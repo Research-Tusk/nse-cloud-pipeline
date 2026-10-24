@@ -1,0 +1,33 @@
+name: NSE Segment Contracts Backfill
+
+# One-off: run after applying supabase_migrations/2026-10-12_nse_segment_contracts.sql
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'First month to backfill (YYYY-MM)'
+        required: false
+        default: '2023-04'
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Backfill nse_daily per-segment contracts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/nse_backfill_contracts.py --start "${{ github.event.inputs.start }}"

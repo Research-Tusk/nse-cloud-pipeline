@@ -37,6 +37,8 @@ TR_FUT  = 3.66e-05
 TR_OPT  = 7.106e-04
 TR_CASH = 6.14e-05
 
+SEGMENT_CONTRACT_COLS = ("if_contracts", "sf_contracts", "io_contracts", "so_contracts")
+
 
 # ═══════════════════════════════════════════════════════════════
 # SECTION 0: VIX DATA FETCHER (Yahoo Finance ^INDIAVIX)
@@ -64,6 +66,22 @@ def fetch_indiavix_map(start_date, end_date):
     except Exception as e:
         print(f"WARNING: VIX fetch failed (non-fatal): {e}")
         return {}
+
+
+def fetch_vix_with_fallback(start_date, end_date):
+    """Yahoo ^INDIAVIX first; Dhan INDIA VIX fills any trading days Yahoo misses."""
+    vix_map = fetch_indiavix_map(start_date, end_date)
+    try:
+        import dhan_client
+        if dhan_client.available():
+            dhan_map = dhan_client.india_vix_daily(start_date, end_date) or {}
+            added = {d: v for d, v in dhan_map.items() if d not in vix_map}
+            if added:
+                print(f"Dhan VIX filled {len(added)} date(s) missing from Yahoo")
+            vix_map = {**added, **vix_map}
+    except Exception as e:
+        print(f"WARNING: Dhan VIX fallback failed (non-fatal): {e}")
+    return vix_map
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -154,6 +172,10 @@ def parse_fo_record(rec):
     so_premium    = float(d.get("Stock_Options_PREM_VAL", 0))
     io_pcr        = float(d.get("Index_Options_PUT_CALL_RATIO", 0))
     total_contracts = int(d.get("F&O_Total_QTY", 0))
+    if_contracts  = int(d.get("Index_Futures_QTY", 0) or 0)
+    sf_contracts  = int(d.get("Stock_Futures_QTY", 0) or 0)
+    io_contracts  = int(d.get("Index_Options_QTY", 0) or 0)
+    so_contracts  = int(d.get("Stock_Options_QTY", 0) or 0)
     total_turnover  = float(d.get("F&O_Total_VAL", 0))
 
     if_rev  = if_turnover * TR_FUT
@@ -182,6 +204,10 @@ def parse_fo_record(rec):
         "so_premium": round(so_premium, 2),
         "io_pcr": round(io_pcr, 2),
         "total_contracts": total_contracts,
+        "if_contracts": if_contracts,
+        "sf_contracts": sf_contracts,
+        "io_contracts": io_contracts,
+        "so_contracts": so_contracts,
         "total_turnover": round(total_turnover, 2),
         "if_rev": round(if_rev, 4),
         "sf_rev": round(sf_rev, 4),
@@ -232,11 +258,21 @@ def upsert_daily_records(supabase, records):
         row = {k: v for k, v in r.items() if k != "_dt"}
         clean.append(row)
 
-    # Upsert in batches of 50
+    # Upsert in batches of 50. If the per-segment contract columns have not been
+    # migrated yet (supabase_migrations/2026-10-12_nse_segment_contracts.sql), drop
+    # them and retry so the daily update never fails on a missing column.
     inserted = 0
     for i in range(0, len(clean), 50):
         batch = clean[i:i+50]
-        supabase.table("nse_daily").upsert(batch, on_conflict="date").execute()
+        try:
+            supabase.table("nse_daily").upsert(batch, on_conflict="date").execute()
+        except Exception as e:
+            if not any(c in str(e) for c in SEGMENT_CONTRACT_COLS):
+                raise
+            print("WARNING: nse_daily lacks per-segment contract columns — "
+                  "upserting without them (apply the migration)")
+            batch = [{k: v for k, v in r.items() if k not in SEGMENT_CONTRACT_COLS} for r in batch]
+            supabase.table("nse_daily").upsert(batch, on_conflict="date").execute()
         inserted += len(batch)
 
     return inserted
@@ -775,7 +811,7 @@ def main():
         vix_start = missing_vix[0]["date"]
         vix_end   = missing_vix[-1]["date"]
         print(f"Fetching VIX for {len(missing_vix)} records missing it ({vix_start} to {vix_end})")
-        vix_map = fetch_indiavix_map(vix_start, vix_end)
+        vix_map = fetch_vix_with_fallback(vix_start, vix_end)
         if vix_map:
             for rec in all_daily:
                 if not float(rec.get("vix", 0) or 0):

@@ -55,6 +55,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
         run: python scripts/nse_pipeline.py
 
       - name: Check if new data was added
@@ -365,8 +367,66 @@ jobs:
             sleep $((RANDOM % 5 + 1))
           done
 
-  deploy:
+  forecast:
     needs: [nse-update, bse-update, mcx-update, nse-share-analysis, bse-share-analysis, mcx-share-analysis]
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0' || needs.mcx-update.outputs.new_days != '0') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Refresh market calendar (holidays + listed expiries)
+        run: python scripts/market_calendar.py
+
+      - name: Snapshot option-chain signals (skipped without Dhan secrets)
+        env:
+          DHAN_CLIENT_ID: ${{ secrets.DHAN_CLIENT_ID }}
+          DHAN_ACCESS_TOKEN: ${{ secrets.DHAN_ACCESS_TOKEN }}
+        run: python scripts/options_signals.py
+
+      - name: Test forecast layer
+        run: python -m pytest tests -q
+
+      - name: Run forecasts
+        run: python scripts/forecast/run.py --ex nse,bse,mcx
+
+      - name: Commit forecasts
+        run: |
+          git config user.name "Research-Tusk"
+          git config user.email "research@tuskinvest.com"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git add dashboard/data/*_forecast.json dashboard/data/market_calendar.json
+          git add dashboard/data/options_signals_history.json 2>/dev/null || true
+          git commit -m "🔮 Forecast update: $(date +%Y-%m-%d)" || true
+          for i in 1 2 3 4 5; do
+            git push && break
+            echo "Push rejected (concurrent job likely pushed first) — retrying with rebase, attempt $i…"
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done
+
+  deploy:
+    needs: [nse-update, bse-update, mcx-update, nse-share-analysis, bse-share-analysis, mcx-share-analysis, forecast]
     if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.nse-update.outputs.new_days != '0' || needs.bse-update.outputs.new_days != '0' || needs.mcx-update.outputs.new_days != '0') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
