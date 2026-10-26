@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T01:05:53",
+  "updated_at": "2026-10-26T01:11:05",
   "market_status": {
     "marketState": [
       {
@@ -74,17 +74,30 @@
       "marketCapinLACCRRupeesFormatted": "447.97",
       "underlying": "Market Cap"
     },
+    "indicativenifty50": {
+      "change": -87.65,
+      "closingValue": 22600,
+      "dateTime": "23-Oct-2026 15:30",
+      "finalClosingValue": 22600,
+      "indexLast": null,
+      "indexName": "NIFTY 50",
+      "indexPercChange": null,
+      "indexTimeVal": null,
+      "indicativeTime": null,
+      "perChange": -0.39,
+      "status": "CLOSE"
+    },
     "giftnifty": {
-      "CONTRACTSTRADED": 166,
-      "DAYCHANGE": -5,
+      "CONTRACTSTRADED": 243,
+      "DAYCHANGE": 5,
       "EXPIRYDATE": "27-Oct-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 22560,
+      "LASTPRICE": 22570,
       "OPTIONTYPE": "-",
-      "PERCHANGE": -0.02,
+      "PERCHANGE": 0.02,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "26-Oct-2026 06:33",
+      "TIMESTMP": "26-Oct-2026 06:39",
       "id": "0/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
