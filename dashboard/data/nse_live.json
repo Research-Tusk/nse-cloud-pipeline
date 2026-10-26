@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T20:46:07",
+  "updated_at": "2026-10-26T20:51:14",
   "market_status": {
     "marketState": [
       {
@@ -88,7 +88,7 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 105564,
+      "CONTRACTSTRADED": 105574,
       "DAYCHANGE": -113.5,
       "EXPIRYDATE": "23-Nov-2026",
       "INSTRUMENTTYPE": "FUTIDX",
