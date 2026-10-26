@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T18:01:47",
+  "updated_at": "2026-10-26T18:05:57",
   "market_status": {
     "marketState": [
       {
@@ -30,7 +30,7 @@
         "last": "",
         "variation": "",
         "percentChange": "",
-        "marketStatusMessage": "Market is Open"
+        "marketStatusMessage": "Market is Closed"
       },
       {
         "market": "Debt",
@@ -88,7 +88,7 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 93396,
+      "CONTRACTSTRADED": 93433,
       "DAYCHANGE": -108,
       "EXPIRYDATE": "27-Oct-2026",
       "INSTRUMENTTYPE": "FUTIDX",
