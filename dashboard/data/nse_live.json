@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-26T11:51:11",
+  "updated_at": "2026-10-26T11:55:52",
   "market_status": {
     "marketState": [
       {
@@ -98,7 +98,7 @@
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
       "TIMESTMP": "26-Oct-2026 17:18",
-      "id": "0/NIFTYFUTIDX27-Oct-2026--"
+      "id": "1/NIFTYFUTIDX27-Oct-2026--"
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
