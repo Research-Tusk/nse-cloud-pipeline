@@ -219,6 +219,7 @@ const NAV_ICONS = {
   prediction: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   advanced: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+  forecast: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/><path d="M15 7h4v4" stroke-dasharray="2 2"/></svg>',
   overview: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
 };
 
@@ -230,6 +231,7 @@ const EXCHANGE_TABS = {
   nse: [
     { id: 'revenue',    label: 'Revenue Summary',    icon: 'revenue' },
     { id: 'prediction', label: 'PAT Prediction',      icon: 'prediction' },
+    { id: 'forecast',   label: 'Forecast',            icon: 'forecast' },
     { id: 'intraday',   label: 'Live Predictor',      icon: 'temporal' },
     { id: 'share',      label: 'Regression',          icon: 'share' },
     { id: 'valuation',  label: 'Valuation Model',     icon: 'advanced' },
@@ -237,6 +239,7 @@ const EXCHANGE_TABS = {
   bse: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
+    { id: 'forecast',   label: 'Forecast',             icon: 'forecast' },
     { id: 'intraday',   label: 'Live Predictor',       icon: 'temporal' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
     { id: 'valuation',  label: 'Valuation Model',       icon: 'advanced' },
@@ -244,6 +247,7 @@ const EXCHANGE_TABS = {
   mcx: [
     { id: 'revenue',    label: 'Revenue Summary',     icon: 'revenue' },
     { id: 'prediction', label: 'Revenue Predictor',    icon: 'prediction' },
+    { id: 'forecast',   label: 'Forecast',             icon: 'forecast' },
     { id: 'share',      label: 'Regression',            icon: 'share' },
     { id: 'valuation',  label: 'Valuation Model',       icon: 'advanced' },
   ],
@@ -260,6 +264,7 @@ const TAB_TITLES = {
   nse: {
     revenue: 'Revenue Summary',
     prediction: 'PAT Prediction Engine',
+    forecast: 'Forecast & Scenarios',
     intraday: 'Live EOD Predictor',
     share: 'Share Price Analytics',
     valuation: 'NSE Valuation Model',
@@ -267,6 +272,7 @@ const TAB_TITLES = {
   bse: {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
+    forecast: 'Forecast & Scenarios',
     intraday: 'Live EOD Predictor',
     share: 'Share Price Analytics',
     valuation: 'BSE Valuation Model',
@@ -274,6 +280,7 @@ const TAB_TITLES = {
   mcx: {
     revenue: 'Revenue Summary',
     prediction: 'Revenue Predictor',
+    forecast: 'Forecast & Scenarios',
     share: 'Share Price Analytics',
     valuation: 'MCX Valuation Model',
   },
@@ -328,6 +335,7 @@ function attachTabListeners() {
         // a full destroy+recreate once the canvas has real dimensions fixes
         // it (line charts don't have this problem). Re-render on first visit.
         if (tab === 'intraday') INTRADAY_RERENDER[currentExchange]?.();
+        if (tab === 'forecast') FORECAST_RERENDER[currentExchange]?.();
       }, 50);
     });
   });
@@ -803,15 +811,18 @@ function rebuildAll() {
     buildNSEValuation();
     buildNSEShareAnalysis();
     buildIntradayPredictor('nse', 'nseIntradayContent');
+    buildForecastTab('nse');
   } else if (currentExchange === 'bse') {
     buildBSERevenuePredictor();
     buildBSEShareAnalysis();
     buildBSEValuation();
     buildIntradayPredictor('bse', 'bseIntradayContent');
+    buildForecastTab('bse');
   } else if (currentExchange === 'mcx') {
     buildMCXRevenuePredictor();
     buildMCXShareAnalysis();
     buildMCXValuation();
+    buildForecastTab('mcx');
   }
 }
 
