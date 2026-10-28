@@ -1,15 +1,15 @@
 {
-  "updated_at": "2026-10-28T08:11:10",
+  "updated_at": "2026-10-28T08:16:01",
   "market_status": {
     "marketState": [
       {
         "market": "Capital Market",
         "marketStatus": "Open",
-        "tradeDate": "28-Oct-2026 13:40",
+        "tradeDate": "28-Oct-2026 13:45",
         "index": "NIFTY 50",
-        "last": 22723.45,
-        "variation": -26.299999999999272,
-        "percentChange": -0.12,
+        "last": 22730.5,
+        "variation": -19.25,
+        "percentChange": -0.08,
         "marketStatusMessage": "Normal Market is Open"
       },
       {
@@ -44,10 +44,10 @@
       },
       {
         "index": "NIFTY50 USD",
-        "last": 8271.55,
-        "change": -15.320000000001528,
-        "percentChange": -0.18,
-        "timestamp": "28-Oct-2026 13:40"
+        "last": 8275.25,
+        "change": -11.6200000000008,
+        "percentChange": -0.14,
+        "timestamp": "28-Oct-2026 13:45"
       },
       {
         "market": "currencyfuture",
@@ -88,24 +88,24 @@
       "status": "CLOSE"
     },
     "giftnifty": {
-      "CONTRACTSTRADED": 49383,
-      "DAYCHANGE": 90.5,
+      "CONTRACTSTRADED": 49614,
+      "DAYCHANGE": 91,
       "EXPIRYDATE": "23-Nov-2026",
       "INSTRUMENTTYPE": "FUTIDX",
-      "LASTPRICE": 22790.5,
+      "LASTPRICE": 22791,
       "OPTIONTYPE": "-",
       "PERCHANGE": 0.4,
       "STRIKEPRICE": 0,
       "SYMBOL": "NIFTY",
-      "TIMESTMP": "28-Oct-2026 13:39",
+      "TIMESTMP": "28-Oct-2026 13:44",
       "id": "0/NIFTYFUTIDX23-Nov-2026--"
     },
     "niftyusd": {
       "index": "NIFTY50 USD",
-      "last": 8271.55,
-      "change": -15.320000000001528,
-      "percentChange": -0.18,
-      "timestamp": "28-Oct-2026 13:40"
+      "last": 8275.25,
+      "change": -11.6200000000008,
+      "percentChange": -0.14,
+      "timestamp": "28-Oct-2026 13:45"
     }
   },
   "revenue": {
@@ -475,7 +475,7 @@
     }
   ],
   "stock_price": {
-    "last_price": 1784.0,
+    "last_price": 1783.85,
     "previous_close": 1785.0,
     "open": 1779.0,
     "day_high": 1790.0,
