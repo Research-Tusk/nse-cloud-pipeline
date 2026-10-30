@@ -231,6 +231,14 @@ module.exports = async function handler(req, res) {
   const exchange = (req.query.exchange || 'nse').toLowerCase();
   const file     = (req.query.file     || 'live').toLowerCase();
 
+  if (file === 'debug') {
+    const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY;
+    const r = await fetch(`${url}/rest/v1/codex_live_snapshots?select=exchange,observed_at,trading_date,has_data&exchange=eq.${exchange}&order=observed_at.desc&limit=5`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    return res.status(200).json(await r.json());
+  }
+
   if (!VALID_EXCHANGES.includes(exchange) || !['live', 'hourly', 'history', 'share'].includes(file)) {
     return res.status(400).json({ error: 'Invalid exchange or file param' });
   }
