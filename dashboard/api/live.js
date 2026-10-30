@@ -236,7 +236,7 @@ module.exports = async function handler(req, res) {
 
   if (file === 'debug') {
     const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY;
-    const r = await fetch(`${url}/rest/v1/codex_live_snapshots?select=*&order=captured_at.desc&limit=3`, {
+    const r = await fetch(`${url}/rest/v1/codex_live_snapshots?select=*&limit=3`, {
       headers: { apikey: key, Authorization: `Bearer ${key}` },
     });
     return res.status(200).json(await r.json());
