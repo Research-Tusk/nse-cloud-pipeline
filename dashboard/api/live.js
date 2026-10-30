@@ -6,7 +6,8 @@
  *   file     = live | hourly | history | share
  *
  * `live` and `hourly` are computed from today's rows in Supabase
- * ({exchange}_live_snapshots) — the pipeline that used to write
+ * (codex_live_snapshots, filtered by exchange + trading_date) — the
+ * pipeline that used to write
  * dashboard/data/{exchange}_live.json / _live_hourly.json via scheduled
  * GitHub Actions was disabled 2026-10-28 (ExchangesDash cutover), and
  * nothing writes those files in this repo any more, so proxying them
@@ -55,16 +56,6 @@ function toIST(utcDate) {
 
 function istDateStr(istDate) {
   return istDate.toISOString().slice(0, 10);
-}
-
-// Today's [start, end) window in IST, expressed as UTC ISO strings for the
-// Supabase query (captured_at is stored as timestamptz, i.e. UTC).
-function todayISTRangeUTC(nowUTC) {
-  const nowIST  = toIST(nowUTC);
-  const dateStr = istDateStr(nowIST);
-  const startUTC = new Date(`${dateStr}T00:00:00+05:30`);
-  const endUTC   = new Date(startUTC.getTime() + 24 * 3600000);
-  return { dateStr, startUTC, endUTC };
 }
 
 // ── Day-type classification (mirrors classify_day in live_common.py) ───────
@@ -157,23 +148,29 @@ async function fetchGithubFile(filename, pat) {
 
 // ── Supabase REST query ─────────────────────────────────────────────────────
 
-async function fetchTodaySnapshots(exchange, startUTC, endUTC) {
+// Single unified table across nse/bse/mcx (confirmed live schema, 2026-10-30):
+// id, run_id, exchange, observed_at (timestamptz), trading_date (date, already
+// IST-correct — this is the writer's own notion of "which trading day", so we
+// filter on it directly rather than re-deriving a UTC day-boundary ourselves),
+// has_data, revenue (jsonb — same {total_revenue, cash_revenue, ...} shape the
+// old pollers used), payload (fuller raw capture), payload_sha256, created_at.
+const SNAPSHOTS_TABLE = 'codex_live_snapshots';
+
+async function fetchTodaySnapshots(exchange, tradingDateStr) {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) throw new Error('SUPABASE_URL / SUPABASE_SERVICE_KEY not set');
 
-  const table = `${exchange}_live_snapshots`;
   const qs = new URLSearchParams({
-    select: 'captured_at,revenue,has_data',
-    captured_at: `gte.${startUTC.toISOString()}`,
-    order: 'captured_at.asc',
+    select: 'observed_at,revenue,has_data',
+    exchange: `eq.${exchange}`,
+    trading_date: `eq.${tradingDateStr}`,
+    order: 'observed_at.asc',
   });
-  // PostgREST needs captured_at twice (two separate filters) — URLSearchParams
-  // collapses repeated keys if set() is used twice, so append the second by hand.
-  const fullUrl = `${url}/rest/v1/${table}?${qs.toString()}&captured_at=lt.${endUTC.toISOString()}`;
-
-  const res = await fetch(fullUrl, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
-  if (!res.ok) throw new Error(`Supabase returned ${res.status} for ${table}: ${(await res.text()).slice(0, 200)}`);
+  const res = await fetch(`${url}/rest/v1/${SNAPSHOTS_TABLE}?${qs.toString()}`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  });
+  if (!res.ok) throw new Error(`Supabase returned ${res.status} for ${SNAPSHOTS_TABLE}: ${(await res.text()).slice(0, 200)}`);
   return res.json();
 }
 
@@ -181,7 +178,7 @@ function rowsToSamples(rows) {
   return rows
     .filter(r => r.has_data && r.revenue)
     .map(r => {
-      const capturedIST = toIST(new Date(r.captured_at));
+      const capturedIST = toIST(new Date(r.observed_at));
       const elapsed = capturedIST.getUTCHours() * 60 + capturedIST.getUTCMinutes() - MARKET_OPEN_MIN;
       return {
         captured_ist:    capturedIST.toISOString().slice(0, 19),
@@ -197,13 +194,14 @@ function rowsToSamples(rows) {
 }
 
 async function buildHourly(exchange, pat) {
-  const nowUTC = new Date();
-  const { dateStr, startUTC, endUTC } = todayISTRangeUTC(nowUTC);
-  const weekday = toIST(nowUTC).getUTCDay() === 0 ? 6 : toIST(nowUTC).getUTCDay() - 1;
-  const dayType = classifyDay(toIST(nowUTC), exchange);
+  const nowUTC   = new Date();
+  const nowIST   = toIST(nowUTC);
+  const dateStr  = istDateStr(nowIST);
+  const weekday  = nowIST.getUTCDay() === 0 ? 6 : nowIST.getUTCDay() - 1;
+  const dayType  = classifyDay(nowIST, exchange);
 
   const [rows, historyData] = await Promise.all([
-    fetchTodaySnapshots(exchange, startUTC, endUTC),
+    fetchTodaySnapshots(exchange, dateStr),
     fetchGithubFile(GITHUB_FILE_MAP.history(exchange), pat).catch(() => ({ days: [] })),
   ]);
 
@@ -219,13 +217,12 @@ async function buildHourly(exchange, pat) {
 }
 
 async function buildLive(exchange) {
-  const nowUTC = new Date();
-  const { startUTC, endUTC } = todayISTRangeUTC(nowUTC);
-  const rows = await fetchTodaySnapshots(exchange, startUTC, endUTC);
+  const dateStr = istDateStr(toIST(new Date()));
+  const rows = await fetchTodaySnapshots(exchange, dateStr);
   const todays = rows.filter(r => r.has_data && r.revenue);
   if (!todays.length) return { updated_at: null, revenue: null };
   const latest = todays[todays.length - 1];
-  return { updated_at: latest.captured_at, revenue: latest.revenue };
+  return { updated_at: latest.observed_at, revenue: latest.revenue };
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────
@@ -233,14 +230,6 @@ async function buildLive(exchange) {
 module.exports = async function handler(req, res) {
   const exchange = (req.query.exchange || 'nse').toLowerCase();
   const file     = (req.query.file     || 'live').toLowerCase();
-
-  if (file === 'debug') {
-    const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY;
-    const r = await fetch(`${url}/rest/v1/codex_live_snapshots?select=*&limit=3`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
-    });
-    return res.status(200).json(await r.json());
-  }
 
   if (!VALID_EXCHANGES.includes(exchange) || !['live', 'hourly', 'history', 'share'].includes(file)) {
     return res.status(400).json({ error: 'Invalid exchange or file param' });
